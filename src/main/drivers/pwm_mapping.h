@@ -18,6 +18,7 @@
 #pragma once
 #include "gpio.h"
 #include "timer.h"
+#include "sensors/sonar_init.h"
 
 #define MAX_PWM_MOTORS  12
 #define MAX_PWM_SERVOS  8
@@ -39,12 +40,6 @@
 #define ONESHOT125_TIMER_MHZ 8
 #define PWM_BRUSHED_TIMER_MHZ 8
 
-
-typedef struct sonarGPIOConfig_s {
-    GPIO_TypeDef *gpio;
-    uint16_t triggerPin;
-    uint16_t echoPin;
-} sonarGPIOConfig_t;
 
 typedef struct drv_pwm_config_s {
     bool useParallelPWM;
@@ -75,7 +70,7 @@ typedef struct drv_pwm_config_s {
     uint16_t motorPwmRate;
     uint16_t idlePulse;  // PWM value to use when initializing the driver. set this to either PULSE_1MS (regular pwm),
                          // some higher value (used by 3d mode), or 0, for brushed pwm drivers.
-    sonarGPIOConfig_t *sonarGPIOConfig;
+    const sonarGPIOConfig_t *sonarGPIOConfig;
 } drv_pwm_config_t;
 
 

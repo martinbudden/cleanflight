@@ -18,23 +18,13 @@
 #pragma once
 
 #include "platform.h"
-#include "sensors/sonar.h"
 
+#define SRF10_MAX_RANGE_CM 600 // 6m, from SFR10 spec sheet
+// the two below values need testing
+#define SRF10_DETECTION_CONE_DECIDEGREES 400 // ascertained from beam pattern on spec sheet
+#define SRF10_DETECTION_CONE_EXTENDED_DECIDEGREES 450 // ascertained from beam pattern on spec sheet
 
-typedef struct sonarHardware_s {
-    uint16_t trigger_pin;
-    uint16_t echo_pin;
-    uint32_t exti_line;
-    uint8_t exti_pin_source;
-    IRQn_Type exti_irqn;
-} sonarHardware_t;
+void sfr10_init(sonarRange_t *sonarRange);
+void srf10_start_reading(void);
+int32_t srf10_get_distance(void);
 
-#define SONAR_GPIO GPIOB
-
-#define HCSR04_MAX_RANGE_CM 400 // 4m, from HC-SR04 spec sheet
-#define HCSR04_DETECTION_CONE_DECIDEGREES 300 // recommended cone angle30 degrees, from HC-SR04 spec sheet
-#define HCSR04_DETECTION_CONE_EXTENDED_DECIDEGREES 450 // in practice 45 degrees seems to work well
-
-void hcsr04_init(const sonarHardware_t *sonarHardware, sonarRange_t *sonarRange);
-void hcsr04_start_reading(void);
-int32_t hcsr04_get_distance(void);

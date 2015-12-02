@@ -25,6 +25,7 @@
 #include "gpio.h"
 #include "nvic.h"
 
+#include "sensors/sonar.h"
 #include "sonar_hcsr04.h"
 
 /* HC-SR04 consists of ultrasonic transmitter, receiver, and control circuits.
@@ -37,7 +38,7 @@
  */
 
 #if defined(SONAR)
-STATIC_UNIT_TESTED volatile int32_t measurement = -1;
+STATIC_UNIT_TESTED volatile int32_t hcsr04measurement = -1;
 static uint32_t lastMeasurementAt;
 static sonarHardware_t const *sonarHardware;
 
@@ -52,7 +53,7 @@ static void ECHO_EXTI_IRQHandler(void)
     } else {
         timing_stop = micros();
         if (timing_stop > timing_start) {
-            measurement = timing_stop - timing_start;
+            hcsr04measurement = timing_stop - timing_start;
         }
     }
 
@@ -171,7 +172,9 @@ int32_t hcsr04_get_distance(void)
     // object we take half of the distance traveled.
     //
     // 340 m/s = 0.034 cm/microsecond = 29.41176471 *2 = 58.82352941 rounded to 59
-    int32_t distance = measurement / 59;
+    int32_t distance = hcsr04measurement / 59;
+    if (distance > HCSR04_MAX_RANGE_CM)
+        distance = SONAR_OUT_OF_RANGE;
 
     return distance;
 }

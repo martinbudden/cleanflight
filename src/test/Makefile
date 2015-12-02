@@ -542,6 +542,13 @@ $(OBJECT_DIR)/drivers/sonar_hcsr04.o : \
 	@mkdir -p $(dir $@)
 	$(CC) $(C_FLAGS) $(TEST_CFLAGS) -DSONAR -c $(USER_DIR)/drivers/sonar_hcsr04.c -o $@
 
+$(OBJECT_DIR)/drivers/sonar_srf10.o : \
+        $(USER_DIR)/drivers/sonar_srf10.c \
+        $(USER_DIR)/drivers/sonar_srf10.h \
+        $(GTEST_HEADERS)
+	@mkdir -p $(dir $@)
+	$(CC) $(C_FLAGS) $(TEST_CFLAGS) -DSONAR -c $(USER_DIR)/drivers/sonar_srf10.c -o $@
+
 $(OBJECT_DIR)/sensors/sonar.o : \
 	$(USER_DIR)/sensors/sonar.c \
 	$(USER_DIR)/sensors/sonar.h \
@@ -553,6 +560,7 @@ $(OBJECT_DIR)/sensors/sonar.o : \
 $(OBJECT_DIR)/sonar_unittest.o : \
 	$(TEST_DIR)/sonar_unittest.cc \
 	$(USER_DIR)/drivers/sonar_hcsr04.h \
+	$(USER_DIR)/drivers/sonar_srf10.h \
 	$(USER_DIR)/sensors/sonar.h \
 	$(GTEST_HEADERS)
 
@@ -561,6 +569,7 @@ $(OBJECT_DIR)/sonar_unittest.o : \
 
 $(OBJECT_DIR)/sonar_unittest : \
 	$(OBJECT_DIR)/drivers/sonar_hcsr04.o \
+	$(OBJECT_DIR)/drivers/sonar_srf10.o \
 	$(OBJECT_DIR)/sensors/sonar.o \
 	$(OBJECT_DIR)/sonar_unittest.o \
 	$(OBJECT_DIR)/gtest_main.a

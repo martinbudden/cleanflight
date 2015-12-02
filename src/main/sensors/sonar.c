@@ -24,10 +24,11 @@
 #include "common/maths.h"
 #include "common/axis.h"
 
-#include "drivers/sonar_hcsr04.h"
-#include "drivers/gpio.h"
 #include "config/runtime_config.h"
 #include "config/config.h"
+
+#include "drivers/gpio.h"
+#include "drivers/sonar_hcsr04.h"
 
 #include "sensors/sensors.h"
 #include "sensors/battery.h"
@@ -43,6 +44,8 @@ int16_t sonarMaxRangeCm;
 int16_t sonarMaxAltWithTiltCm;
 int16_t sonarCfAltCm; // Complimentary Filter altitude
 STATIC_UNIT_TESTED int16_t sonarMaxTiltDeciDegrees;
+sonarUpdateFunctionPtr_t sonarUpdateFunctionPtr;
+sonarReadFunctionPtr_t sonarReadFunctionPtr;
 
 static int32_t calculatedAltitude;
 
@@ -123,11 +126,16 @@ void sonarInit(const sonarHardware_t *sonarHardware)
     sonarMaxTiltDeciDegrees =  sonarRange.detectionConeExtendedDeciDegrees / 2;
     sonarMaxAltWithTiltCm = sonarMaxRangeCm * cosDeciDegrees(sonarMaxTiltDeciDegrees);
     calculatedAltitude = SONAR_OUT_OF_RANGE;
+
+    // just set the function pointers to HCSR04 until I figure out how this is set in framework
+    sonarUpdateFunctionPtr = hcsr04_start_reading;
+    sonarReadFunctionPtr = hcsr04_get_distance;
 }
 
+// This is called periodically from within main process loop
 void sonarUpdate(void)
 {
-    hcsr04_start_reading();
+    sonarUpdateFunctionPtr();
 }
 
 /**
@@ -135,10 +143,7 @@ void sonarUpdate(void)
  */
 int32_t sonarRead(void)
 {
-    int32_t distance = hcsr04_get_distance();
-    if (distance > HCSR04_MAX_RANGE_CM)
-        distance = SONAR_OUT_OF_RANGE;
-    return distance;
+    return sonarReadFunctionPtr();
 }
 
 /*
@@ -162,6 +167,8 @@ int32_t sonarCalculateAltitude(int32_t sonarDistance, int16_t rollDeciDegrees, i
     int16_t tiltAngle = sonarCalculateTiltAngle(rollDeciDegrees, pitchDeciDegrees);
     // calculate sonar altitude only if the ground is in the sonar cone
     if (tiltAngle > sonarMaxTiltDeciDegrees)
+        calculatedAltitude = SONAR_OUT_OF_RANGE;
+    else if (sonarDistance == SONAR_OUT_OF_RANGE)
         calculatedAltitude = SONAR_OUT_OF_RANGE;
     else
         // altitude = distance * cos(tiltAngle), use approximation

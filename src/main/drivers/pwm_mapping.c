@@ -538,8 +538,8 @@ pwmOutputConfiguration_t *pwmInit(drv_pwm_config_t *init)
 #ifdef SONAR
         if (init->sonarGPIOConfig && timerHardwarePtr->gpio == init->sonarGPIOConfig->gpio &&
             (
-                timerHardwarePtr->pin == init->sonarGPIOConfig->triggerPin ||
-                timerHardwarePtr->pin == init->sonarGPIOConfig->echoPin
+                timerHardwarePtr->pin == init->sonarGPIOConfig->trigger_pin ||
+                timerHardwarePtr->pin == init->sonarGPIOConfig->echo_pin
             )
         ) {
             continue;

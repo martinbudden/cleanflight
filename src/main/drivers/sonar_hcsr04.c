@@ -20,13 +20,14 @@
 
 #include "platform.h"
 #include "build_config.h"
+#include "config/config.h"
 
-#include "system.h"
-#include "gpio.h"
-#include "nvic.h"
+#include "drivers/gpio.h"
+#include "drivers/system.h"
+#include "drivers/nvic.h"
 
 #include "sensors/sonar.h"
-#include "sonar_hcsr04.h"
+#include "drivers/sonar_hcsr04.h"
 
 /* HC-SR04 consists of ultrasonic transmitter, receiver, and control circuits.
  * When triggered it sends out a series of 40KHz ultrasonic pulses and receives
@@ -38,7 +39,10 @@
  */
 
 #if defined(SONAR)
-STATIC_UNIT_TESTED volatile int32_t hcsr04measurement = -1;
+
+#define SONAR_GPIO GPIOB
+
+STATIC_UNIT_TESTED volatile int32_t hcsr04SonarPulseTravelTime = -1;
 static uint32_t lastMeasurementAt;
 static sonarHardware_t const *sonarHardware;
 
@@ -48,12 +52,12 @@ static void ECHO_EXTI_IRQHandler(void)
     static uint32_t timing_start;
     uint32_t timing_stop;
 
-    if (digitalIn(GPIOB, sonarHardware->echo_pin) != 0) {
+    if (digitalIn(sonarHardware->GPIOConfig.gpio, sonarHardware->GPIOConfig.echo_pin) != 0) {
         timing_start = micros();
     } else {
         timing_stop = micros();
         if (timing_stop > timing_start) {
-            hcsr04measurement = timing_stop - timing_start;
+            hcsr04SonarPulseTravelTime = timing_stop - timing_start;
         }
     }
 
@@ -76,12 +80,90 @@ void EXTI9_5_IRQHandler(void)
 }
 #endif
 
-void hcsr04_init(const sonarHardware_t *initialSonarHardware, sonarRange_t *sonarRange)
+const sonarHardware_t *hcsr04_get_hardware_configuration(currentSensor_e currentSensor)
+{
+#if defined(NAZE) || defined(EUSTM32F103RC) || defined(PORT103R)
+    static const sonarHardware_t const sonarPWM56 = {
+        .GPIOConfig = {
+            .gpio = SONAR_GPIO,
+            .trigger_pin = Pin_8,   // PWM5 (PB8) - 5v tolerant
+            .echo_pin = Pin_9,      // PWM6 (PB9) - 5v tolerant
+        },
+        .exti_line = EXTI_Line9,
+        .exti_pin_source = GPIO_PinSource9,
+        .exti_irqn = EXTI9_5_IRQn
+    };
+    static const sonarHardware_t const sonarRC78 = {
+        .GPIOConfig = {
+            .gpio = SONAR_GPIO,
+            .trigger_pin = Pin_0,   // RX7 (PB0) - only 3.3v ( add a 1K Ohms resistor )
+            .echo_pin = Pin_1,      // RX8 (PB1) - only 3.3v ( add a 1K Ohms resistor )
+        },
+        .exti_line = EXTI_Line1,
+        .exti_pin_source = GPIO_PinSource1,
+        .exti_irqn = EXTI1_IRQn
+    };
+    // If we are using parallel PWM for our receiver or ADC current sensor, then use motor pins 5 and 6 for sonar, otherwise use rc pins 7 and 8
+    if (feature(FEATURE_RX_PARALLEL_PWM ) || (feature(FEATURE_CURRENT_METER) && currentSensor == CURRENT_SENSOR_ADC) ) {
+        return &sonarPWM56;
+    } else {
+        return &sonarRC78;
+    }
+#elif defined(OLIMEXINO)
+    UNUSED(currentSensor);
+    static const sonarHardware_t const sonarHardware = {
+        .GPIOConfig = {
+            .gpio = SONAR_GPIO,
+            .trigger_pin = Pin_0,   // RX7 (PB0) - only 3.3v ( add a 1K Ohms resistor )
+            .echo_pin = Pin_1,      // RX8 (PB1) - only 3.3v ( add a 1K Ohms resistor )
+        },
+        .exti_line = EXTI_Line1,
+        .exti_pin_source = GPIO_PinSource1,
+        .exti_irqn = EXTI1_IRQn
+    };
+    return &sonarHardware;
+#elif defined(CC3D)
+    UNUSED(currentSensor);
+    static const sonarHardware_t const sonarHardware = {
+        .GPIOConfig = {
+           .gpio = SONAR_GPIO,
+           .trigger_pin = Pin_5,   // (PB5)
+           .echo_pin = Pin_0,      // (PB0) - only 3.3v ( add a 1K Ohms resistor )
+        },
+        .exti_line = EXTI_Line0,
+        .exti_pin_source = GPIO_PinSource0,
+        .exti_irqn = EXTI0_IRQn
+    };
+    return &sonarHardware;
+#elif defined(SPRACINGF3)
+    UNUSED(currentSensor);
+    static const sonarHardware_t const sonarHardware = {
+        .GPIOConfig = {
+            .gpio = SONAR_GPIO,
+            .trigger_pin = Pin_0,   // RC_CH7 (PB0) - only 3.3v ( add a 1K Ohms resistor )
+            .echo_pin = Pin_1,      // RC_CH8 (PB1) - only 3.3v ( add a 1K Ohms resistor )
+        }
+        .exti_line = EXTI_Line1,
+        .exti_pin_source = EXTI_PinSource1,
+        .exti_irqn = EXTI1_IRQn
+    };
+    return &sonarHardware;
+#elif defined(UNIT_TEST)
+    UNUSED(currentSensor);
+    return 0;
+#else
+#error Sonar not defined for target
+#endif
+}
+
+void hcsr04_init(const sonarHardware_t *initialSonarHardware, sonarRange_t *sonarRange, sonarFunctionPointers_t *sonarFunctionPointers)
 {
     sonarHardware = initialSonarHardware;
     sonarRange->maxRangeCm = HCSR04_MAX_RANGE_CM;
     sonarRange->detectionConeDeciDegrees = HCSR04_DETECTION_CONE_DECIDEGREES;
     sonarRange->detectionConeExtendedDeciDegrees = HCSR04_DETECTION_CONE_EXTENDED_DECIDEGREES;
+    sonarFunctionPointers->updateFunctionPtr = hcsr04_start_reading;
+    sonarFunctionPointers->readFunctionPtr = hcsr04_get_distance;
 
 #if !defined(UNIT_TEST)
     gpio_config_t gpio;
@@ -100,15 +182,15 @@ void hcsr04_init(const sonarHardware_t *initialSonarHardware, sonarRange_t *sona
 #endif
 
     // trigger pin
-    gpio.pin = sonarHardware->trigger_pin;
+    gpio.pin = sonarHardware->GPIOConfig.trigger_pin;
     gpio.mode = Mode_Out_PP;
     gpio.speed = Speed_2MHz;
-    gpioInit(GPIOB, &gpio);
+    gpioInit(sonarHardware->GPIOConfig.gpio, &gpio);
 
     // echo pin
-    gpio.pin = sonarHardware->echo_pin;
+    gpio.pin = sonarHardware->GPIOConfig.echo_pin;
     gpio.mode = Mode_IN_FLOATING;
-    gpioInit(GPIOB, &gpio);
+    gpioInit(sonarHardware->GPIOConfig.gpio, &gpio);
 
 #ifdef STM32F10X
     // setup external interrupt on echo pin
@@ -137,7 +219,7 @@ void hcsr04_init(const sonarHardware_t *initialSonarHardware, sonarRange_t *sona
 
     lastMeasurementAt = millis() - 60; // force 1st measurement in hcsr04_get_distance()
 #else
-    lastMeasurementAt = 0; // to avoid "unused" compiler warning
+    UNUSED(lastMeasurementAt);
 #endif
 }
 
@@ -155,10 +237,10 @@ void hcsr04_start_reading(void)
 
     lastMeasurementAt = now;
 
-    digitalHi(GPIOB, sonarHardware->trigger_pin);
+    digitalHi(sonarHardware->GPIOConfig.gpio, sonarHardware->GPIOConfig.trigger_pin);
     //  The width of trig signal must be greater than 10us
     delayMicroseconds(11);
-    digitalLo(GPIOB, sonarHardware->trigger_pin);
+    digitalLo(sonarHardware->GPIOConfig.gpio, sonarHardware->GPIOConfig.trigger_pin);
 #endif
 }
 
@@ -172,10 +254,9 @@ int32_t hcsr04_get_distance(void)
     // object we take half of the distance traveled.
     //
     // 340 m/s = 0.034 cm/microsecond = 29.41176471 *2 = 58.82352941 rounded to 59
-    int32_t distance = hcsr04measurement / 59;
+    int32_t distance = hcsr04SonarPulseTravelTime / 59;
     if (distance > HCSR04_MAX_RANGE_CM)
         distance = SONAR_OUT_OF_RANGE;
-
     return distance;
 }
 #endif

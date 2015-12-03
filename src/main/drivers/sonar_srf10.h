@@ -18,13 +18,15 @@
 #pragma once
 
 #include "platform.h"
+#include "sensors/sonar.h"
+#include "sensors/sonar_init.h"
 
 #define SRF10_MAX_RANGE_CM 600 // 6m, from SFR10 spec sheet
 // the two below values need testing
 #define SRF10_DETECTION_CONE_DECIDEGREES 400 // ascertained from beam pattern on spec sheet
 #define SRF10_DETECTION_CONE_EXTENDED_DECIDEGREES 450 // ascertained from beam pattern on spec sheet
 
-void sfr10_init(sonarRange_t *sonarRange);
+void sfr10_init(sonarRange_t *sonarRange, sonarFunctionPointers_t* sonarFunctionPointers);
 void srf10_start_reading(void);
 int32_t srf10_get_distance(void);
 

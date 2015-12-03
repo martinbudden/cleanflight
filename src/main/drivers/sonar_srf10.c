@@ -21,10 +21,11 @@
 #include "platform.h"
 #include "build_config.h"
 
-#include "bus_i2c.h"
+#include "drivers/system.h"
+#include "drivers/bus_i2c.h"
 
 #include "sensors/sonar.h"
-#include "sonar_srf10.h"
+#include "drivers/sonar_srf10.h"
 
 // Technical specification is at: http://robot-electronics.co.uk/htm/srf10tech.htm
 
@@ -105,11 +106,14 @@ static uint8_t i2c_srf10_read_byte(uint8_t i2cRegister)
     return byte;
 #endif
 }
-void srf10_init(sonarRange_t *sonarRange)
+
+void sfr10_init(sonarRange_t *sonarRange, sonarFunctionPointers_t* sonarFunctionPointers)
 {
     sonarRange->maxRangeCm = SRF10_MAX_RANGE_CM;
     sonarRange->detectionConeDeciDegrees = SRF10_DETECTION_CONE_DECIDEGREES;
     sonarRange->detectionConeExtendedDeciDegrees = SRF10_DETECTION_CONE_EXTENDED_DECIDEGREES;
+    sonarFunctionPointers->updateFunctionPtr = srf10_start_reading;
+    sonarFunctionPointers->readFunctionPtr = srf10_get_distance;
     i2c_srf10_send_byte(SRF10_WRITE_MaxGainRegister, SRF10_COMMAND_SetGain_500);
     i2c_srf10_send_byte(SRF10_WRITE_RangeRegister, SFR10_RangeValue6m);
 }

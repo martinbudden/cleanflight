@@ -22,19 +22,14 @@
 typedef void (*sonarUpdateFunctionPtr_t)(void);
 typedef int32_t (*sonarReadFunctionPtr_t)(void);
 
-typedef struct sonarRange_s {
-    int16_t maxRangeCm;
-    // these are full detection cone angles, maximum tilt is half of this
-    int16_t detectionConeDeciDegrees; // detection cone angle as in device spec
-    int16_t detectionConeExtendedDeciDegrees; // device spec is usually conservative, in practice have slightly larger detection cone
-} sonarRange_t;
+typedef struct sonarFunctionPointers_s {
+    sonarUpdateFunctionPtr_t updateFunctionPtr;
+    sonarReadFunctionPtr_t readFunctionPtr;
+} sonarFunctionPointers_t;
 
 extern int16_t sonarMaxRangeCm;
 extern int16_t sonarCfAltCm;
 extern int16_t sonarMaxAltWithTiltCm;
-
-extern sonarUpdateFunctionPtr_t sonarUpdateFunctionPtr;
-extern sonarReadFunctionPtr_t sonarReadFunctionPtr;
 
 void sonarUpdate(void);
 int32_t sonarRead(void);

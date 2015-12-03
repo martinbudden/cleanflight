@@ -47,7 +47,6 @@
 #include "drivers/bus_spi.h"
 #include "drivers/inverter.h"
 #include "drivers/flash_m25p16.h"
-#include "drivers/sonar_hcsr04.h"
 
 #include "rx/rx.h"
 
@@ -62,6 +61,7 @@
 
 #include "sensors/sensors.h"
 #include "sensors/sonar.h"
+#include "sensors/sonar_init.h"
 #include "sensors/barometer.h"
 #include "sensors/compass.h"
 #include "sensors/acceleration.h"
@@ -120,8 +120,6 @@ void displayInit(rxConfig_t *intialRxConfig);
 void ledStripInit(ledConfig_t *ledConfigsToUse, hsvColor_t *colorsToUse);
 void loop(void);
 void spektrumBind(rxConfig_t *rxConfig);
-const sonarHardware_t *sonarGetHardwareConfiguration(batteryConfig_t *batteryConfig);
-void sonarInit(const sonarHardware_t *sonarHardware);
 
 #ifdef STM32F303xC
 // from system_stm32f30x.c
@@ -214,13 +212,8 @@ void init(void)
     const sonarHardware_t *sonarHardware = NULL;
 
     if (feature(FEATURE_SONAR)) {
-        sonarHardware = sonarGetHardwareConfiguration(&masterConfig.batteryConfig);
-        sonarGPIOConfig_t sonarGPIOConfig = {
-            .gpio = SONAR_GPIO,
-            .triggerPin = sonarHardware->echo_pin,
-            .echoPin = sonarHardware->trigger_pin,
-        };
-        pwm_params.sonarGPIOConfig = &sonarGPIOConfig;
+        sonarHardware = sonarGetHardwareConfiguration(masterConfig.batteryConfig.currentMeterType);
+        pwm_params.sonarGPIOConfig = &sonarHardware->GPIOConfig;
     }
 #endif
 

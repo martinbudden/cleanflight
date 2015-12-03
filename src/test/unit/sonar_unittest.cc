@@ -21,7 +21,7 @@ extern "C" {
     #include "build_config.h"
     #include "drivers/sonar_hcsr04.h"
     #include "sensors/sonar.h"
-    extern int32_t hcsr04measurement;
+    extern int32_t hcsr04SonarPulseTravelTime;
     extern int16_t sonarMaxTiltDeciDegrees;
     void sonarInit(const sonarHardware_t *sonarHardware);
 }
@@ -57,16 +57,16 @@ TEST(SonarUnittest, TestDistance)
 {
     // Check sonar pulse time converted correctly to cm
     const int echoMicroSecondsPerCm = 59;
-    hcsr04measurement =  0;
+    hcsr04SonarPulseTravelTime =  0;
     EXPECT_EQ(hcsr04_get_distance(), 0);
 
-    hcsr04measurement =  echoMicroSecondsPerCm;
+    hcsr04SonarPulseTravelTime =  echoMicroSecondsPerCm;
     EXPECT_EQ(hcsr04_get_distance(), 1);
 
-    hcsr04measurement =  10 * echoMicroSecondsPerCm;
+    hcsr04SonarPulseTravelTime =  10 * echoMicroSecondsPerCm;
     EXPECT_EQ(hcsr04_get_distance(), 10);
 
-    hcsr04measurement =  HCSR04_MAX_RANGE_CM * echoMicroSecondsPerCm;
+    hcsr04SonarPulseTravelTime =  HCSR04_MAX_RANGE_CM * echoMicroSecondsPerCm;
     EXPECT_EQ(hcsr04_get_distance(), HCSR04_MAX_RANGE_CM);
 }
 

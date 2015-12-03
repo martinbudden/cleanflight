@@ -41,6 +41,7 @@ extern "C" {
     #include "sensors/acceleration.h"
     #include "sensors/barometer.h"
     #include "sensors/sonar.h"
+    #include "sensors/sonar_init.h"
 
     #include "io/escservo.h"
     #include "io/rc_controls.h"
@@ -56,7 +57,6 @@ extern "C" {
 
     void calculateEstimatedAltitude(uint32_t currentTime);
     int32_t altitudeHoldGetEstimatedAltitude(void);
-    void sonarInit(const sonarHardware_t *sonarHardware);
     extern int32_t hcsr04SonarPulseTravelTime;
     extern uint32_t unittest_calculateEstimatedAltitude_previousTime;
     extern float unittest_calculateEstimatedAltitude_vel;
@@ -143,7 +143,9 @@ TEST(AltitudeHoldTest, TestCalculateEstimatedAltitudeIntegrator)
 
     configureAltitudeHold(&pidProfile, &barometerConfig, 0, 0);
     resetBarometerConfig(&barometerConfig);
-    sonarInit(0); // this is required to set sonar function pointers
+    // this is required to set sonar function pointers
+    sonarGetHardwareConfiguration(SONAR_HCSR04, CURRENT_SENSOR_NONE);
+    sonarInit();
 
     testCalculateEstimatedAltitudeReset();
     calculateEstimatedAltitude(UPDATE_INTERVAL_MICROS - 1);
@@ -173,7 +175,9 @@ TEST(AltitudeHoldTest, TestCalculateEstimatedAltitudeIntegrator)
 
 TEST(AltitudeHoldTest, TestCalculateEstimatedAltitudeSonar)
 {
-    sonarInit(0);
+    // this is required to set sonar function pointers
+    sonarGetHardwareConfiguration(SONAR_HCSR04, CURRENT_SENSOR_NONE);
+    sonarInit();
 
     barometerConfig_t barometerConfig;
     pidProfile_t pidProfile;
@@ -229,4 +233,7 @@ void imuResetAccelerationSum(void) {};
 bool isBaroCalibrationComplete(void) {return true;}
 void performBaroCalibrationCycle(void) {}
 int32_t baroCalculateAltitude(void) {return 0;}
+uint32_t millis(void) {return 0;}
+bool i2cWrite(uint8_t addr_, uint8_t reg, uint8_t data) {UNUSED(addr_); UNUSED(reg); UNUSED(data); return false;}
+bool i2cRead(uint8_t addr_, uint8_t reg, uint8_t len, uint8_t* buf) {UNUSED(addr_); UNUSED(reg);UNUSED(len); UNUSED(buf); return false;}
 }

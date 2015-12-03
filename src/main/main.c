@@ -209,11 +209,10 @@ void init(void)
     memset(&pwm_params, 0, sizeof(pwm_params));
 
 #ifdef SONAR
-    const sonarHardware_t *sonarHardware = NULL;
-
     if (feature(FEATURE_SONAR)) {
-        sonarHardware = sonarGetHardwareConfiguration(masterConfig.batteryConfig.currentMeterType);
-        pwm_params.sonarGPIOConfig = &sonarHardware->GPIOConfig;
+        // TODO: currently sonar hardcoded to HCSR04
+        const sonarGPIOConfig_t *sonarGPIOConfig = sonarGetHardwareConfiguration(SONAR_HCSR04, masterConfig.batteryConfig.currentMeterType);
+        pwm_params.sonarGPIOConfig = sonarGPIOConfig;
     }
 #endif
 
@@ -417,7 +416,7 @@ void init(void)
 
 #ifdef SONAR
     if (feature(FEATURE_SONAR)) {
-        sonarInit(sonarHardware);
+        sonarInit();
     }
 #endif
 

@@ -26,7 +26,8 @@
 #define SRF10_DETECTION_CONE_DECIDEGREES 400 // ascertained from beam pattern on spec sheet
 #define SRF10_DETECTION_CONE_EXTENDED_DECIDEGREES 450 // ascertained from beam pattern on spec sheet
 
-void sfr10_init(sonarRange_t *sonarRange, sonarFunctionPointers_t* sonarFunctionPointers);
+const sonarGPIOConfig_t *srf10_get_hardware_configuration();
+void srf10_init(sonarRange_t *sonarRange, sonarFunctionPointers_t* sonarFunctionPointers);
 void srf10_start_reading(void);
 int32_t srf10_get_distance(void);
 

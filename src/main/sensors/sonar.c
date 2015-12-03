@@ -27,6 +27,7 @@
 
 #include "drivers/gpio.h"
 #include "drivers/sonar_hcsr04.h"
+#include "drivers/sonar_srf10.h"
 
 #include "sensors/sensors.h"
 #include "sensors/battery.h"
@@ -41,27 +42,49 @@ int16_t sonarMaxRangeCm;
 int16_t sonarMaxAltWithTiltCm;
 int16_t sonarCfAltCm; // Complimentary Filter altitude
 STATIC_UNIT_TESTED int16_t sonarMaxTiltDeciDegrees;
-sonarFunctionPointers_t sonarFunctionPointers;
+static sonarHardwareType_e sonarHardwareType;
+static sonarFunctionPointers_t sonarFunctionPointers;
 
 
 static int32_t calculatedAltitude;
 
-const sonarHardware_t *sonarGetHardwareConfiguration(currentSensor_e currentSensor)
+/*
+ * Setup the hardware configuration for the designated hardware type.
+ * NOTE: sonarInit() must be subsequently called before using any of the sonar functions.
+ */
+const sonarGPIOConfig_t *sonarGetHardwareConfiguration(sonarHardwareType_e sonarHardware, currentSensor_e currentSensor)
 {
-    return hcsr04_get_hardware_configuration(currentSensor);
+    const sonarGPIOConfig_t *GPIOConfig;
+
+    sonarHardwareType = sonarHardware;
+    switch (sonarHardwareType) {
+    case SONAR_HCSR04:
+        GPIOConfig = hcsr04_get_hardware_configuration(currentSensor);
+        break;
+    case SONAR_SRF10:
+        GPIOConfig = srf10_get_hardware_configuration();
+        break;
+    }
+    return GPIOConfig;
 }
 
-// (PI/1800)^2/2, coefficient of x^2 in Taylor expansion of cos(x)
-#define coefX2 1.52309E-06f
+
+#define coefX2 1.52309E-06f // (PI/1800)^2/2, coefficient of x^2 in Taylor expansion of cosDeciDegrees(x)
 #define cosDeciDegrees(x) (1.0f - x * x * coefX2)
 
 
-void sonarInit(const sonarHardware_t *sonarHardware)
+void sonarInit()
 {
     sonarRange_t sonarRange;
 
-    // TODO: HCSR04 is hardcoded in at the moment, this needs to be configurable
-    hcsr04_init(sonarHardware, &sonarRange, &sonarFunctionPointers);
+    switch (sonarHardwareType) {
+    case SONAR_HCSR04:
+        hcsr04_init(&sonarRange, &sonarFunctionPointers);
+        break;
+    case SONAR_SRF10:
+        srf10_init(&sonarRange, &sonarFunctionPointers);
+        break;
+    }
     sensorsSet(SENSOR_SONAR);
     sonarMaxRangeCm = sonarRange.maxRangeCm;
     sonarCfAltCm = sonarMaxRangeCm / 2;
@@ -70,10 +93,12 @@ void sonarInit(const sonarHardware_t *sonarHardware)
     calculatedAltitude = SONAR_OUT_OF_RANGE;
 }
 
-// This is called periodically from within main process loop
+/*
+ * This is called periodically from within main process loop
+ */
 void sonarUpdate(void)
 {
-    sonarFunctionPointers.updateFunctionPtr();
+    sonarFunctionPointers.startReading();
 }
 
 /**
@@ -81,7 +106,7 @@ void sonarUpdate(void)
  */
 int32_t sonarRead(void)
 {
-    return sonarFunctionPointers.readFunctionPtr();
+    return sonarFunctionPointers.getDistance();
 }
 
 /*

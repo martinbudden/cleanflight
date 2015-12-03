@@ -165,6 +165,7 @@ $(OBJECT_DIR)/flight_imu_unittest : \
 	$(OBJECT_DIR)/flight/altitudehold.o \
 	$(OBJECT_DIR)/flight_imu_unittest.o \
 	$(OBJECT_DIR)/drivers/sonar_hcsr04.o \
+	$(OBJECT_DIR)/drivers/sonar_srf10.o \
 	$(OBJECT_DIR)/sensors/sonar.o \
 	$(OBJECT_DIR)/common/maths.o \
 	$(OBJECT_DIR)/gtest_main.a
@@ -208,6 +209,7 @@ $(OBJECT_DIR)/altitude_hold_unittest : \
 	$(OBJECT_DIR)/common/maths.o \
 	$(OBJECT_DIR)/flight/altitudehold.o \
 	$(OBJECT_DIR)/drivers/sonar_hcsr04.o \
+	$(OBJECT_DIR)/drivers/sonar_srf10.o \
 	$(OBJECT_DIR)/sensors/sonar.o \
 	$(OBJECT_DIR)/altitude_hold_unittest.o \
 	$(OBJECT_DIR)/gtest_main.a

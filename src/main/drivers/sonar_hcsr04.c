@@ -50,7 +50,6 @@ typedef struct sonarHardware_s {
 } sonarHardware_t;
 
 STATIC_UNIT_TESTED volatile int32_t hcsr04SonarPulseTravelTime = -1;
-static uint32_t timeLastMeasurementMs;
 static sonarHardware_t const *sonarHardware;
 
 #if !defined(UNIT_TEST)
@@ -229,7 +228,6 @@ void hcsr04_init(sonarRange_t *sonarRange, sonarFunctionPointers_t *sonarFunctio
     NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
     NVIC_Init(&NVIC_InitStructure);
 
-    timeLastMeasurementMs = millis() - 60; // force 1st measurement in hcsr04_get_distance()
 #endif
 }
 
@@ -244,12 +242,13 @@ void digitalLo(void *p, uint16_t i) {UNUSED(p);UNUSED(i);}
  */
 void hcsr04_start_reading(void)
 {
+    static uint32_t timeOfLastMeasurementMs = 0;
     // the firing interval of the trigger signal should be greater than 60ms
     // to avoid interference between consecutive measurements.
     #define HCSR04_MinimumFiringIntervalMs 60
     const uint32_t timeNowMs = millis();
-    if (timeNowMs > timeLastMeasurementMs + HCSR04_MinimumFiringIntervalMs) {
-        timeLastMeasurementMs = timeNowMs;
+    if (timeNowMs > timeOfLastMeasurementMs + HCSR04_MinimumFiringIntervalMs) {
+        timeOfLastMeasurementMs = timeNowMs;
         digitalHi(sonarHardware->GPIOConfig.gpio, sonarHardware->GPIOConfig.trigger_pin);
         //  The width of trigger signal must be greater than 10us, according to device spec
         delayMicroseconds(11);

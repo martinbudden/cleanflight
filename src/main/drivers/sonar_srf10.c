@@ -99,6 +99,7 @@ static uint8_t i2c_srf10_read_byte(uint8_t i2cRegister)
 
 const sonarGPIOConfig_t *srf10_get_hardware_configuration()
 {
+    // no interrupt handler required, so just return 0
     return 0;
 }
 
@@ -120,7 +121,7 @@ void srf10_init(sonarRange_t *sonarRange, sonarFunctionPointers_t* sonarFunction
  */
 void srf10_start_reading(void)
 {
-    static uint32_t timeLastMeasurementMs = 0;
+    static uint32_t timeOfLastMeasurementMs = 0;
 
     // check if there is a measurement outstanding, 0xFF is returned if no measurement
     const uint8_t revision = i2c_srf10_read_byte(SRF10_READ_SoftwareRevision);
@@ -134,10 +135,10 @@ void srf10_start_reading(void)
     }
 
     const uint32_t timeNowMs = millis();
-    if (timeNowMs > timeLastMeasurementMs + SRF10_MinimumFiringIntervalFor600cmRangeMs) {
+    if (timeNowMs > timeOfLastMeasurementMs + SRF10_MinimumFiringIntervalFor600cmRangeMs) {
         // measurement repeat interval should be greater than SRF10_MinimumFiringIntervalFor600cmRangeMs
         // to avoid interference between connective measurements.
-        timeLastMeasurementMs = timeNowMs;
+        timeOfLastMeasurementMs = timeNowMs;
         i2c_srf10_send_command(SRF10_COMMAND_InitiateRangingCm);
     }
 }

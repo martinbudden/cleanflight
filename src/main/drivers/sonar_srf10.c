@@ -29,7 +29,11 @@
 
 // Technical specification is at: http://robot-electronics.co.uk/htm/srf10tech.htm
 
-#define SRF10_MinimumFiringIntervalDefaultmS 65 // from spec sheet
+// from spec sheet, when range set to 1100cm
+// speed of sound is 340m/s, echo time for 1100cm is 65ms
+#define SRF10_MinimumFiringIntervalFor1100cmRangeMs 65
+// echo time for 600cm is 36ms, round this up to 40
+#define SRF10_MinimumFiringIntervalFor600cmRangeMs 40
 
 #define SRF10_Address 0xE0
 #define SRF10_AddressI2C (SRF10_Address>>1) // the I2C 7 bit address
@@ -69,7 +73,12 @@
 #define SRF10_RangeValue6m 139 // maximum range
 #define SRF10_RangeValue11m 0xFF // exceeds actual maximum range
 
-STATIC_UNIT_TESTED volatile int32_t srf10measurement = SONAR_OUT_OF_RANGE;
+STATIC_UNIT_TESTED volatile int32_t srf10measurementCm = SONAR_OUT_OF_RANGE;
+
+#ifdef UNIT_TEST
+bool i2cWrite(uint8_t addr_, uint8_t reg, uint8_t data) {UNUSED(addr_); UNUSED(reg); UNUSED(data); return false;}
+bool i2cRead(uint8_t addr_, uint8_t reg, uint8_t len, uint8_t* buf) {UNUSED(addr_); UNUSED(reg);UNUSED(len); UNUSED(buf); return false;}
+#endif
 
 static bool i2c_srf10_send_command(uint8_t command)
 {
@@ -100,8 +109,8 @@ void srf10_init(sonarRange_t *sonarRange, sonarFunctionPointers_t* sonarFunction
     sonarRange->detectionConeExtendedDeciDegrees = SRF10_DETECTION_CONE_EXTENDED_DECIDEGREES;
     sonarFunctionPointers->startReading = srf10_start_reading;
     sonarFunctionPointers->getDistance = srf10_get_distance;
-    // set up the SRF10 hardware
-    i2c_srf10_send_byte(SRF10_WRITE_MaxGainRegister, SRF10_COMMAND_SetGain_700);
+    // set up the SRF10 hardware for a range of 6m
+    i2c_srf10_send_byte(SRF10_WRITE_MaxGainRegister, SRF10_COMMAND_SetGain_600);
     i2c_srf10_send_byte(SRF10_WRITE_RangeRegister, SRF10_RangeValue6m);
 }
 
@@ -111,7 +120,7 @@ void srf10_init(sonarRange_t *sonarRange, sonarFunctionPointers_t* sonarFunction
  */
 void srf10_start_reading(void)
 {
-    static uint32_t lastMeasurementAt = 0;
+    static uint32_t timeLastMeasurementMs = 0;
 
     // check if there is a measurement outstanding, 0xFF is returned if no measurement
     const uint8_t revision = i2c_srf10_read_byte(SRF10_READ_SoftwareRevision);
@@ -119,16 +128,16 @@ void srf10_start_reading(void)
         // there is a measurement
         const uint8_t lowByte = i2c_srf10_read_byte(SRF10_READ_RangeLowByte);
         const uint8_t highByte = i2c_srf10_read_byte(SRF10_READ_RangeHighByte);
-        srf10measurement =  highByte << 8 | lowByte;
-        if (srf10measurement > SRF10_MAX_RANGE_CM)
-            srf10measurement = SONAR_OUT_OF_RANGE;
+        srf10measurementCm =  highByte << 8 | lowByte;
+        if (srf10measurementCm > SRF10_MAX_RANGE_CM)
+            srf10measurementCm = SONAR_OUT_OF_RANGE;
     }
 
-    const uint32_t now = millis();
-    if (now > lastMeasurementAt + SRF10_MinimumFiringIntervalDefaultmS) {
-        // measurement repeat interval should be greater than SRF10_MinimumFiringIntervalDefaultmS
+    const uint32_t timeNowMs = millis();
+    if (timeNowMs > timeLastMeasurementMs + SRF10_MinimumFiringIntervalFor600cmRangeMs) {
+        // measurement repeat interval should be greater than SRF10_MinimumFiringIntervalFor600cmRangeMs
         // to avoid interference between connective measurements.
-        lastMeasurementAt = now;
+        timeLastMeasurementMs = timeNowMs;
         i2c_srf10_send_command(SRF10_COMMAND_InitiateRangingCm);
     }
 }
@@ -138,6 +147,6 @@ void srf10_start_reading(void)
  */
 int32_t srf10_get_distance(void)
 {
-    return srf10measurement;
+    return srf10measurementCm;
 }
 

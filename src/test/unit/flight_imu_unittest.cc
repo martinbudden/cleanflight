@@ -124,6 +124,5 @@ void performBaroCalibrationCycle(void) {}
 int32_t baroCalculateAltitude(void) { return 0; }
 void sensorsSet(uint32_t mask) {UNUSED(mask);}
 uint32_t millis(void) {return 0;}
-bool i2cWrite(uint8_t addr_, uint8_t reg, uint8_t data) {UNUSED(addr_); UNUSED(reg); UNUSED(data); return false;}
-bool i2cRead(uint8_t addr_, uint8_t reg, uint8_t len, uint8_t* buf) {UNUSED(addr_); UNUSED(reg);UNUSED(len); UNUSED(buf); return false;}
+void delayMicroseconds(uint32_t us) {UNUSED(us);};
 }

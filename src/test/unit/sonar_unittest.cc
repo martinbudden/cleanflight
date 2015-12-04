@@ -24,7 +24,7 @@ extern "C" {
     #include "sensors/sonar.h"
     #include "sensors/sonar_init.h"
     extern int32_t hcsr04SonarPulseTravelTime;
-    extern int32_t srf10measurement;
+    extern int32_t srf10measurementCm;
     extern int16_t sonarMaxTiltDeciDegrees;
 }
 
@@ -97,9 +97,9 @@ TEST(SonarUnittest, TestDistance_SRF10)
     EXPECT_EQ(srf10_get_distance(), SONAR_OUT_OF_RANGE);
 
     // just check that get distance returns the measurement, no conversion
-    srf10measurement =  0;
+    srf10measurementCm =  0;
     EXPECT_EQ(srf10_get_distance(), 0);
-    srf10measurement =  100;
+    srf10measurementCm =  100;
     EXPECT_EQ(srf10_get_distance(), 100);
 }
 
@@ -182,7 +182,6 @@ TEST(SonarUnittest, TestCalculateTiltAngle)
 extern "C" {
 void sensorsSet(uint32_t mask) {UNUSED(mask);}
 uint32_t millis(void) {return 0;}
-bool i2cWrite(uint8_t addr_, uint8_t reg, uint8_t data) {UNUSED(addr_); UNUSED(reg); UNUSED(data); return false;}
-bool i2cRead(uint8_t addr_, uint8_t reg, uint8_t len, uint8_t* buf) {UNUSED(addr_); UNUSED(reg);UNUSED(len); UNUSED(buf); return false;}
+void delayMicroseconds(uint32_t us) {UNUSED(us);};
 }
 

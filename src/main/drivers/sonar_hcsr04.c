@@ -22,8 +22,8 @@
 #include "build_config.h"
 #include "config/config.h"
 
-#include "drivers/gpio.h"
 #include "drivers/system.h"
+#include "drivers/gpio.h"
 #include "drivers/nvic.h"
 
 #include "sensors/sonar.h"
@@ -50,7 +50,7 @@ typedef struct sonarHardware_s {
 } sonarHardware_t;
 
 STATIC_UNIT_TESTED volatile int32_t hcsr04SonarPulseTravelTime = -1;
-static uint32_t lastMeasurementAt;
+static uint32_t timeLastMeasurementMs;
 static sonarHardware_t const *sonarHardware;
 
 #if !defined(UNIT_TEST)
@@ -229,12 +229,14 @@ void hcsr04_init(sonarRange_t *sonarRange, sonarFunctionPointers_t *sonarFunctio
     NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
     NVIC_Init(&NVIC_InitStructure);
 
-    lastMeasurementAt = millis() - 60; // force 1st measurement in hcsr04_get_distance()
-#else
-    UNUSED(lastMeasurementAt);
+    timeLastMeasurementMs = millis() - 60; // force 1st measurement in hcsr04_get_distance()
 #endif
 }
 
+#ifdef UNIT_TEST
+void digitalHi(void *p, uint16_t i) {UNUSED(p);UNUSED(i);}
+void digitalLo(void *p, uint16_t i) {UNUSED(p);UNUSED(i);}
+#endif
 /*
  * Start a range reading
  * Called periodically from within main process loop
@@ -242,22 +244,17 @@ void hcsr04_init(sonarRange_t *sonarRange, sonarFunctionPointers_t *sonarFunctio
  */
 void hcsr04_start_reading(void)
 {
-#if !defined(UNIT_TEST)
-    uint32_t now = millis();
-
-    if (now < (lastMeasurementAt + 60)) {
-        // the repeat interval of trig signal should be greater than 60ms
-        // to avoid interference between consecutive measurements.
-        return;
+    // the firing interval of the trigger signal should be greater than 60ms
+    // to avoid interference between consecutive measurements.
+    #define HCSR04_MinimumFiringIntervalMs 60
+    const uint32_t timeNowMs = millis();
+    if (timeNowMs > timeLastMeasurementMs + HCSR04_MinimumFiringIntervalMs) {
+        timeLastMeasurementMs = timeNowMs;
+        digitalHi(sonarHardware->GPIOConfig.gpio, sonarHardware->GPIOConfig.trigger_pin);
+        //  The width of trigger signal must be greater than 10us, according to device spec
+        delayMicroseconds(11);
+        digitalLo(sonarHardware->GPIOConfig.gpio, sonarHardware->GPIOConfig.trigger_pin);
     }
-
-    lastMeasurementAt = now;
-
-    digitalHi(sonarHardware->GPIOConfig.gpio, sonarHardware->GPIOConfig.trigger_pin);
-    //  The width of trig signal must be greater than 10us, according to device spec
-    delayMicroseconds(11);
-    digitalLo(sonarHardware->GPIOConfig.gpio, sonarHardware->GPIOConfig.trigger_pin);
-#endif
 }
 
 /**

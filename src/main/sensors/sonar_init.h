@@ -37,5 +37,16 @@ typedef struct sonarRange_s {
     int16_t detectionConeExtendedDeciDegrees; // device spec is conservative, in practice have slightly larger detection cone
 } sonarRange_t;
 
-const sonarGPIOConfig_t *sonarGetHardwareConfiguration(sonarHardwareType_e sonarHardwareType, currentSensor_e currentSensor);
+typedef void (*sonarInitFunctionPtr)(sonarRange_t *sonarRange);
+typedef void (*sonarUpdateFunctionPtr)(void);
+typedef int32_t (*sonarReadFunctionPtr)(void);
+
+typedef struct sonarFunctionPointers_s {
+    sonarInitFunctionPtr init;
+    sonarUpdateFunctionPtr update;
+    sonarReadFunctionPtr read;
+} sonarFunctionPointers_t;
+
+const sonarGPIOConfig_t *sonarGetHardwareConfiguration(currentSensor_e currentSensor);
+const sonarGPIOConfig_t *sonarGetHardwareConfigurationForType(sonarHardwareType_e sonarHardware, currentSensor_e currentSensor);
 void sonarInit();

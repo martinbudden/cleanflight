@@ -44,7 +44,7 @@ TEST(SonarUnittest, TestConstants)
 
 TEST(SonarUnittest, TestSonarInit_HCSR04)
 {
-    sonarGetHardwareConfiguration(SONAR_HCSR04, CURRENT_SENSOR_NONE);
+    sonarGetHardwareConfigurationForType(SONAR_HCSR04, CURRENT_SENSOR_NONE);
     sonarInit();
     EXPECT_EQ(sonarMaxRangeCm, HCSR04_MAX_RANGE_CM);
     // Check against gross errors in max range values
@@ -60,7 +60,7 @@ TEST(SonarUnittest, TestSonarInit_HCSR04)
 
 TEST(SonarUnittest, TestSonarInit_SRF10)
 {
-    sonarGetHardwareConfiguration(SONAR_SRF10, CURRENT_SENSOR_NONE);
+    sonarGetHardwareConfigurationForType(SONAR_SRF10, CURRENT_SENSOR_NONE);
     sonarInit();
     EXPECT_EQ(sonarMaxRangeCm, SRF10_MAX_RANGE_CM);
     // Check against gross errors in max range values
@@ -106,7 +106,7 @@ TEST(SonarUnittest, TestDistance_SRF10)
 TEST(SonarUnittest, TestAltitude)
 {
     for (int ii = SONAR_HCSR04; ii <= SONAR_SRF10; ++ii) {
-        sonarGetHardwareConfiguration((sonarHardwareType_e)ii, CURRENT_SENSOR_NONE);
+        sonarGetHardwareConfigurationForType((sonarHardwareType_e)ii, CURRENT_SENSOR_NONE);
         sonarInit();
         // Check distance not modified if no tilt
         EXPECT_EQ(sonarCalculateAltitude(0, 0, 0), 0);

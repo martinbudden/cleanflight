@@ -27,7 +27,7 @@
 #include "sensors/sonar.h"
 #include "drivers/sonar_srf10.h"
 
-// Technical specification is at: http://robot-electronics.co.uk/htm/srf10tech.htm
+#if defined(SONAR)
 
 // from spec sheet, when range set to 1100cm
 // speed of sound is 340m/s, echo time for 1100cm is 65ms
@@ -35,11 +35,14 @@
 // echo time for 600cm is 36ms, round this up to 40
 #define SRF10_MinimumFiringIntervalFor600cmRangeMs 40
 
+
+// SRF10 hardware constants
 #define SRF10_Address 0xE0
 #define SRF10_AddressI2C (SRF10_Address>>1) // the I2C 7 bit address
 
 #define SRF10_READ_SoftwareRevision 0x00
 #define SRF10_READ_Unused 0x01 // (read value returned is 0x80)
+#define SRF10_READ_Unused_ReturnValue 0x80
 #define SRF10_READ_RangeHighByte 0x02
 #define SRF10_READ_RangeLowByte 0x03
 
@@ -97,19 +100,36 @@ static uint8_t i2c_srf10_read_byte(uint8_t i2cRegister)
     return byte;
 }
 
+bool srf10_detect()
+{
+    uint8_t value = 0;
+
+    // read the unused register to detect if a SRF10 is present
+    const bool ack = i2cRead(SRF10_AddressI2C, SRF10_READ_Unused, 1, &value);
+    if (!ack || value != SRF10_READ_Unused) {
+        return false;
+    }
+    return true;
+}
+
 const sonarGPIOConfig_t *srf10_get_hardware_configuration()
 {
     // no interrupt handler required, so just return 0
     return 0;
 }
 
-void srf10_init(sonarRange_t *sonarRange, sonarFunctionPointers_t* sonarFunctionPointers)
+void srf10_set_function_pointers(sonarFunctionPointers_t* sonarFunctionPointers)
+{
+    sonarFunctionPointers->init = srf10_init;
+    sonarFunctionPointers->update = srf10_start_reading;
+    sonarFunctionPointers->read = srf10_get_distance;
+}
+
+void srf10_init(sonarRange_t *sonarRange)
 {
     sonarRange->maxRangeCm = SRF10_MAX_RANGE_CM;
     sonarRange->detectionConeDeciDegrees = SRF10_DETECTION_CONE_DECIDEGREES;
     sonarRange->detectionConeExtendedDeciDegrees = SRF10_DETECTION_CONE_EXTENDED_DECIDEGREES;
-    sonarFunctionPointers->startReading = srf10_start_reading;
-    sonarFunctionPointers->getDistance = srf10_get_distance;
     // set up the SRF10 hardware for a range of 6m
     i2c_srf10_send_byte(SRF10_WRITE_MaxGainRegister, SRF10_COMMAND_SetGain_600);
     i2c_srf10_send_byte(SRF10_WRITE_RangeRegister, SRF10_RangeValue6m);
@@ -124,8 +144,9 @@ void srf10_start_reading(void)
     static uint32_t timeOfLastMeasurementMs = 0;
 
     // check if there is a measurement outstanding, 0xFF is returned if no measurement
-    const uint8_t revision = i2c_srf10_read_byte(SRF10_READ_SoftwareRevision);
-    if (revision != 0xFF) {
+    uint8_t revision;
+    const bool ack = i2cRead(SRF10_AddressI2C, SRF10_READ_SoftwareRevision, 1, &revision);
+    if (ack == true && revision != 0xFF) {
         // there is a measurement
         const uint8_t lowByte = i2c_srf10_read_byte(SRF10_READ_RangeLowByte);
         const uint8_t highByte = i2c_srf10_read_byte(SRF10_READ_RangeHighByte);
@@ -150,4 +171,4 @@ int32_t srf10_get_distance(void)
 {
     return srf10measurementCm;
 }
-
+#endif

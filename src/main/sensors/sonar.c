@@ -42,7 +42,6 @@ int16_t sonarMaxRangeCm;
 int16_t sonarMaxAltWithTiltCm;
 int16_t sonarCfAltCm; // Complimentary Filter altitude
 STATIC_UNIT_TESTED int16_t sonarMaxTiltDeciDegrees;
-static sonarHardwareType_e sonarHardwareType;
 static sonarFunctionPointers_t sonarFunctionPointers;
 
 
@@ -52,17 +51,26 @@ static int32_t calculatedAltitude;
  * Setup the hardware configuration for the designated hardware type.
  * NOTE: sonarInit() must be subsequently called before using any of the sonar functions.
  */
-const sonarGPIOConfig_t *sonarGetHardwareConfiguration(sonarHardwareType_e sonarHardware, currentSensor_e currentSensor)
+const sonarGPIOConfig_t *sonarGetHardwareConfiguration(currentSensor_e currentSensor)
+{
+    const bool srf10present = srf10_detect();
+
+    // if a SRF10 is detected then use it, otherwise assume we have a HCSR04 (which has no means of detection)
+    const sonarHardwareType_e sonarHardware = srf10present ? SONAR_SRF10 : SONAR_HCSR04;
+    return sonarGetHardwareConfigurationForType(sonarHardware, currentSensor);
+}
+
+const sonarGPIOConfig_t *sonarGetHardwareConfigurationForType(sonarHardwareType_e sonarHardware, currentSensor_e currentSensor)
 {
     const sonarGPIOConfig_t *GPIOConfig;
-
-    sonarHardwareType = sonarHardware;
-    switch (sonarHardwareType) {
+    switch (sonarHardware) {
     case SONAR_HCSR04:
         GPIOConfig = hcsr04_get_hardware_configuration(currentSensor);
+        hcsr04_set_function_pointers(&sonarFunctionPointers);
         break;
     case SONAR_SRF10:
         GPIOConfig = srf10_get_hardware_configuration();
+        srf10_set_function_pointers(&sonarFunctionPointers);
         break;
     }
     return GPIOConfig;
@@ -77,14 +85,7 @@ void sonarInit()
 {
     sonarRange_t sonarRange;
 
-    switch (sonarHardwareType) {
-    case SONAR_HCSR04:
-        hcsr04_init(&sonarRange, &sonarFunctionPointers);
-        break;
-    case SONAR_SRF10:
-        srf10_init(&sonarRange, &sonarFunctionPointers);
-        break;
-    }
+    sonarFunctionPointers.init(&sonarRange);
     sensorsSet(SENSOR_SONAR);
     sonarMaxRangeCm = sonarRange.maxRangeCm;
     sonarCfAltCm = sonarMaxRangeCm / 2;
@@ -98,7 +99,7 @@ void sonarInit()
  */
 void sonarUpdate(void)
 {
-    sonarFunctionPointers.startReading();
+    sonarFunctionPointers.update();
 }
 
 /**
@@ -106,7 +107,7 @@ void sonarUpdate(void)
  */
 int32_t sonarRead(void)
 {
-    return sonarFunctionPointers.getDistance();
+    return sonarFunctionPointers.read();
 }
 
 /*

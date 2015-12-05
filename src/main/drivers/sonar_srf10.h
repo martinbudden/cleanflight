@@ -21,14 +21,17 @@
 #include "sensors/sonar.h"
 #include "sensors/sonar_init.h"
 
-#define SRF10_MAX_RANGE_CM 600 // 6m, from SFR10 spec sheet, see http://www.robot-electronics.co.uk/htm/srf10tech.htm
+// Technical specification is at: http://robot-electronics.co.uk/htm/srf10tech.htm
+#define SRF10_MAX_RANGE_CM 600 // 6m, from SFR10 spec sheet
 // see http://www.robot-electronics.co.uk/htm/sonar_faq.htm for cone angles
 // FAQ states 55 degrees, conservatively reduced to 50 degrees here
 #define SRF10_DETECTION_CONE_DECIDEGREES 500
 #define SRF10_DETECTION_CONE_EXTENDED_DECIDEGREES 500
 
 const sonarGPIOConfig_t *srf10_get_hardware_configuration();
-void srf10_init(sonarRange_t *sonarRange, sonarFunctionPointers_t* sonarFunctionPointers);
+bool srf10_detect();
+void srf10_set_function_pointers(sonarFunctionPointers_t* sonarFunctionPointers);
+void srf10_init(sonarRange_t *sonarRange);
 void srf10_start_reading(void);
 int32_t srf10_get_distance(void);
 

@@ -210,8 +210,7 @@ void init(void)
 
 #ifdef SONAR
     if (feature(FEATURE_SONAR)) {
-        // TODO: currently sonar hardcoded to HCSR04
-        const sonarGPIOConfig_t *sonarGPIOConfig = sonarGetHardwareConfiguration(SONAR_HCSR04, masterConfig.batteryConfig.currentMeterType);
+        const sonarGPIOConfig_t *sonarGPIOConfig = sonarGetHardwareConfiguration(masterConfig.batteryConfig.currentMeterType);
         pwm_params.sonarGPIOConfig = sonarGPIOConfig;
     }
 #endif

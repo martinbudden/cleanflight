@@ -19,14 +19,6 @@
 
 #define SONAR_OUT_OF_RANGE (-1)
 
-typedef void (*sonarUpdateFunctionPtr_t)(void);
-typedef int32_t (*sonarReadFunctionPtr_t)(void);
-
-typedef struct sonarFunctionPointers_s {
-    sonarUpdateFunctionPtr_t startReading;
-    sonarReadFunctionPtr_t getDistance;
-} sonarFunctionPointers_t;
-
 extern int16_t sonarMaxRangeCm;
 extern int16_t sonarCfAltCm;
 extern int16_t sonarMaxAltWithTiltCm;

@@ -168,13 +168,18 @@ const sonarGPIOConfig_t *hcsr04_get_hardware_configuration(currentSensor_e curre
 #endif
 }
 
-void hcsr04_init(sonarRange_t *sonarRange, sonarFunctionPointers_t *sonarFunctionPointers)
+void hcsr04_set_function_pointers(sonarFunctionPointers_t* sonarFunctionPointers)
+{
+    sonarFunctionPointers->init = hcsr04_init;
+    sonarFunctionPointers->update = hcsr04_start_reading;
+    sonarFunctionPointers->read = hcsr04_get_distance;
+}
+
+void hcsr04_init(sonarRange_t *sonarRange)
 {
     sonarRange->maxRangeCm = HCSR04_MAX_RANGE_CM;
     sonarRange->detectionConeDeciDegrees = HCSR04_DETECTION_CONE_DECIDEGREES;
     sonarRange->detectionConeExtendedDeciDegrees = HCSR04_DETECTION_CONE_EXTENDED_DECIDEGREES;
-    sonarFunctionPointers->startReading = hcsr04_start_reading;
-    sonarFunctionPointers->getDistance = hcsr04_get_distance;
 
 #if !defined(UNIT_TEST)
     gpio_config_t gpio;

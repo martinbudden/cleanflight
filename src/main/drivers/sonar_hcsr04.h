@@ -26,6 +26,7 @@
 #define HCSR04_DETECTION_CONE_EXTENDED_DECIDEGREES 450 // in practice 45 degrees seems to work well
 
 const sonarGPIOConfig_t *hcsr04_get_hardware_configuration(currentSensor_e currentSensor);
-void hcsr04_init(sonarRange_t *sonarRange, sonarFunctionPointers_t *sonarFunctionPointers);
+void hcsr04_set_function_pointers(sonarFunctionPointers_t* sonarFunctionPointers);
+void hcsr04_init(sonarRange_t *sonarRange);
 void hcsr04_start_reading(void);
 int32_t hcsr04_get_distance(void);

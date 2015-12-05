@@ -144,7 +144,7 @@ TEST(AltitudeHoldTest, TestCalculateEstimatedAltitudeIntegrator)
     configureAltitudeHold(&pidProfile, &barometerConfig, 0, 0);
     resetBarometerConfig(&barometerConfig);
     // this is required to set sonar function pointers
-    sonarGetHardwareConfiguration(SONAR_HCSR04, CURRENT_SENSOR_NONE);
+    sonarGetHardwareConfigurationForType(SONAR_HCSR04, CURRENT_SENSOR_NONE);
     sonarInit();
 
     testCalculateEstimatedAltitudeReset();
@@ -176,7 +176,7 @@ TEST(AltitudeHoldTest, TestCalculateEstimatedAltitudeIntegrator)
 TEST(AltitudeHoldTest, TestCalculateEstimatedAltitudeSonar)
 {
     // this is required to set sonar function pointers
-    sonarGetHardwareConfiguration(SONAR_HCSR04, CURRENT_SENSOR_NONE);
+    sonarGetHardwareConfigurationForType(SONAR_HCSR04, CURRENT_SENSOR_NONE);
     sonarInit();
 
     barometerConfig_t barometerConfig;

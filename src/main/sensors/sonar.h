@@ -17,14 +17,37 @@
 
 #pragma once
 
+#include "sensors/sonar_init.h"
+
 #define SONAR_OUT_OF_RANGE (-1)
+
+typedef enum {
+    SONAR_HCSR04 = 0,
+    SONAR_SRF10
+} sonarHardwareType_e;
+
+typedef struct sonarRange_s {
+    int16_t maxRangeCm;
+    // these are full detection cone angles, maximum tilt is half of this
+    int16_t detectionConeDeciDegrees; // detection cone angle as in HC-SR04 device spec
+    int16_t detectionConeExtendedDeciDegrees; // device spec is conservative, in practice have slightly larger detection cone
+} sonarRange_t;
+
+typedef void (*sonarInitFunctionPtr)(sonarRange_t *sonarRange);
+typedef void (*sonarUpdateFunctionPtr)(void);
+typedef int32_t (*sonarReadFunctionPtr)(void);
+
+typedef struct sonarFunctionPointers_s {
+    sonarInitFunctionPtr init;
+    sonarUpdateFunctionPtr update;
+    sonarReadFunctionPtr read;
+} sonarFunctionPointers_t;
 
 extern int16_t sonarMaxRangeCm;
 extern int16_t sonarCfAltCm;
 extern int16_t sonarMaxAltWithTiltCm;
 
-void sonarUpdate(void);
-int32_t sonarRead(void);
+const sonarGPIOConfig_t *sonarGetHardwareConfigurationForType(sonarHardwareType_e sonarHardware, currentSensor_e currentSensor);
 int16_t sonarCalculateTiltAngle(int16_t rollDeciDegrees, int16_t pitchDeciDegrees);
 int32_t sonarCalculateAltitude(int32_t sonarDistance, int16_t rollDeciDegrees, int16_t pitchDeciDegrees);
 int32_t sonarGetLatestAltitude(void);

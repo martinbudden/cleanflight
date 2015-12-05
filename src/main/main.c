@@ -60,7 +60,6 @@
 #include "io/display.h"
 
 #include "sensors/sensors.h"
-#include "sensors/sonar.h"
 #include "sensors/sonar_init.h"
 #include "sensors/barometer.h"
 #include "sensors/compass.h"
@@ -210,8 +209,7 @@ void init(void)
 
 #ifdef SONAR
     if (feature(FEATURE_SONAR)) {
-        const sonarGPIOConfig_t *sonarGPIOConfig = sonarGetHardwareConfiguration(masterConfig.batteryConfig.currentMeterType);
-        pwm_params.sonarGPIOConfig = sonarGPIOConfig;
+        pwm_params.sonarGPIOConfig = sonarGetHardwareConfiguration(masterConfig.batteryConfig.currentMeterType);
     }
 #endif
 

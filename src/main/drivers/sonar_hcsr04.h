@@ -19,7 +19,6 @@
 
 #include "platform.h"
 #include "sensors/sonar.h"
-#include "sensors/sonar_init.h"
 
 #define HCSR04_MAX_RANGE_CM 400 // 4m, from HC-SR04 spec sheet
 #define HCSR04_DETECTION_CONE_DECIDEGREES 300 // recommended cone angle 30 degrees, from HC-SR04 spec sheet

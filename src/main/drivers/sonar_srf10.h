@@ -19,7 +19,6 @@
 
 #include "platform.h"
 #include "sensors/sonar.h"
-#include "sensors/sonar_init.h"
 
 // Technical specification is at: http://robot-electronics.co.uk/htm/srf10tech.htm
 #define SRF10_MAX_RANGE_CM 600 // 6m, from SFR10 spec sheet

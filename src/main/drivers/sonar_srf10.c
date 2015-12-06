@@ -106,7 +106,7 @@ bool srf10_detect()
 
     // read the unused register to detect if a SRF10 is present
     const bool ack = i2cRead(SRF10_AddressI2C, SRF10_READ_Unused, 1, &value);
-    if (!ack || value != SRF10_READ_Unused) {
+    if (!ack || value != SRF10_READ_Unused_ReturnValue) {
         return false;
     }
     return true;
@@ -142,17 +142,22 @@ void srf10_init(sonarRange_t *sonarRange)
 void srf10_start_reading(void)
 {
     static uint32_t timeOfLastMeasurementMs = 0;
+    static bool fired = false;
 
-    // check if there is a measurement outstanding, 0xFF is returned if no measurement
-    uint8_t revision;
-    const bool ack = i2cRead(SRF10_AddressI2C, SRF10_READ_SoftwareRevision, 1, &revision);
-    if (ack == true && revision != 0xFF) {
-        // there is a measurement
-        const uint8_t lowByte = i2c_srf10_read_byte(SRF10_READ_RangeLowByte);
-        const uint8_t highByte = i2c_srf10_read_byte(SRF10_READ_RangeHighByte);
-        srf10measurementCm =  highByte << 8 | lowByte;
-        if (srf10measurementCm > SRF10_MAX_RANGE_CM)
-            srf10measurementCm = SONAR_OUT_OF_RANGE;
+    if (fired) {
+        // check if there is a measurement outstanding, 0xFF is returned if no measurement
+        uint8_t revision;
+        const bool ack = i2cRead(SRF10_AddressI2C, SRF10_READ_SoftwareRevision, 1, &revision);
+        if (ack == true && revision != 0xFF) {
+            // there is a measurement
+            const uint8_t lowByte = i2c_srf10_read_byte(SRF10_READ_RangeLowByte);
+            const uint8_t highByte = i2c_srf10_read_byte(SRF10_READ_RangeHighByte);
+            srf10measurementCm =  highByte << 8 | lowByte;
+            if (srf10measurementCm > SRF10_MAX_RANGE_CM) {
+                srf10measurementCm = SONAR_OUT_OF_RANGE;
+            }
+            fired = false;
+        }
     }
 
     const uint32_t timeNowMs = millis();
@@ -161,6 +166,7 @@ void srf10_start_reading(void)
         // to avoid interference between connective measurements.
         timeOfLastMeasurementMs = timeNowMs;
         i2c_srf10_send_command(SRF10_COMMAND_InitiateRangingCm);
+        fired = true;
     }
 }
 

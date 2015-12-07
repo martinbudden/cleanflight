@@ -77,6 +77,7 @@
 #define SRF10_RangeValue11m 0xFF // exceeds actual maximum range
 
 STATIC_UNIT_TESTED volatile int32_t srf10measurementCm = SONAR_OUT_OF_RANGE;
+static int16_t minimumFiringIntervalMs;
 
 #ifdef UNIT_TEST
 bool i2cWrite(uint8_t addr_, uint8_t reg, uint8_t data) {UNUSED(addr_); UNUSED(reg); UNUSED(data); return false;}
@@ -102,14 +103,14 @@ static uint8_t i2c_srf10_read_byte(uint8_t i2cRegister)
 
 bool srf10_detect()
 {
-    uint8_t value = 0;
-
-    // read the unused register to detect if a SRF10 is present
-    const bool ack = i2cRead(SRF10_AddressI2C, SRF10_READ_Unused, 1, &value);
-    if (!ack || value != SRF10_READ_Unused_ReturnValue) {
-        return false;
-    }
+    // !!TODO return hardcoded to true until I get detection working
     return true;
+    /*uint8_t revision;
+    const bool ack = i2cRead(SRF10_AddressI2C, SRF10_READ_SoftwareRevision, 1, &revision);
+    if (ack == true && revision > 0) {
+        return true;
+    }
+    return false;*/
 }
 
 void srf10_init(sonarRange_t *sonarRange)
@@ -118,7 +119,9 @@ void srf10_init(sonarRange_t *sonarRange)
     sonarRange->detectionConeDeciDegrees = SRF10_DETECTION_CONE_DECIDEGREES;
     sonarRange->detectionConeExtendedDeciDegrees = SRF10_DETECTION_CONE_EXTENDED_DECIDEGREES;
     // set up the SRF10 hardware for a range of 6m
-    i2c_srf10_send_byte(SRF10_WRITE_MaxGainRegister, SRF10_COMMAND_SetGain_600);
+    // !!TODO need to tune firing interval and gain for best results
+    minimumFiringIntervalMs = 80;
+    i2c_srf10_send_byte(SRF10_WRITE_MaxGainRegister, SRF10_COMMAND_SetGain_400);
     i2c_srf10_send_byte(SRF10_WRITE_RangeRegister, SRF10_RangeValue6m);
 }
 
@@ -148,8 +151,8 @@ void srf10_start_reading(void)
     }
 
     const uint32_t timeNowMs = millis();
-    if (timeNowMs > timeOfLastMeasurementMs + SRF10_MinimumFiringIntervalFor600cmRangeMs) {
-        // measurement repeat interval should be greater than SRF10_MinimumFiringIntervalFor600cmRangeMs
+    if (timeNowMs > timeOfLastMeasurementMs + minimumFiringIntervalMs) {
+        // measurement repeat interval should be greater than minimumFiringIntervalMs
         // to avoid interference between connective measurements.
         timeOfLastMeasurementMs = timeNowMs;
         i2c_srf10_send_command(SRF10_COMMAND_InitiateRangingCm);

@@ -24,10 +24,12 @@
 #include "common/maths.h"
 
 #include "config/runtime_config.h"
+#include "config/config.h"
 
 #include "drivers/gpio.h"
 #include "drivers/sonar_hcsr04.h"
 #include "drivers/sonar_srf10.h"
+#include "drivers/sonar.h"
 
 #include "sensors/sensors.h"
 #include "sensors/battery.h"
@@ -38,42 +40,129 @@
 
 #ifdef SONAR
 
+#define SONAR_GPIO GPIOB
+
 int16_t sonarMaxRangeCm;
 int16_t sonarMaxAltWithTiltCm;
 int16_t sonarCfAltCm; // Complimentary Filter altitude
 STATIC_UNIT_TESTED int16_t sonarMaxTiltDeciDegrees;
 static sonarFunctionPointers_t sonarFunctionPointers;
 
-
 static int32_t calculatedAltitude;
 
+static const sonarHardware_t *sonarGetHardwareConfigurationForHCSR04(currentSensor_e currentSensor);
+
+static const sonarHardware_t *sonarGetHardwareConfigurationForHCSR04(currentSensor_e currentSensor)
+{
+#if defined(NAZE) || defined(EUSTM32F103RC) || defined(PORT103R)
+    static const sonarHardware_t const sonarPWM56 = {
+        .GPIOConfig = {
+            .gpio = SONAR_GPIO,
+            .trigger_pin = Pin_8,   // PWM5 (PB8) - 5v tolerant
+            .echo_pin = Pin_9       // PWM6 (PB9) - 5v tolerant
+        },
+        .exti_line = EXTI_Line9,
+        .exti_pin_source = GPIO_PinSource9,
+        .exti_irqn = EXTI9_5_IRQn
+    };
+    static const sonarHardware_t const sonarRC78 = {
+        .GPIOConfig = {
+            .gpio = SONAR_GPIO,
+            .trigger_pin = Pin_0,   // RX7 (PB0) - only 3.3v ( add a 1K Ohms resistor )
+            .echo_pin = Pin_1       // RX8 (PB1) - only 3.3v ( add a 1K Ohms resistor )
+        },
+        .exti_line = EXTI_Line1,
+        .exti_pin_source = GPIO_PinSource1,
+        .exti_irqn = EXTI1_IRQn
+    };
+    // If we are using parallel PWM for our receiver or ADC current sensor, then use motor pins 5 and 6 for sonar, otherwise use rc pins 7 and 8
+    if (feature(FEATURE_RX_PARALLEL_PWM ) || (feature(FEATURE_CURRENT_METER) && currentSensor == CURRENT_SENSOR_ADC) ) {
+        return &sonarPWM56;
+    } else {
+        return &sonarRC78;
+    }
+#elif defined(OLIMEXINO)
+    UNUSED(currentSensor);
+    static const sonarHardware_t const sonarHardware = {
+        .GPIOConfig = {
+            .gpio = SONAR_GPIO,
+            .trigger_pin = Pin_0,   // RX7 (PB0) - only 3.3v ( add a 1K Ohms resistor )
+            .echo_pin = Pin_1       // RX8 (PB1) - only 3.3v ( add a 1K Ohms resistor )
+        },
+        .exti_line = EXTI_Line1,
+        .exti_pin_source = GPIO_PinSource1,
+        .exti_irqn = EXTI1_IRQn
+    };
+    return &sonarHardware;
+#elif defined(CC3D)
+    UNUSED(currentSensor);
+    static const sonarHardware_t const sonarHardware = {
+        .GPIOConfig = {
+           .gpio = SONAR_GPIO,
+           .trigger_pin = Pin_5,   // (PB5)
+           .echo_pin = Pin_0       // (PB0) - only 3.3v ( add a 1K Ohms resistor )
+        },
+        .exti_line = EXTI_Line0,
+        .exti_pin_source = GPIO_PinSource0,
+        .exti_irqn = EXTI0_IRQn
+    };
+    return &sonarHardware;
+#elif defined(SPRACINGF3)
+    UNUSED(currentSensor);
+    static const sonarHardware_t const sonarHardware = {
+        .GPIOConfig = {
+            .gpio = SONAR_GPIO,
+            .trigger_pin = Pin_0,   // RC_CH7 (PB0) - only 3.3v ( add a 1K Ohms resistor )
+            .echo_pin = Pin_1       // RC_CH8 (PB1) - only 3.3v ( add a 1K Ohms resistor )
+        },
+        .exti_line = EXTI_Line1,
+        .exti_pin_source = EXTI_PinSource1,
+        .exti_irqn = EXTI1_IRQn
+    };
+    return &sonarHardware;
+#elif defined(UNIT_TEST)
+    UNUSED(currentSensor);
+    return 0;
+#else
+#error Sonar not defined for target
+#endif
+}
+
+const sonarGPIOConfig_t *sonarConfigureHardwareForType(sonarHardwareType_e sonarHardwareType, currentSensor_e currentSensor)
+{
+    const sonarHardware_t *sonarHardware;
+    const sonarGPIOConfig_t *sonarGPIOConfig;
+
+    switch (sonarHardwareType) {
+    case SONAR_HCSR04:
+        sonarHardware = sonarGetHardwareConfigurationForHCSR04(currentSensor);
+        hcsr04_set_sonar_hardware(sonarHardware);
+        sonarFunctionPointers.init = hcsr04_init;
+        sonarFunctionPointers.update = hcsr04_start_reading;
+        sonarFunctionPointers.read = hcsr04_get_distance;
+        sonarGPIOConfig = &sonarHardware->GPIOConfig;
+        break;
+    case SONAR_SRF10:
+        sonarFunctionPointers.init = srf10_init;
+        sonarFunctionPointers.update = srf10_start_reading;
+        sonarFunctionPointers.read = srf10_get_distance;
+        sonarGPIOConfig = 0;
+        break;
+    }
+    return sonarGPIOConfig;
+}
+
 /*
- * Setup the hardware configuration for the designated hardware type.
+ * Configure the sonar hardware.
  * NOTE: sonarInit() must be subsequently called before using any of the sonar functions.
  */
-const sonarGPIOConfig_t *sonarGetHardwareConfiguration(currentSensor_e currentSensor)
+const sonarGPIOConfig_t *sonarConfigureHardware(currentSensor_e currentSensor)
 {
     const bool srf10present = srf10_detect();
 
     // if a SRF10 is detected then use it, otherwise assume we have a HCSR04 (which has no means of detection)
     const sonarHardwareType_e sonarHardware = srf10present ? SONAR_SRF10 : SONAR_HCSR04;
-    return sonarGetHardwareConfigurationForType(sonarHardware, currentSensor);
-}
-
-const sonarGPIOConfig_t *sonarGetHardwareConfigurationForType(sonarHardwareType_e sonarHardware, currentSensor_e currentSensor)
-{
-    const sonarGPIOConfig_t *GPIOConfig;
-    switch (sonarHardware) {
-    case SONAR_HCSR04:
-        GPIOConfig = hcsr04_get_hardware_configuration(currentSensor);
-        hcsr04_set_function_pointers(&sonarFunctionPointers);
-        break;
-    case SONAR_SRF10:
-        GPIOConfig = srf10_get_hardware_configuration();
-        srf10_set_function_pointers(&sonarFunctionPointers);
-        break;
-    }
-    return GPIOConfig;
+    return sonarConfigureHardwareForType(sonarHardware, currentSensor);
 }
 
 

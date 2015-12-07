@@ -22,7 +22,6 @@ extern "C" {
     #include "drivers/sonar_hcsr04.h"
     #include "drivers/sonar_srf10.h"
     #include "sensors/sonar.h"
-    #include "sensors/sonar_init.h"
     extern int32_t hcsr04SonarPulseTravelTime;
     extern int32_t srf10measurementCm;
     extern int16_t sonarMaxTiltDeciDegrees;
@@ -44,7 +43,7 @@ TEST(SonarUnittest, TestConstants)
 
 TEST(SonarUnittest, TestSonarInit_HCSR04)
 {
-    sonarGetHardwareConfigurationForType(SONAR_HCSR04, CURRENT_SENSOR_NONE);
+    sonarConfigureHardwareForType(SONAR_HCSR04, CURRENT_SENSOR_NONE);
     sonarInit();
     EXPECT_EQ(sonarMaxRangeCm, HCSR04_MAX_RANGE_CM);
     // Check against gross errors in max range values
@@ -60,7 +59,7 @@ TEST(SonarUnittest, TestSonarInit_HCSR04)
 
 TEST(SonarUnittest, TestSonarInit_SRF10)
 {
-    sonarGetHardwareConfigurationForType(SONAR_SRF10, CURRENT_SENSOR_NONE);
+    sonarConfigureHardwareForType(SONAR_SRF10, CURRENT_SENSOR_NONE);
     sonarInit();
     EXPECT_EQ(sonarMaxRangeCm, SRF10_MAX_RANGE_CM);
     // Check against gross errors in max range values
@@ -106,7 +105,7 @@ TEST(SonarUnittest, TestDistance_SRF10)
 TEST(SonarUnittest, TestAltitude)
 {
     for (int ii = SONAR_HCSR04; ii <= SONAR_SRF10; ++ii) {
-        sonarGetHardwareConfigurationForType((sonarHardwareType_e)ii, CURRENT_SENSOR_NONE);
+        sonarConfigureHardwareForType((sonarHardwareType_e)ii, CURRENT_SENSOR_NONE);
         sonarInit();
         // Check distance not modified if no tilt
         EXPECT_EQ(sonarCalculateAltitude(0, 0, 0), 0);

@@ -41,7 +41,6 @@ extern "C" {
     #include "sensors/acceleration.h"
     #include "sensors/barometer.h"
     #include "sensors/sonar.h"
-    #include "sensors/sonar_init.h"
 
     #include "io/escservo.h"
     #include "io/rc_controls.h"
@@ -144,7 +143,7 @@ TEST(AltitudeHoldTest, TestCalculateEstimatedAltitudeIntegrator)
     configureAltitudeHold(&pidProfile, &barometerConfig, 0, 0);
     resetBarometerConfig(&barometerConfig);
     // this is required to set sonar function pointers
-    sonarGetHardwareConfigurationForType(SONAR_HCSR04, CURRENT_SENSOR_NONE);
+    sonarConfigureHardwareForType(SONAR_HCSR04, CURRENT_SENSOR_NONE);
     sonarInit();
 
     testCalculateEstimatedAltitudeReset();
@@ -176,7 +175,7 @@ TEST(AltitudeHoldTest, TestCalculateEstimatedAltitudeIntegrator)
 TEST(AltitudeHoldTest, TestCalculateEstimatedAltitudeSonar)
 {
     // this is required to set sonar function pointers
-    sonarGetHardwareConfigurationForType(SONAR_HCSR04, CURRENT_SENSOR_NONE);
+    sonarConfigureHardwareForType(SONAR_HCSR04, CURRENT_SENSOR_NONE);
     sonarInit();
 
     barometerConfig_t barometerConfig;

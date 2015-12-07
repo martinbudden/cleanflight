@@ -112,19 +112,6 @@ bool srf10_detect()
     return true;
 }
 
-const sonarGPIOConfig_t *srf10_get_hardware_configuration()
-{
-    // no interrupt handler required, so just return 0
-    return 0;
-}
-
-void srf10_set_function_pointers(sonarFunctionPointers_t* sonarFunctionPointers)
-{
-    sonarFunctionPointers->init = srf10_init;
-    sonarFunctionPointers->update = srf10_start_reading;
-    sonarFunctionPointers->read = srf10_get_distance;
-}
-
 void srf10_init(sonarRange_t *sonarRange)
 {
     sonarRange->maxRangeCm = SRF10_MAX_RANGE_CM;

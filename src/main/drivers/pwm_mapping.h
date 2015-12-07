@@ -18,7 +18,7 @@
 #pragma once
 #include "gpio.h"
 #include "timer.h"
-#include "sensors/sonar_init.h"
+#include "sensors/sonar.h"
 
 #define MAX_PWM_MOTORS  12
 #define MAX_PWM_SERVOS  8

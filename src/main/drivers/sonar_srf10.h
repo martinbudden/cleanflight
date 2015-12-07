@@ -18,7 +18,7 @@
 #pragma once
 
 #include "platform.h"
-#include "sensors/sonar.h"
+#include "drivers/sonar.h"
 
 // Technical specification is at: http://robot-electronics.co.uk/htm/srf10tech.htm
 #define SRF10_MAX_RANGE_CM 600 // 6m, from SFR10 spec sheet
@@ -27,9 +27,7 @@
 #define SRF10_DETECTION_CONE_DECIDEGREES 500
 #define SRF10_DETECTION_CONE_EXTENDED_DECIDEGREES 500
 
-const sonarGPIOConfig_t *srf10_get_hardware_configuration();
 bool srf10_detect();
-void srf10_set_function_pointers(sonarFunctionPointers_t* sonarFunctionPointers);
 void srf10_init(sonarRange_t *sonarRange);
 void srf10_start_reading(void);
 int32_t srf10_get_distance(void);

@@ -17,15 +17,13 @@
 
 #pragma once
 
-#include "sensors/battery.h"
+#define SONAR_OUT_OF_RANGE (-1)
 
-typedef struct sonarGPIOConfig_s {
-    GPIO_TypeDef *gpio;
-    const uint16_t trigger_pin;
-    const uint16_t echo_pin;
-} sonarGPIOConfig_t;
+typedef struct sonarRange_s {
+    int16_t maxRangeCm;
+    // these are full detection cone angles, maximum tilt is half of this
+    int16_t detectionConeDeciDegrees; // detection cone angle as in HC-SR04 device spec
+    int16_t detectionConeExtendedDeciDegrees; // device spec is conservative, in practice have slightly larger detection cone
+} sonarRange_t;
 
-const sonarGPIOConfig_t *sonarGetHardwareConfiguration(currentSensor_e currentSensor);
-void sonarInit();
-void sonarUpdate(void);
-int32_t sonarRead(void);
+

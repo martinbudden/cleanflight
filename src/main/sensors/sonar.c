@@ -29,6 +29,7 @@
 #include "drivers/gpio.h"
 #include "drivers/sonar_hcsr04.h"
 #include "drivers/sonar_srf10.h"
+#include "drivers/lidar_lite.h"
 #include "drivers/sonar.h"
 
 #include "sensors/sensors.h"
@@ -148,6 +149,12 @@ const sonarGPIOConfig_t *sonarConfigureHardwareForType(sonarHardwareType_e sonar
         sonarFunctionPointers.read = srf10_get_distance;
         sonarGPIOConfig = 0;
         break;
+    case SONAR_LIDAR_LITE:
+        sonarFunctionPointers.init = lidar_lite_init;
+        sonarFunctionPointers.update = lidar_lite_start_reading;
+        sonarFunctionPointers.read = lidar_lite_get_distance;
+        sonarGPIOConfig = 0;
+        break;
     }
     return sonarGPIOConfig;
 }
@@ -158,10 +165,18 @@ const sonarGPIOConfig_t *sonarConfigureHardwareForType(sonarHardwareType_e sonar
  */
 const sonarGPIOConfig_t *sonarConfigureHardware(currentSensor_e currentSensor)
 {
-    const bool srf10present = srf10_detect();
-
-    // if a SRF10 is detected then use it, otherwise assume we have a HCSR04 (which has no means of detection)
-    const sonarHardwareType_e sonarHardware = srf10present ? SONAR_SRF10 : SONAR_HCSR04;
+    sonarHardwareType_e sonarHardware;
+    if (lidar_lite_detect()) {
+        // A Pulsed Lite LIDAR-Lite is available, so use it
+        sonarHardware = SONAR_LIDAR_LITE;
+    } else if (srf10_detect()) {
+        // A SRF10 is available, so use it
+        sonarHardware = SONAR_SRF10;
+    } else {
+        // the user has set the SONAR feature, so there must be a HCSR04 connected, so use it
+        // (there is no simple way of detecting its presence)
+        sonarHardware = SONAR_HCSR04;
+    }
     return sonarConfigureHardwareForType(sonarHardware, currentSensor);
 }
 

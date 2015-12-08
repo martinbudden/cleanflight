@@ -23,7 +23,8 @@
 
 typedef enum {
     SONAR_HCSR04 = 0,
-    SONAR_SRF10
+    SONAR_SRF10,
+    SONAR_LIDAR_LITE
 } sonarHardwareType_e;
 
 typedef void (*sonarInitFunctionPtr)(sonarRange_t *sonarRange);

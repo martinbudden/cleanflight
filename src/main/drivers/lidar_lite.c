@@ -86,14 +86,18 @@ void lidar_lite_start_reading(void)
 {
     static uint32_t timeOfLastMeasurementMs = 0;
     static int firingCount = 0;
+    static bool fired = false;
 
-    uint8_t distanceArray[2];
-    const bool ack = i2cRead(LIDAR_LITE_AddressI2C, LIDAR_LITE_READ_Range2Bytes, 2, &distanceArray[0]);
-    if (ack == true) {
-        // there is a measurement, ranging has completed
-        lidarLiteMeasurementCm =  (distanceArray[0] << 8) | distanceArray[1];
-        if (lidarLiteMeasurementCm > LIDAR_LITE_MAX_RANGE_CM)
-            lidarLiteMeasurementCm = SONAR_OUT_OF_RANGE;
+    if (fired) {
+        uint8_t distanceArray[2];
+        const bool ack = i2cRead(LIDAR_LITE_AddressI2C, LIDAR_LITE_READ_Range2Bytes, 2, &distanceArray[0]);
+        if (ack == true) {
+            // there is a measurement, ranging has completed
+            lidarLiteMeasurementCm =  (distanceArray[0] << 8) | distanceArray[1];
+            if (lidarLiteMeasurementCm > LIDAR_LITE_MAX_RANGE_CM)
+                lidarLiteMeasurementCm = SONAR_OUT_OF_RANGE;
+        }
+        fired = false;
     }
 
     const uint32_t timeNowMs = millis();
@@ -109,6 +113,7 @@ void lidar_lite_start_reading(void)
             i2c_lidar_lite_send_command(LIDAR_LITE_COMMAND_InitiateRangingWithoutDcCorrection);
         }
         ++firingCount;
+        fired = true;
     }
 }
 

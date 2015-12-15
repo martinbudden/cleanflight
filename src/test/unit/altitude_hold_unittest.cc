@@ -71,12 +71,12 @@ extern "C" {
 
 
 extern "C" {
-    bool isThrustFacingDownwards(rollAndPitchInclination_t *inclinations);
-    uint16_t calculateTiltAngle(rollAndPitchInclination_t *inclinations);
+    bool isThrustFacingDownwards(attitudeEulerAngles_t * attitude);
+    uint16_t calculateTiltAngle(attitudeEulerAngles_t * attitude);
 }
 
 typedef struct inclinationExpectation_s {
-    rollAndPitchInclination_t inclination;
+    attitudeEulerAngles_t attitude;
     bool expectDownwardsThrust;
 } inclinationExpectation_t;
 
@@ -85,17 +85,17 @@ TEST(AltitudeHoldTest, IsThrustFacingDownwards)
     // given
 
     inclinationExpectation_t inclinationExpectations[] = {
-            { {{    0,    0 }}, DOWNWARDS_THRUST },
-            { {{  799,  799 }}, DOWNWARDS_THRUST },
-            { {{  800,  799 }}, UPWARDS_THRUST },
-            { {{  799,  800 }}, UPWARDS_THRUST },
-            { {{  800,  800 }}, UPWARDS_THRUST },
-            { {{  801,  801 }}, UPWARDS_THRUST },
-            { {{ -799, -799 }}, DOWNWARDS_THRUST },
-            { {{ -800, -799 }}, UPWARDS_THRUST },
-            { {{ -799, -800 }}, UPWARDS_THRUST },
-            { {{ -800, -800 }}, UPWARDS_THRUST },
-            { {{ -801, -801 }}, UPWARDS_THRUST }
+            { {{    0,    0,    0 }}, DOWNWARDS_THRUST },
+            { {{  799,  799,    0 }}, DOWNWARDS_THRUST },
+            { {{  800,  799,    0 }}, UPWARDS_THRUST },
+            { {{  799,  800,    0 }}, UPWARDS_THRUST },
+            { {{  800,  800,    0 }}, UPWARDS_THRUST },
+            { {{  801,  801,    0 }}, UPWARDS_THRUST },
+            { {{ -799, -799,    0 }}, DOWNWARDS_THRUST },
+            { {{ -800, -799,    0 }}, UPWARDS_THRUST },
+            { {{ -799, -800,    0 }}, UPWARDS_THRUST },
+            { {{ -800, -800,    0 }}, UPWARDS_THRUST },
+            { {{ -801, -801,    0 }}, UPWARDS_THRUST }
     };
     uint8_t testIterationCount = sizeof(inclinationExpectations) / sizeof(inclinationExpectation_t);
 
@@ -106,7 +106,7 @@ TEST(AltitudeHoldTest, IsThrustFacingDownwards)
 #ifdef DEBUG_ALTITUDE_HOLD
         printf("iteration: %d\n", index);
 #endif
-        bool result = isThrustFacingDownwards(&angleInclinationExpectation->inclination);
+        bool result = isThrustFacingDownwards(&angleInclinationExpectation->attitude);
         EXPECT_EQ(angleInclinationExpectation->expectDownwardsThrust, result);
     }
 }
@@ -216,7 +216,7 @@ uint32_t accTimeSum=0;        // keep track for integration of acc
 int accSumCount=0;
 float accVelScale=0;
 
-rollAndPitchInclination_t inclination;
+attitudeEulerAngles_t attitude;
 
 int32_t accSum[XYZ_AXIS_COUNT];
 int16_t debug[DEBUG16_VALUE_COUNT];

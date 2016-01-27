@@ -508,6 +508,9 @@ static void detectAndApplySignalLossBehaviour(void)
                 sample = rcData[channel];           // hold channel for MAX_INVALID_PULS_TIME
             } else {
                 sample = getRxfailValue(channel);   // after that apply rxfail value
+                if (channel == THROTTLE) {
+                    sample = MAX(sample, rcData[THROTTLE]); // failsafe should never increase throttle value
+                }
                 rxUpdateFlightChannelStatus(channel, validPulse);
             }
         } else {

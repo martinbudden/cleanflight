@@ -509,7 +509,7 @@ static void detectAndApplySignalLossBehaviour(void)
             } else {
                 sample = getRxfailValue(channel);   // after that apply rxfail value
                 if (channel == THROTTLE) {
-                    sample = MAX(sample, rcData[THROTTLE]); // failsafe should never increase throttle value
+                    sample = MIN(sample, rcData[THROTTLE]); // failsafe should never increase throttle value
                 }
                 rxUpdateFlightChannelStatus(channel, validPulse);
             }

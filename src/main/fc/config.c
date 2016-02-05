@@ -152,7 +152,9 @@ static void activateConfig(void)
 {
     activateControlRateConfig();
 
+#ifndef SKIP_INFLIGHT_ADJUSTMENTS
     resetAdjustmentStates();
+#endif
 
     useRcControlsConfig(modeActivationProfile()->modeActivationConditions);
 
@@ -169,7 +171,9 @@ static void activateConfig(void)
     mixerUseConfigs(servoProfile()->servoConf);
 #endif
 
+#ifdef MAG
     recalculateMagneticDeclination();
+#endif
 
     static imuRuntimeConfig_t imuRuntimeConfig;
     imuRuntimeConfig.dcm_kp = imuConfig()->dcm_kp / 10000.0f;
@@ -276,12 +280,14 @@ static void validateAndFixConfig(void)
     }
 #endif
 
+#ifndef SKIP_SERIAL
     if (!isSerialConfigValid(serialConfig())) {
         PG_RESET_CURRENT(serialConfig);
     }
 
 #if defined(USE_VCP)
     serialConfig()->portConfigs[0].functionMask = FUNCTION_MSP_SERVER;
+#endif
 #endif
 }
 

@@ -207,15 +207,19 @@ void rxInit(modeActivationCondition_t *modeActivationConditions)
     }
 #endif
 
+#ifndef SKIP_RX_MSP
     if (feature(FEATURE_RX_MSP)) {
         rxRefreshRate = 20000;
         rxMspInit(&rxRuntimeConfig, &rcReadRawFunc);
     }
+#endif
 
+#ifndef SKIP_RX_PWM
     if (feature(FEATURE_RX_PPM) || feature(FEATURE_RX_PARALLEL_PWM)) {
         rxRefreshRate = 20000;
         rxPwmInit(&rxRuntimeConfig, &rcReadRawFunc);
     }
+#endif
 }
 
 #ifdef SERIAL_RX
@@ -364,6 +368,7 @@ void updateRx(uint32_t currentTime)
     }
 #endif
 
+#ifndef SKIP_RX_MSP
     if (feature(FEATURE_RX_MSP)) {
         rxDataReceived = rxMspFrameComplete();
 
@@ -373,7 +378,9 @@ void updateRx(uint32_t currentTime)
             needRxSignalBefore = currentTime + DELAY_5_HZ;
         }
     }
+#endif
 
+#ifndef SKIP_RX_PWM
     if (feature(FEATURE_RX_PPM)) {
         if (isPPMDataBeingReceived()) {
             rxSignalReceivedNotDataDriven = true;
@@ -390,6 +397,7 @@ void updateRx(uint32_t currentTime)
             needRxSignalBefore = currentTime + DELAY_10_HZ;
         }
     }
+#endif
 
 }
 
@@ -398,6 +406,7 @@ bool shouldProcessRx(uint32_t currentTime)
     return rxDataReceived || ((int32_t)(currentTime - rxUpdateAt) >= 0); // data driven or 50Hz
 }
 
+#ifndef SKIP_RX_PWM
 static uint16_t calculateNonDataDrivenChannel(uint8_t chan, uint16_t sample)
 {
     static uint16_t rcSamples[MAX_SUPPORTED_RX_PARALLEL_PWM_OR_PPM_CHANNEL_COUNT][PPM_AND_PWM_SAMPLE_COUNT];
@@ -423,6 +432,7 @@ static uint16_t calculateNonDataDrivenChannel(uint8_t chan, uint16_t sample)
 
     return rcDataMean / PPM_AND_PWM_SAMPLE_COUNT;
 }
+#endif
 
 static uint16_t getRxfailValue(uint8_t channel)
 {
@@ -535,11 +545,11 @@ static void detectAndApplySignalLossBehaviour(void)
             rcInvalidPulsPeriod[channel] = currentMilliTime + MAX_INVALID_PULS_TIME;
         }
 
-        if (rxIsDataDriven) {
+#ifdef SKIP_RX_PWM
             rcData[channel] = sample;
-        } else {
-            rcData[channel] = calculateNonDataDrivenChannel(channel, sample);
-        }
+#else
+            rcData[channel] = rxIsDataDriven ? sample : calculateNonDataDrivenChannel(channel, sample);
+#endif
     }
 
     rxFlightChannelsValid = rxHaveValidFlightChannels();

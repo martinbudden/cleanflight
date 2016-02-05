@@ -22,6 +22,7 @@
 
 #include "build/build_config.h"
 
+#ifndef SKIP_RX_MSP
 #include "config/parameter_group.h"
 
 #include "drivers/dma.h"
@@ -73,3 +74,4 @@ void rxMspInit(rxRuntimeConfig_t *rxRuntimeConfig, rcReadRawDataPtr *callback)
     if (callback)
         *callback = rxMspReadRawRC;
 }
+#endif

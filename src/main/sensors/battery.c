@@ -65,7 +65,9 @@ int32_t amperage = 0;               // amperage read by current sensor in centia
 int32_t mAhDrawn = 0;               // milliampere hours drawn from the battery since start
 
 static batteryState_e batteryState;
+#if (FLASH_SIZE >= 64)
 static biquad_t vbatFilterState;
+#endif
 
 PG_REGISTER_WITH_RESET_TEMPLATE(batteryConfig_t, batteryConfig, PG_BATTERY_CONFIG, 0);
 
@@ -90,10 +92,11 @@ uint16_t batteryAdcToVoltage(uint16_t src)
 static void updateBatteryVoltage(void)
 {
 #ifdef ADC_BATTERY
-    uint16_t vbatSample;
     // store the battery voltage with some other recent battery voltage readings
-    vbatSample = vbatLatestADC = adcGetChannel(ADC_BATTERY);
+    uint16_t vbatSample = vbatLatestADC = adcGetChannel(ADC_BATTERY);
+#if (FLASH_SIZE >= 64)
     vbatSample = applyBiQuadFilter(vbatSample, &vbatFilterState);
+#endif
     vbat = batteryAdcToVoltage(vbatSample);
 #endif
 }
@@ -186,8 +189,9 @@ void batteryInit(void)
     batteryWarningVoltage = 0;
     batteryCriticalVoltage = 0;
 
+#if (FLASH_SIZE >= 64)
     BiQuadNewLpf(VBATT_LPF_FREQ, &vbatFilterState, 50000);
-
+#endif
 }
 
 #define ADCVREF 3300   // in mV

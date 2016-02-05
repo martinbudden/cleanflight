@@ -40,15 +40,12 @@
 #define GYRO
 #define USE_GYRO_MPU6050
 
+#if (FLASH_SIZE >= 64)
 #define MAG
 #define USE_MAG_HMC5883
+#endif
 
 #define BRUSHED_MOTORS
-
-#define USE_UART1
-#define USE_UART2
-
-#define SERIAL_PORT_COUNT 2
 
 #define USE_I2C
 #define I2C_DEVICE (I2CDEV_1)
@@ -57,13 +54,26 @@
 // #define SOFT_I2C_PB1011 // If SOFT_I2C is enabled above, need to define pinout as well (I2C1 = PB67, I2C2 = PB1011)
 // #define SOFT_I2C_PB67
 
-#define DEFAULT_RX_FEATURE FEATURE_RX_PPM
 
-#define SERIAL_RX
-//#define USE_SERVOS
-#define USE_CLI
-
+#if (FLASH_SIZE >= 64)
+#define SERIAL_PORT_COUNT 2
+#define USE_UART1
+#define USE_UART2
 #define SPEKTRUM_BIND
+#define SERIAL_RX
+#define USE_CLI
+#else
+#define SKIP_SERIAL
+#define SERIAL_PORT_COUNT 1
+#define USE_UART1
+#define SKIP_MSP
+//#define SKIP_RX_PWM
+#define SKIP_RX_MSP
+#define SKIP_PID_LUXFLOAT
+#define SKIP_PID_MW23
+#define SKIP_INFLIGHT_ADJUSTMENTS
+#endif
+
 // UART2, PA3
 #define BIND_PORT  GPIOA
 #define BIND_PIN   Pin_3
@@ -74,14 +84,11 @@
 
 #if (FLASH_SIZE > 64)
 #define BLACKBOX
+#define GTUNE
 #else
 #define SKIP_TASK_STATISTICS
 #define SKIP_CLI_COMMAND_HELP
 #endif
-
-//#undef USE_CLI
-//#define GTUNE
-//#define BLACKBOX
 
 // IO - assuming all IOs on 48pin package TODO
 #define TARGET_IO_PORTA 0xffff

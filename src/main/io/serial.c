@@ -24,6 +24,8 @@
 
 #include "build/build_config.h"
 
+#ifndef SKIP_SERIAL
+
 #include "common/utils.h"
 #include "common/streambuf.h"
 

@@ -116,9 +116,12 @@ uint8_t motorControlEnable = false;
 int16_t telemTemperature1;      // gyro sensor temperature
 static uint32_t disarmAt;     // Time of automatic disarm when "Don't spin the motors when armed" is enabled and auto_disarm_delay is nonzero
 
+extern uint8_t cliMode;
 extern uint32_t currentTime;
 extern uint8_t PIDweight[3];
+#ifndef SKIP_PID_MW23
 extern uint8_t dynP8[3], dynI8[3], dynD8[3];
+#endif
 
 static bool isRXDataNew;
 static pt1Filter_t filteredCycleTimeState;
@@ -518,10 +521,12 @@ void processRx(void)
 
     rcModeUpdateActivated(modeActivationProfile()->modeActivationConditions);
 
-    if (!cliMode) {
+#ifndef SKIP_INFLIGHT_ADJUSTMENTS
+    if (!CLI_MODE()) {
         updateAdjustmentStates(adjustmentProfile()->adjustmentRanges);
         processRcAdjustments(currentControlRateProfile, rxConfig());
     }
+#endif
 
     bool canUseHorizonMode = true;
 
@@ -754,7 +759,7 @@ void taskMainPidLoop(void)
 #endif
 
 #ifdef BLACKBOX
-    if (!cliMode && feature(FEATURE_BLACKBOX)) {
+    if (!CLI_MODE() && feature(FEATURE_BLACKBOX)) {
         handleBlackbox();
     }
 #endif
@@ -782,6 +787,7 @@ void taskUpdateAccelerometer(void)
     imuUpdateAccelerometer(&accelerometerConfig()->accelerometerTrims);
 }
 
+#ifndef SKIP_SERIAL
 void taskHandleSerial(void)
 {
 #ifdef USE_CLI
@@ -794,6 +800,7 @@ void taskHandleSerial(void)
 
     mspSerialProcess();
 }
+#endif
 
 #ifdef BEEPER
 void taskUpdateBeeper(void)
@@ -942,7 +949,7 @@ void taskTelemetry(void)
 {
     telemetryCheckState();
 
-    if (!cliMode && feature(FEATURE_TELEMETRY)) {
+    if (!CLI_MODE() && feature(FEATURE_TELEMETRY)) {
         telemetryProcess(rcControlsConfig()->deadband3d_throttle);
     }
 }

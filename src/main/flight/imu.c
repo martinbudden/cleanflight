@@ -62,6 +62,12 @@
 // http://gentlenav.googlecode.com/files/fastRotations.pdf
 #define SPIN_RATE_LIMIT 20
 
+#ifdef MAG
+extern float magneticDeclination;
+#else
+#define magneticDeclination 0
+#endif
+
 int16_t accSmooth[XYZ_AXIS_COUNT];
 int32_t accSum[XYZ_AXIS_COUNT];
 
@@ -249,9 +255,11 @@ static void imuMahonyAHRSupdate(float dt, float gx, float gy, float gz,
                                 bool useMag, float mx, float my, float mz,
                                 bool useYaw, float yawError)
 {
+#ifndef MAG
+    UNUSED(useMag);
+#endif
     static float integralFBx = 0.0f,  integralFBy = 0.0f, integralFBz = 0.0f;    // integral error terms scaled by Ki
     float recipNorm;
-    float hx, hy, bx;
     float ex = 0, ey = 0, ez = 0;
     float qa, qb, qc;
 
@@ -268,6 +276,9 @@ static void imuMahonyAHRSupdate(float dt, float gx, float gy, float gz,
 
     // Use measured magnetic field vector
     recipNorm = sq(mx) + sq(my) + sq(mz);
+
+#ifdef MAG
+    float hx, hy, bx;
     if (useMag && recipNorm > 0.01f) {
         // Normalise magnetometer measurement
         recipNorm = invSqrt(recipNorm);
@@ -292,6 +303,7 @@ static void imuMahonyAHRSupdate(float dt, float gx, float gy, float gz,
         ey += rMat[2][1] * ez_ef;
         ez += rMat[2][2] * ez_ef;
     }
+#endif
 
     // Use measured acceleration vector
     recipNorm = sq(ax) + sq(ay) + sq(az);

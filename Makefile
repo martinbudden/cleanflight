@@ -15,7 +15,7 @@
 #
 
 # The target to build, see VALID_TARGETS below
-TARGET		?= NAZE
+TARGET		?= CJMCU32K
 
 # Compile-time options
 OPTIONS		?=
@@ -36,20 +36,23 @@ FLASH_SIZE ?=
 
 FORKNAME			 = cleanflight
 
+32K_TARGETS  = CJMCU32K
 64K_TARGETS  = CJMCU
 128K_TARGETS = ALIENFLIGHTF1 CC3D NAZE OLIMEXINO RMDO SPRACINGF1OSD
 256K_TARGETS = ALIENFLIGHTF3 CHEBUZZF3 COLIBRI_RACE EUSTM32F103RC IRCFUSIONF3 LUX_RACE MOTOLAB PORT103R RCEXPLORERF3 SPARKY SPRACINGF3 SPRACINGF3EVO SPRACINGF3MINI STM32F3DISCOVERY SPRACINGF3OSD
 
 F3_TARGETS = ALIENFLIGHTF3 CHEBUZZF3 COLIBRI_RACE IRCFUSIONF3 LUX_RACE MOTOLAB RCEXPLORERF3 RMDO SPARKY SPRACINGF3 SPRACINGF3EVO SPRACINGF3MINI STM32F3DISCOVERY SPRACINGF3OSD
 
-VALID_TARGETS = $(64K_TARGETS) $(128K_TARGETS) $(256K_TARGETS)
+VALID_TARGETS = $(32K_TARGETS) $(64K_TARGETS) $(128K_TARGETS) $(256K_TARGETS)
 
 VCP_TARGETS = CC3D ALIENFLIGHTF3 CHEBUZZF3 COLIBRI_RACE LUX_RACE MOTOLAB RCEXPLORERF3 SPARKY SPRACINGF3EVO SPRACINGF3MINI STM32F3DISCOVERY SPRACINGF1OSD SPRACINGF3OSD
 OSD_TARGETS = SPRACINGF1OSD SPRACINGF3OSD
 
 # Configure default flash sizes for the targets
 ifeq ($(FLASH_SIZE),)
-ifeq ($(TARGET),$(filter $(TARGET),$(64K_TARGETS)))
+ifeq ($(TARGET),$(filter $(TARGET),$(32K_TARGETS)))
+FLASH_SIZE = 32
+else ifeq ($(TARGET),$(filter $(TARGET),$(64K_TARGETS)))
 FLASH_SIZE = 64
 else ifeq ($(TARGET),$(filter $(TARGET),$(128K_TARGETS)))
 FLASH_SIZE = 128
@@ -228,6 +231,12 @@ endif
 
 
 
+ifeq ($(TARGET),CJMCU32K)
+# CJMCU32K is a VARIANT of CJMCU
+TARGET_FLAGS := $(TARGET_FLAGS) -DCJMCU -DCJMCJ32K
+TARGET_DIR = $(ROOT)/src/main/target/CJMCU
+endif
+
 INCLUDE_DIRS := $(INCLUDE_DIRS) \
 		    $(TARGET_DIR)
 
@@ -277,12 +286,38 @@ FC_COMMON_SRC = \
 		   flight/altitudehold.c \
 		   flight/failsafe.c \
 		   flight/pid.c \
-		   flight/pid_luxfloat.c \
 		   flight/pid_mwrewrite.c \
-		   flight/pid_mw23.c \
 		   flight/imu.c \
 		   flight/mixer.c \
+		   io/beeper.c \
+		   io/motor_and_servo.c \
+		   io/rate_profile.c \
+		   io/rc_controls.c \
+		   io/rc_curves.c \
+		   io/statusindicator.c \
+		   rx/rx.c \
+		   sensors/sensors.c \
+		   sensors/acceleration.c \
+		   sensors/battery.c \
+		   sensors/boardalignment.c \
+		   sensors/gyro.c \
+		   sensors/initialisation.c \
+		   scheduler.c \
+		   scheduler_tasks.c \
+		   main.c \
+		   mw.c \
+		   $(CMSIS_SRC) \
+		   $(DEVICE_STDPERIPH_SRC)
+
+COMMON_SRC = \
+		   common/printf.c \
+		   common/typeconversion.c \
+		   common/encoding.c \
+		   common/streambuf.c \
 		   flight/servos.c \
+		   flight/altitudehold.c \
+		   flight/pid_mw23.c \
+		   flight/pid_luxfloat.c \
 		   drivers/bus_i2c_soft.c \
 		   drivers/exti.c \
 		   drivers/io.c \
@@ -306,12 +341,16 @@ FC_COMMON_SRC = \
 		   rx/spektrum.c \
 		   rx/xbus.c \
 		   rx/ibus.c \
+<<<<<<< cc736bc1e91b56ea6b588e686e200c930b87c1a5
 			 rx/srxl.c \
 		   sensors/sensors.c \
 		   sensors/acceleration.c \
 		   sensors/battery.c \
 		   sensors/boardalignment.c \
+=======
+>>>>>>> Reduced ROM and RAM build variant of CJMCU
 		   sensors/compass.c \
+<<<<<<< HEAD
 		   sensors/gyro.c \
 		   sensors/initialisation.c
 
@@ -487,6 +526,33 @@ CJMCU_SRC = \
 		   blackbox/blackbox_io.c \
 		   $(FC_COMMON_SRC) \
 		   $(SYSTEM_SRC)
+
+CJMCU32K_SRC = \
+		   startup_stm32f10x_md_gcc.S \
+		   drivers/adc.c \
+		   drivers/adc_stm32f10x.c \
+		   drivers/accgyro_mpu.c \
+		   drivers/accgyro_mpu6050.c \
+		   drivers/bus_spi.c \
+		   drivers/bus_i2c_stm32f10x.c \
+		   drivers/gpio_stm32f10x.c \
+		   drivers/light_led_stm32f10x.c \
+		   drivers/pwm_mapping.c \
+		   drivers/pwm_output.c \
+		   drivers/pwm_rx.c \
+		   drivers/system_stm32f10x.c \
+		   drivers/timer.c \
+		   drivers/timer_stm32f10x.c \
+		   hardware_revision.c \
+		   rx/pwm.c \
+\
+		   drivers/serial.c \
+		   drivers/serial_uart.c \
+		   drivers/serial_uart_stm32f10x.c \
+		   io/serial.c \
+		   io/serial_msp.c \
+		   common/printf.c \
+		   $(MIN_SRC)
 
 CC3D_SRC = \
 		   startup_stm32f10x_md_gcc.S \

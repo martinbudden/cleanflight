@@ -17,8 +17,11 @@
 
 #pragma once
 
-extern uint8_t cliMode;
-
+#ifdef USE_CLI
+#define CLI_MODE() cliMode
+#else
+#define CLI_MODE() false
+#endif
 void cliInit(void);
 void cliEnter(serialPort_t *serialPort);
 void cliProcess(void);

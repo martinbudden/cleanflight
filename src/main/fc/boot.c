@@ -243,7 +243,9 @@ void init(void)
 {
     drv_pwm_config_t pwm_params;
 
+#ifndef SKIP_SERIAL
     printfSupportInit();
+#endif
 
     initEEPROM();
 
@@ -345,8 +347,9 @@ void init(void)
 
     dmaInit();
 
-
+#ifndef SKIP_SERIAL
     serialInit(feature(FEATURE_SOFTSERIAL));
+#endif
 
     mixerInit(customMotorMixer(0));
 #ifdef USE_SERVOS
@@ -415,7 +418,9 @@ void init(void)
     if (pwm_params.motorPwmRate > 500)
         pwm_params.idlePulse = 0; // brushed motors
 
+#ifndef SKIP_RX_PWM
     pwmRxInit();
+#endif
 
     // pwmInit() needs to be called as soon as possible for ESC compatibility reasons
     pwmIOConfiguration_t *pwmIOConfiguration = pwmInit(&pwm_params);
@@ -560,8 +565,10 @@ void init(void)
 
     imuInit();
 
+#ifndef SKIP_MSP
     mspInit();
     mspSerialInit();
+#endif
 
 #ifdef USE_CLI
     cliInit();
@@ -720,7 +727,9 @@ void configureScheduler(void)
     setTaskEnabled(TASK_GYROPID, true);
     rescheduleTask(TASK_GYROPID, imuConfig()->gyroSync ? targetLooptime - INTERRUPT_WAIT_TIME : targetLooptime);
     setTaskEnabled(TASK_ACCEL, sensors(SENSOR_ACC));
+#ifndef SKIP_SERIAL
     setTaskEnabled(TASK_SERIAL, true);
+#endif
 #ifdef BEEPER
     setTaskEnabled(TASK_BEEPER, true);
 #endif

@@ -28,7 +28,12 @@ typedef struct controlRateConfig_s {
     uint16_t tpa_breakpoint;                // Breakpoint at which TPA is activated
 } controlRateConfig_t;
 
+#if (FLASH_SIZE >= 64)
 #define MAX_CONTROL_RATE_PROFILE_COUNT 3
+#else
+#define MAX_CONTROL_RATE_PROFILE_COUNT 1
+#endif
+
 PG_DECLARE_ARR(controlRateConfig_t, MAX_CONTROL_RATE_PROFILE_COUNT, controlRateProfiles);
 
 extern controlRateConfig_t *currentControlRateProfile;

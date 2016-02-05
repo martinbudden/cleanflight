@@ -33,7 +33,7 @@ typedef struct compassConfig_s {
                                             // For example, -6deg 37min, = -637 Japan, format is [sign]dddmm (degreesminutes) default is zero.
 } compassConfig_t;
 
-PG_DECLARE_PROFILE(compassConfig_t, compassConfig);
+PG_DECLARE(compassConfig_t, compassConfig);
 
 
 #ifdef MAG
@@ -47,4 +47,3 @@ extern int32_t magADC[XYZ_AXIS_COUNT];
 
 extern sensor_align_e magAlign;
 extern mag_t mag;
-extern float magneticDeclination;

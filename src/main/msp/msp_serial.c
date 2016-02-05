@@ -23,6 +23,8 @@
 #include <platform.h>
 #include "target.h"
 
+#ifndef SKIP_MSP
+
 #include "common/streambuf.h"
 #include "common/utils.h"
 
@@ -331,3 +333,5 @@ void mspSerialProcess(void)
         }
     }
 }
+
+#endif

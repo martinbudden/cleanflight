@@ -57,12 +57,14 @@ cfTask_t cfTasks[] = {
         .staticPriority = TASK_PRIORITY_MEDIUM,
     },
 
+#ifndef SKIP_SERIAL
     [TASK_SERIAL] = {
         .taskName = "SERIAL",
         .taskFunc = taskHandleSerial,
         .desiredPeriod = 1000000 / 100,         // 100 Hz should be enough to flush up to 115 bytes @ 115200 baud
         .staticPriority = TASK_PRIORITY_LOW,
     },
+#endif
 
 #ifdef BEEPER
     [TASK_BEEPER] = {

@@ -25,6 +25,8 @@
 
 #include "build/build_config.h"
 
+#ifndef SKIP_INFLIGHT_ADJUSTMENTS
+
 #include "common/axis.h"
 #include "common/maths.h"
 
@@ -350,3 +352,5 @@ void resetAdjustmentStates(void)
 {
     memset(adjustmentStates, 0, sizeof(adjustmentStates));
 }
+
+#endif

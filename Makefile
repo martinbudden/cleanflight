@@ -15,7 +15,7 @@
 #
 
 # The target to build, see VALID_TARGETS below
-TARGET		?= NAZE
+TARGET		?= CJMCU
 
 # Compile-time options
 OPTIONS		?=
@@ -248,6 +248,7 @@ COMMON_SRC = build_config.c \
 		   drivers/dma.c \
 		   drivers/buf_writer.c \
 		   drivers/gyro_sync.c \
+		   drivers/rx_nrf24l01.c \
 		   io/beeper.c \
 		   io/rc_controls.c \
 		   io/rc_curves.c \
@@ -265,6 +266,11 @@ COMMON_SRC = build_config.c \
 		   rx/spektrum.c \
 		   rx/xbus.c \
 		   rx/ibus.c \
+		   rx/nrf24.c \
+		   rx/nrf24_cx10.c \
+		   rx/nrf24_syma.c \
+		   rx/nrf24_v202.c \
+		   rx/nrf24_h8_3d.c \
 		   sensors/acceleration.c \
 		   sensors/battery.c \
 		   sensors/boardalignment.c \
@@ -319,6 +325,7 @@ NAZE_SRC = startup_stm32f10x_md_gcc.S \
 		   drivers/barometer_ms5611.c \
 		   drivers/barometer_bmp280.c \
 		   drivers/bus_spi.c \
+		   drivers/bus_spi_soft.c \
 		   drivers/bus_i2c_stm32f10x.c \
 		   drivers/compass_hmc5883l.c \
 		   drivers/display_ug2864hsweg01.h \
@@ -422,6 +429,7 @@ CJMCU_SRC = \
 		   drivers/accgyro_mpu.c \
 		   drivers/accgyro_mpu6050.c \
 		   drivers/bus_i2c_stm32f10x.c \
+		   drivers/bus_spi.c \
 		   drivers/compass_hmc5883l.c \
 		   drivers/gpio_stm32f10x.c \
 		   drivers/light_led_stm32f10x.c \
@@ -449,6 +457,7 @@ CC3D_SRC = \
 		   drivers/barometer_bmp085.c \
 		   drivers/barometer_ms5611.c \
 		   drivers/bus_spi.c \
+		   drivers/bus_spi_soft.c \
 		   drivers/bus_i2c_stm32f10x.c \
 		   drivers/compass_hmc5883l.c \
 		   drivers/display_ug2864hsweg01.c \

@@ -1021,8 +1021,9 @@ static bool processOutCommand(uint8_t cmdMSP)
         break;
 
     case MSP_RX_CONFIG:
-        headSerialReply(12);
+        headSerialReply(13);
         serialize8(masterConfig.rxConfig.serialrx_provider);
+        serialize8(masterConfig.rxConfig.nrf24rx_protocol);
         serialize16(masterConfig.rxConfig.maxcheck);
         serialize16(masterConfig.rxConfig.midrc);
         serialize16(masterConfig.rxConfig.mincheck);
@@ -1061,12 +1062,13 @@ static bool processOutCommand(uint8_t cmdMSP)
         break;
 
     case MSP_BF_CONFIG:
-        headSerialReply(1 + 4 + 1 + 2 + 2 + 2 + 2 + 2);
+        headSerialReply(1 + 4 + 1 + 1 + 2 + 2 + 2 + 2 + 2);
         serialize8(masterConfig.mixerMode);
 
         serialize32(featureMask());
 
         serialize8(masterConfig.rxConfig.serialrx_provider);
+        serialize8(masterConfig.rxConfig.nrf24rx_protocol);
 
         serialize16(masterConfig.boardAlignment.rollDegrees);
         serialize16(masterConfig.boardAlignment.pitchDegrees);
@@ -1571,6 +1573,7 @@ static bool processInCommand(void)
 
     case MSP_SET_RX_CONFIG:
         masterConfig.rxConfig.serialrx_provider = read8();
+        masterConfig.rxConfig.nrf24rx_protocol = read8();
         masterConfig.rxConfig.maxcheck = read16();
         masterConfig.rxConfig.midrc = read16();
         masterConfig.rxConfig.mincheck = read16();
@@ -1622,6 +1625,7 @@ static bool processInCommand(void)
         featureSet(read32()); // features bitmap
 
         masterConfig.rxConfig.serialrx_provider = read8(); // serialrx_type
+        masterConfig.rxConfig.nrf24rx_protocol = read8();
 
         masterConfig.boardAlignment.rollDegrees = read16(); // board_align_roll
         masterConfig.boardAlignment.pitchDegrees = read16(); // board_align_pitch

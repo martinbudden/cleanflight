@@ -20,16 +20,16 @@
 #define TARGET_BOARD_IDENTIFIER "CJM1" // CJMCU
 #define USE_HARDWARE_REVISION_DETECTION
 
-#define LED0_GPIO GPIOC
-#define LED0_PIN Pin_14 // PC14 (LED)
+#define LED0_GPIO       GPIOC
+#define LED0_PIN        Pin_14 // PC14 (LED)
 #define LED0
 #define LED0_PERIPHERAL RCC_APB2Periph_GPIOC
-#define LED1_GPIO GPIOC
-#define LED1_PIN Pin_13 // PC13 (LED)
+#define LED1_GPIO       GPIOC
+#define LED1_PIN        Pin_13 // PC13 (LED)
 #define LED1
 #define LED1_PERIPHERAL RCC_APB2Periph_GPIOC
-#define LED2_GPIO GPIOC
-#define LED2_PIN Pin_15 // PC15 (LED)
+#define LED2_GPIO       GPIOC
+#define LED2_PIN        Pin_15 // PC15 (LED)
 #define LED2
 #define LED2_PERIPHERAL RCC_APB2Periph_GPIOC
 
@@ -40,8 +40,8 @@
 #define GYRO
 #define USE_GYRO_MPU6050
 
-#define MAG
-#define USE_MAG_HMC5883
+//#define MAG
+//#define USE_MAG_HMC5883
 
 #define BRUSHED_MOTORS
 
@@ -53,18 +53,41 @@
 #define USE_I2C
 #define I2C_DEVICE (I2CDEV_1)
 
-// #define SOFT_I2C // enable to test software i2c
-// #define SOFT_I2C_PB1011 // If SOFT_I2C is enabled above, need to define pinout as well (I2C1 = PB67, I2C2 = PB1011)
-// #define SOFT_I2C_PB67
+#define DEFAULT_RX_FEATURE FEATURE_RX_NRF24
+#define USE_RX_NRF24
+#define USE_RX_V202
+#define USE_RX_SYMA
+#define USE_RX_CX10
+#define USE_RX_H8_3D
+#define NRF24_DEFAULT_PROTOCOL NRF24RX_H8_3D
 
-#define SERIAL_RX
-//#define USE_SERVOS
-#define USE_CLI
+#define USE_SPI
+#define USE_SPI_DEVICE_1
 
-#define SPEKTRUM_BIND
+#define NRF24_SPI_INSTANCE       SPI1
+#define USE_NRF24_SPI1
+
+// Nordic Semiconductor uses 'CSN', STM uses 'NSS'
+#define NRF24_CE_GPIO                   GPIOA
+#define NRF24_CE_PIN                    GPIO_Pin_4
+#define NRF24_CE_GPIO_CLK_PERIPHERAL    RCC_APB2Periph_GPIOA
+#define NRF24_CSN_GPIO                  GPIOA
+#define NRF24_CSN_PIN                   GPIO_Pin_11
+#define NRF24_CSN_GPIO_CLK_PERIPHERAL   RCC_APB2Periph_GPIOA
+#define NRF24_IRQ_GPIO                  GPIOA
+#define NRF24_IRQ_PIN                   GPIO_Pin_8
+#define NRF24_IRQ_GPIO_CLK_PERIPHERAL   RCC_APB2Periph_GPIOA
+
+//#define SERIAL_RX
+#define SKIP_RX_PWM
+
+//#define SPEKTRUM_BIND
 // USART2, PA3
 #define BIND_PORT  GPIOA
 #define BIND_PIN   Pin_3
+
+#define USE_CLI
+//#define GTUNE
 
 // Since the CJMCU PCB has holes for 4 motors in each corner we can save same flash space by disabling support for other mixers.
 #define USE_QUAD_MIXER_ONLY
@@ -73,7 +96,7 @@
 #if (FLASH_SIZE > 64)
 #define BLACKBOX
 #else
-#define SKIP_TASK_STATISTICS
+//#define SKIP_TASK_STATISTICS
 #define SKIP_CLI_COMMAND_HELP
 #endif
 

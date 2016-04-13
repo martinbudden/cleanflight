@@ -54,7 +54,7 @@
  * hops between 4 channels generated from txId received in bind packets
  *
  */
-#define H8_3D_RC_CHANNEL_COUNT          10
+#define H8_3D_RC_CHANNEL_COUNT          12
 
 #define H8_3D_X_PROTOCOL_PAYLOAD_SIZE   20
 
@@ -84,11 +84,11 @@ STATIC_UNIT_TESTED uint8_t rxTxAddrXN297[RX_TX_ADDR_LEN] = {0x41, 0xbd, 0x42, 0x
 #define TX_ID_LEN 4
 STATIC_UNIT_TESTED uint8_t txId[TX_ID_LEN];
 
-#define H8_3D_RF_BIND_CHANNEL_COUNT 15
+#define H8_3D_RF_BIND_CHANNEL_COUNT 32
 // radio channels for frequency hopping
 STATIC_UNIT_TESTED uint8_t rfChannelIndex = 0;
 STATIC_UNIT_TESTED uint8_t rfChannelCount = H8_3D_RF_BIND_CHANNEL_COUNT;
-STATIC_UNIT_TESTED uint8_t rfChannels[H8_3D_RF_BIND_CHANNEL_COUNT] = {0x06,0x07,0x08,0x09,0x0a,0x0b,0x0c,0x0d,0x0e,0x0f,0x10,0x11,0x12,0x13,0x14};
+STATIC_UNIT_TESTED uint8_t rfChannels[H8_3D_RF_CHANNEL_COUNT] = {0x06,0x15,0x24,0x33};
 
 static const uint32_t dataHopTimeout = 5000; // 5ms
 #define bindHopTimeout 1000 // 1ms, to find the bind channel as quickly as possible
@@ -163,6 +163,8 @@ void h8_3dSetRcDataFromPayload(uint16_t *rcData, const uint8_t *payload)
     rcData[NRF24_AUX4] = PWM_RANGE_MIN;
     rcData[NRF24_AUX5] = flags & FLAG_HEADLESS ? PWM_RANGE_MAX : PWM_RANGE_MIN;
     rcData[NRF24_AUX6] = flags & FLAG_RTH ? PWM_RANGE_MAX : PWM_RANGE_MIN;
+    rcData[NRF24_AUX7] = convertToPwm(payload[15], 0x10, 0x30); // elevator trim
+    rcData[NRF24_AUX8] = convertToPwm(payload[16], 0x10, 0x30); // aileron trim
 }
 
 static void hopToNextChannel(void)
@@ -171,7 +173,11 @@ static void hopToNextChannel(void)
     if (rfChannelIndex >= rfChannelCount) {
         rfChannelIndex = 0;
     }
-    NRF24L01_SetChannel(rfChannels[rfChannelIndex]);
+    if (protocolState == STATE_BIND) {
+        NRF24L01_SetChannel(rfChannels[0] + rfChannelIndex);
+    } else {
+        NRF24L01_SetChannel(rfChannels[rfChannelIndex]);
+    }
 }
 
 // The hopping channels are determined by the txId

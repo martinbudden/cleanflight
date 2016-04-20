@@ -53,7 +53,6 @@
 
 #include "gtune.h"
 
-extern uint16_t cycleTime;
 extern uint8_t motorCount;
 
 /*
@@ -118,12 +117,12 @@ static int16_t OldError[3], result_P64[3];
 static int32_t AvgGyro[3];
 static bool floatPID;
 
-void updateDelayCycles(void)
+void updateDelayCycles(uint16_t cycleTime)
 {
     delay_cycles = -(((int32_t)gtuneConfig()->gtune_settle_time * 1000) / cycleTime);
 }
 
-void init_Gtune(void)
+void init_Gtune(uint16_t cycleTime)
 {
     uint8_t i;
         if (pidProfile()->pidController == 2) {
@@ -131,7 +130,7 @@ void init_Gtune(void)
 	} else {
 	    floatPID = false;
 	}
-	updateDelayCycles();
+	updateDelayCycles(cycleTime);
 	for (i = 0; i < 3; i++) {
         if ((gtuneConfig()->gtune_hilimP[i] && gtuneConfig()->gtune_lolimP[i] > gtuneConfig()->gtune_hilimP[i]) || (motorCount < 4 && i == FD_YAW)) { // User config error disable axisis for tuning
             gtuneConfig()->gtune_hilimP[i] = 0;                                    // Disable YAW tuning for everything below a quadcopter

@@ -22,6 +22,7 @@
 
 #include <platform.h>
 #include "scheduler.h"
+#include "scheduler_tasks.h"
 #include "debug.h"
 
 #include "common/maths.h"
@@ -85,7 +86,7 @@
 #include "config/config.h"
 #include "config/feature.h"
 
-// June 2013     V2.2-dev
+//#define DEBUG_CYCLETIME
 
 enum {
     ALIGN_GYRO = 0,
@@ -99,8 +100,9 @@ enum {
 #define IBATINTERVAL (6 * 3500)
 #define GYRO_WATCHDOG_DELAY 100  // Watchdog for boards without interrupt for gyro
 
-uint16_t cycleTime = 0;         // this is the number in micro second to achieve a full loop, it can differ a little and is taken into account in the PID loop
+extern uint32_t targetLooptime;
 
+uint16_t cycleTime = 0;         // this is the number in micro second to achieve a full loop, it can differ a little and is taken into account in the PID loop
 float dT;
 
 int16_t magHold;
@@ -111,13 +113,11 @@ uint8_t motorControlEnable = false;
 int16_t telemTemperature1;      // gyro sensor temperature
 static uint32_t disarmAt;     // Time of automatic disarm when "Don't spin the motors when armed" is enabled and auto_disarm_delay is nonzero
 
-extern uint32_t currentTime;
 extern uint8_t PIDweight[3];
 extern uint8_t dynP8[3], dynI8[3], dynD8[3];
 
 static bool isRXDataNew;
 static filterStatePt1_t filteredCycleTimeState;
-uint16_t filteredCycleTime;
 
 extern pidControllerFuncPtr pid_controller;
 
@@ -130,7 +130,6 @@ void applyAndSaveAccelerometerTrimsDelta(rollAndPitchTrims_t *rollAndPitchTrimsD
 }
 
 #ifdef GTUNE
-
 void updateGtuneState(void)
 {
     static bool GTuneWasUsed = false;
@@ -138,7 +137,7 @@ void updateGtuneState(void)
     if (rcModeIsActive(BOXGTUNE)) {
         if (!FLIGHT_MODE(GTUNE_MODE) && ARMING_FLAG(ARMED)) {
             ENABLE_FLIGHT_MODE(GTUNE_MODE);
-            init_Gtune();
+            init_Gtune(cycleTime);
             GTuneWasUsed = true;
         }
         if (!FLIGHT_MODE(GTUNE_MODE) && !ARMING_FLAG(ARMED) && GTuneWasUsed) {
@@ -382,7 +381,7 @@ void updateInflightCalibrationState(void)
     }
 }
 
-void updateMagHold(void)
+static void updateMagHold(void)
 {
     if (ABS(rcCommand[YAW]) < 15 && FLIGHT_MODE(MAG_MODE)) {
         int16_t dif = DECIDEGREES_TO_DEGREES(attitude.values.yaw) - magHold;
@@ -397,7 +396,7 @@ void updateMagHold(void)
         magHold = DECIDEGREES_TO_DEGREES(attitude.values.yaw);
 }
 
-void processRx(void)
+static void processRx(uint32_t currentTime)
 {
     static bool armedBeeperOn = false;
 
@@ -590,7 +589,8 @@ void processRx(void)
 
 }
 
-void filterRc(void){
+static void filterRc(uint16_t filteredCycleTime)
+{
     static int16_t lastCommand[4] = { 0, 0, 0, 0 };
     static int16_t deltaRC[4] = { 0, 0, 0, 0 };
     static int16_t factor, rcInterpolationFactor;
@@ -627,23 +627,24 @@ void filterRc(void){
 static bool haveUpdatedRcCommandsOnce = false;
 #endif
 
-void taskMainPidLoop(void)
+void taskMainPidLoop(uint32_t currentTime, uint32_t currentDeltaTime)
 {
-    cycleTime = getTaskDeltaTime(TASK_SELF);
+    cycleTime = currentDeltaTime;
     dT = (float)cycleTime * 0.000001f;
 
     // Calculate average cycle time and average jitter
-    filteredCycleTime = filterApplyPt1(cycleTime, &filteredCycleTimeState, 1, dT);
-
+    const uint16_t filteredCycleTime = filterApplyPt1(cycleTime, &filteredCycleTimeState, 1, dT);
+#ifdef DEBUG_CYCLETIME
     debug[0] = cycleTime;
     debug[1] = cycleTime - filteredCycleTime;
+#endif
 
-    imuUpdateGyroAndAttitude();
+    imuUpdateGyroAndAttitude(currentTime);
 
     updateRcCommands(); // this must be called here since applyAltHold directly manipulates rcCommands[]
 
     if (rxConfig()->rcSmoothing) {
-        filterRc();
+        filterRc(filteredCycleTime);
     }
 
 #if defined(BARO) || defined(SONAR)
@@ -727,17 +728,17 @@ void taskMainPidLoop(void)
 
 #ifdef BLACKBOX
     if (!cliMode && feature(FEATURE_BLACKBOX)) {
-        handleBlackbox();
+        handleBlackbox(currentTime);
     }
 #endif
 }
 
 // Function for loop trigger
-void taskMainPidLoopChecker(void) {
-    // getTaskDeltaTime() returns delta time freezed at the moment of entering the scheduler. currentTime is freezed at the very same point.
+void taskMainPidLoopChecker(uint32_t currentTime, uint32_t currentDeltaTime)
+{
+    // currentDeltaTime is the delta time frozen at the moment of entering the scheduler.
+    // currentTime is frozen at the very same moment.
     // To make busy-waiting timeout work we need to account for time spent within busy-waiting loop
-    uint32_t currentDeltaTime = getTaskDeltaTime(TASK_SELF);
-
     if (imuConfig()->gyroSync) {
         while (1) {
             if (gyroSyncCheckUpdate() || ((currentDeltaTime + (micros() - currentTime)) >= (targetLooptime + GYRO_WATCHDOG_DELAY))) {
@@ -746,28 +747,35 @@ void taskMainPidLoopChecker(void) {
         }
     }
 
-    taskMainPidLoop();
+    taskMainPidLoop(currentTime, currentDeltaTime);
 }
 
-void taskUpdateAccelerometer(void)
+void taskUpdateAccelerometer(uint32_t currentTime, uint32_t currentDeltaTime)
 {
+    UNUSED(currentTime);
+    UNUSED(currentDeltaTime);
     imuUpdateAccelerometer(&accelerometerConfig()->accelerometerTrims);
 }
 
-void taskHandleSerial(void)
+void taskHandleSerial(uint32_t currentTime, uint32_t currentDeltaTime)
 {
+    UNUSED(currentTime);
+    UNUSED(currentDeltaTime);
     handleSerial();
 }
 
 #ifdef BEEPER
-void taskUpdateBeeper(void)
+void taskUpdateBeeper(uint32_t currentTime, uint32_t currentDeltaTime)
 {
+    UNUSED(currentTime);
+    UNUSED(currentDeltaTime);
     beeperUpdate();          //call periodic beeper handler
 }
 #endif
 
-void taskUpdateBattery(void)
+void taskUpdateBattery(uint32_t currentTime, uint32_t currentDeltaTime)
 {
+    UNUSED(currentDeltaTime);
     static uint32_t vbatLastServiced = 0;
     static uint32_t ibatLastServiced = 0;
 
@@ -779,7 +787,7 @@ void taskUpdateBattery(void)
     }
 
     if (feature(FEATURE_CURRENT_METER)) {
-        int32_t ibatTimeSinceLastServiced = cmp32(currentTime, ibatLastServiced);
+        const int32_t ibatTimeSinceLastServiced = cmp32(currentTime, ibatLastServiced);
 
         if (ibatTimeSinceLastServiced >= IBATINTERVAL) {
             ibatLastServiced = currentTime;
@@ -791,16 +799,17 @@ void taskUpdateBattery(void)
     }
 }
 
-bool taskUpdateRxCheck(uint32_t currentDeltaTime)
+bool taskUpdateRxCheck(uint32_t currentTime, uint32_t currentDeltaTime)
 {
     UNUSED(currentDeltaTime);
     updateRx(currentTime);
     return shouldProcessRx(currentTime);
 }
 
-void taskUpdateRxMain(void)
+void taskUpdateRxMain(uint32_t currentTime, uint32_t currentDeltaTime)
 {
-    processRx();
+    UNUSED(currentDeltaTime);
+    processRx(currentTime);
     updateLEDs();
 
     isRXDataNew = true;
@@ -825,8 +834,9 @@ void taskUpdateRxMain(void)
 }
 
 #ifdef GPS
-void taskProcessGPS(void)
+void taskProcessGPS(uint32_t currentTime, uint32_t currentDeltaTime)
 {
+    UNUSED(currentDeltaTime);
     // if GPS feature is enabled, gpsThread() will be called at some intervals to check for stuck
     // hardware, wrong baud rates, init GPS if needed, etc. Don't use SENSOR_GPS here as gpsThread() can and will
     // change this based on available hardware
@@ -841,27 +851,32 @@ void taskProcessGPS(void)
 #endif
 
 #ifdef MAG
-void taskUpdateCompass(void)
+void taskUpdateCompass(uint32_t currentTime, uint32_t currentDeltaTime)
 {
+    UNUSED(currentDeltaTime);
     if (sensors(SENSOR_MAG)) {
-        updateCompass(&sensorTrims()->magZero);
+        updateCompass(&sensorTrims()->magZero, currentTime);
     }
 }
 #endif
 
 #ifdef BARO
-void taskUpdateBaro(void)
+void taskUpdateBaro(uint32_t currentTime, uint32_t currentDeltaTime)
 {
+    UNUSED(currentTime);
+    UNUSED(currentDeltaTime);
     if (sensors(SENSOR_BARO)) {
-        uint32_t newDeadline = baroUpdate();
+        const uint32_t newDeadline = baroUpdate();
         rescheduleTask(TASK_SELF, newDeadline);
     }
 }
 #endif
 
 #ifdef SONAR
-void taskUpdateSonar(void)
+void taskUpdateSonar(uint32_t currentTime, uint32_t currentDeltaTime)
 {
+    UNUSED(currentTime);
+    UNUSED(currentDeltaTime);
     if (sensors(SENSOR_SONAR)) {
         sonarUpdate();
     }
@@ -869,8 +884,9 @@ void taskUpdateSonar(void)
 #endif
 
 #if defined(BARO) || defined(SONAR)
-void taskCalculateAltitude(void)
+void taskCalculateAltitude(uint32_t currentTime, uint32_t currentDeltaTime)
 {
+    UNUSED(currentDeltaTime);
     if (false
 #if defined(BARO)
         || (sensors(SENSOR_BARO) && isBaroReady())
@@ -884,17 +900,20 @@ void taskCalculateAltitude(void)
 #endif
 
 #ifdef DISPLAY
-void taskUpdateDisplay(void)
+void taskUpdateDisplay(uint32_t currentTime, uint32_t currentDeltaTime)
 {
+    UNUSED(currentDeltaTime);
     if (feature(FEATURE_DISPLAY)) {
-        updateDisplay();
+        updateDisplay(currentTime);
     }
 }
 #endif
 
 #ifdef TELEMETRY
-void taskTelemetry(void)
+void taskTelemetry(uint32_t currentTime, uint32_t currentDeltaTime)
 {
+    UNUSED(currentTime);
+    UNUSED(currentDeltaTime);
     telemetryCheckState();
 
     if (!cliMode && feature(FEATURE_TELEMETRY)) {
@@ -904,19 +923,21 @@ void taskTelemetry(void)
 #endif
 
 #ifdef LED_STRIP
-void taskLedStrip(void)
+void taskLedStrip(uint32_t currentTime, uint32_t currentDeltaTime)
 {
+    UNUSED(currentDeltaTime);
     if (feature(FEATURE_LED_STRIP)) {
-        updateLedStrip();
+        updateLedStrip(currentTime);
     }
 }
 #endif
 
 #ifdef TRANSPONDER
-void taskTransponder(void)
+void taskTransponder(uint32_t currentTime, uint32_t currentDeltaTime)
 {
+    UNUSED(currentDeltaTime);
     if (feature(FEATURE_TRANSPONDER)) {
-        updateTransponder();
+        updateTransponder(currentTime);
     }
 }
 #endif

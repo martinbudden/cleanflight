@@ -114,7 +114,7 @@ PG_DECLARE_ARR(specialColorIndexes_t, 1, specialColors);
 void ledStripInit(void);
 
 bool parseLedStripConfig(int ledIndex, const char *config);
-void updateLedStrip(void);
+void updateLedStrip(uint32_t currentTime);
 void updateLedRing(void);
 
 void applyDefaultLedStripConfig(void);

@@ -317,9 +317,6 @@ typedef struct blackboxSlowState_s {
 //From mixer.c:
 extern uint8_t motorCount;
 
-//From mw.c:
-extern uint32_t currentTime;
-
 //From rx.c:
 extern uint16_t rssi;
 
@@ -896,7 +893,7 @@ static void writeGPSHomeFrame()
     gpsHistory.GPS_home[1] = GPS_home[1];
 }
 
-static void writeGPSFrame()
+static void writeGPSFrame(uint32_t currentTime)
 {
     blackboxWrite('G');
 
@@ -927,7 +924,7 @@ static void writeGPSFrame()
 /**
  * Fill the current state of the blackbox using values read from the flight controller
  */
-static void loadMainState(void)
+static void loadMainState(uint32_t currentTime)
 {
     blackboxMainState_t *blackboxCurrent = blackboxHistory[0];
     int i;
@@ -1261,7 +1258,7 @@ static void blackboxAdvanceIterationTimers()
 }
 
 // Called once every FC loop in order to log the current state
-static void blackboxLogIteration()
+static void blackboxLogIteration(uint32_t currentTime)
 {
     // Write a keyframe every BLACKBOX_I_INTERVAL frames so we can resynchronise upon missing frames
     if (blackboxShouldLogIFrame()) {
@@ -1271,7 +1268,7 @@ static void blackboxLogIteration()
          */
         writeSlowFrameIfNeeded(blackboxIsOnlyLoggingIntraframes());
 
-        loadMainState();
+        loadMainState(currentTime);
         writeIntraframe();
     } else {
         blackboxCheckAndLogArmingBeep();
@@ -1283,7 +1280,7 @@ static void blackboxLogIteration()
              */
             writeSlowFrameIfNeeded(true);
 
-            loadMainState();
+            loadMainState(currentTime);
             writeInterframe();
         }
 #ifdef GPS
@@ -1299,11 +1296,11 @@ static void blackboxLogIteration()
                 || (blackboxPFrameIndex == BLACKBOX_I_INTERVAL / 2 && blackboxIFrameIndex % 128 == 0)) {
 
                 writeGPSHomeFrame();
-                writeGPSFrame();
+                writeGPSFrame(currentTime);
             } else if (GPS_numSat != gpsHistory.GPS_numSat || GPS_coord[0] != gpsHistory.GPS_coord[0]
                     || GPS_coord[1] != gpsHistory.GPS_coord[1]) {
                 //We could check for velocity changes as well but I doubt it changes independent of position
-                writeGPSFrame();
+                writeGPSFrame(currentTime);
             }
         }
 #endif
@@ -1316,7 +1313,7 @@ static void blackboxLogIteration()
 /**
  * Call each flight loop iteration to perform blackbox logging.
  */
-void handleBlackbox(void)
+void handleBlackbox(uint32_t currentTime)
 {
     int i;
 
@@ -1413,7 +1410,7 @@ void handleBlackbox(void)
                 blackboxLogEvent(FLIGHT_LOG_EVENT_LOGGING_RESUME, (flightLogEventData_t *) &resume);
                 blackboxSetState(BLACKBOX_STATE_RUNNING);
                 
-                blackboxLogIteration();
+                blackboxLogIteration(currentTime);
             }
 
             // Keep the logging timers ticking so our log iteration continues to advance
@@ -1424,7 +1421,7 @@ void handleBlackbox(void)
             if (blackboxModeActivationConditionPresent && !rcModeIsActive(BOXBLACKBOX)) {
                 blackboxSetState(BLACKBOX_STATE_PAUSED);
             } else {
-                blackboxLogIteration();
+                blackboxLogIteration(currentTime);
             }
 
             blackboxAdvanceIterationTimers();

@@ -28,7 +28,7 @@ typedef struct gtuneConfig_s {
 
 PG_DECLARE_PROFILE(gtuneConfig_t, gtuneConfig);
 
-void init_Gtune(void);
+void init_Gtune(uint16_t cycleTime);
 void calculate_Gtune(uint8_t axis);
 
 #endif

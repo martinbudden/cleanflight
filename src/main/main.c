@@ -110,6 +110,8 @@
 
 #include "scheduler.h"
 
+extern uint32_t targetLooptime;
+
 extern uint8_t motorControlEnable;
 
 #ifdef SOFTSERIAL_LOOPBACK

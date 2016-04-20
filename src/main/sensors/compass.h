@@ -38,7 +38,7 @@ PG_DECLARE_PROFILE(compassConfig_t, compassConfig);
 
 #ifdef MAG
 void compassInit(void);
-void updateCompass(flightDynamicsTrims_t *magZero);
+void updateCompass(flightDynamicsTrims_t *magZero, uint32_t currentTime);
 #endif
 
 void recalculateMagneticDeclination(void);

@@ -50,7 +50,7 @@ static uint32_t nextUpdateAt = 0;
 #define JITTER_DURATION_COUNT (sizeof(jitterDurations) / sizeof(uint8_t))
 static uint8_t jitterDurations[] = {0,9,4,8,3,9,6,7,1,6,9,7,8,2,6};
 
-void updateTransponder(void)
+void updateTransponder(uint32_t currentTime)
 {
     static uint32_t jitterIndex = 0;
 
@@ -58,25 +58,23 @@ void updateTransponder(void)
         return;
     }
 
-    uint32_t now = micros();
-
-    bool updateNow = (int32_t)(now - nextUpdateAt) >= 0L;
+    const bool updateNow = (int32_t)(currentTime - nextUpdateAt) >= 0L;
     if (!updateNow) {
         return;
     }
 
     // TODO use a random number genenerator for random jitter?  The idea here is to avoid multiple transmitters transmitting at the same time.
-    uint32_t jitter = (1000 * jitterDurations[jitterIndex++]);
+    const uint32_t jitter = (1000 * jitterDurations[jitterIndex++]);
     if (jitterIndex >= JITTER_DURATION_COUNT) {
         jitterIndex = 0;
     }
 
-    nextUpdateAt = now + 4500 + jitter;
+    nextUpdateAt = currentTime + 4500 + jitter;
 
 #ifdef REDUCE_TRANSPONDER_CURRENT_DRAW_WHEN_USB_CABLE_PRESENT
     // reduce current draw when USB cable is plugged in by decreasing the transponder transmit rate.
     if (usbCableIsInserted()) {
-        nextUpdateAt = now + (1000 * 1000) / 10; // 10 hz.
+        nextUpdateAt = currentTime + (1000 * 1000) / 10; // 10 hz.
     }
 #endif
 

@@ -1073,7 +1073,7 @@ void gpsEnablePassthrough(serialPort_t *gpsPassthroughPort)
         }
 #ifdef DISPLAY
         if (feature(FEATURE_DISPLAY)) {
-            updateDisplay();
+            updateDisplay(micros());
         }
 #endif
     }

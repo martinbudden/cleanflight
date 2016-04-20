@@ -842,7 +842,7 @@ static const struct {
     {timRotation,     .f.applyTimed = &applyLedThrustRingLayer},
 };
 
-void updateLedStrip(void)
+void updateLedStrip(uint32_t currentTime)
 {
 
     if (!(ledStripInitialised && isWS2811LedStripReady())) {
@@ -858,18 +858,16 @@ void updateLedStrip(void)
     }
     ledStripEnabled = true;
 
-    uint32_t now = micros();
-
     // test all led timers, setting corresponding bits
     uint32_t timActive = 0;
     for(timId_e timId = 0; timId < timTimerCount; timId++) {
-        if(cmp32(now, timerVal[timId]) < 0)
+        if(cmp32(currentTime, timerVal[timId]) < 0)
             continue;  // not ready yet
         timActive |= 1 << timId;
         // sanitize timer value, so that it can be safely incremented. Handles inital timerVal value.
         // max delay is limited to 5s
-        if(cmp32(now, timerVal[timId]) >= LED_STRIP_MS(100) || cmp32(now, timerVal[timId]) < LED_STRIP_HZ(5000) ) {
-            timerVal[timId] = now;
+        if(cmp32(currentTime, timerVal[timId]) >= LED_STRIP_MS(100) || cmp32(currentTime, timerVal[timId]) < LED_STRIP_HZ(5000) ) {
+            timerVal[timId] = currentTime;
         }
     }
 

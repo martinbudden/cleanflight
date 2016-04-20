@@ -53,6 +53,8 @@ extern "C" {
     extern uint8_t lowestXValueForEast;
     extern uint8_t ledGridWidth;
     extern uint8_t ledGridHeight;
+    extern uint8_t ledCount;
+    extern uint8_t ledsInRingCount;
 
     void determineLedStripDimensions(void);
     void determineOrientationLimits(void);

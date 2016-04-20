@@ -48,6 +48,8 @@
 
 #define BLACKBOX_SERIAL_PORT_MODE MODE_TX
 
+extern uint32_t targetLooptime;
+
 // How many bytes can we transmit per loop iteration when writing headers?
 static uint8_t blackboxMaxHeaderBytesPerIteration;
 

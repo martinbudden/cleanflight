@@ -43,6 +43,8 @@
 
 #include "sensors/gyro.h"
 
+extern uint32_t targetLooptime;
+
 gyro_t gyro;                      // gyro access functions
 sensor_align_e gyroAlign = 0;
 

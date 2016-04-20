@@ -582,17 +582,16 @@ static void showDebugPage(void)
 }
 #endif
 
-void updateDisplay(void)
+void updateDisplay(uint32_t currentTime)
 {
-    uint32_t now = micros();
     static uint8_t previousArmedState = 0;
 
-    bool updateNow = (int32_t)(now - nextDisplayUpdateAt) >= 0L;
+    bool updateNow = (int32_t)(currentTime - nextDisplayUpdateAt) >= 0L;
     if (!updateNow) {
         return;
     }
 
-    nextDisplayUpdateAt = now + DISPLAY_UPDATE_FREQUENCY;
+    nextDisplayUpdateAt = currentTime + DISPLAY_UPDATE_FREQUENCY;
 
     bool armedState = ARMING_FLAG(ARMED) ? true : false;
     bool armedStateChanged = armedState != previousArmedState;
@@ -612,7 +611,7 @@ void updateDisplay(void)
         }
 
         pageState.pageChanging = (pageState.pageFlags & PAGE_STATE_FLAG_FORCE_PAGE_CHANGE) ||
-                (((int32_t)(now - pageState.nextPageAt) >= 0L && (pageState.pageFlags & PAGE_STATE_FLAG_CYCLE_ENABLED)));
+                (((int32_t)(currentTime - pageState.nextPageAt) >= 0L && (pageState.pageFlags & PAGE_STATE_FLAG_CYCLE_ENABLED)));
         if (pageState.pageChanging && (pageState.pageFlags & PAGE_STATE_FLAG_CYCLE_ENABLED)) {
             pageState.cycleIndex++;
             if (cyclePageIds[pageState.cycleIndex] == PAGE_BATTERY && !(feature(FEATURE_VBAT) || feature(FEATURE_CURRENT_METER))) {
@@ -630,8 +629,8 @@ void updateDisplay(void)
 
     if (pageState.pageChanging) {
         pageState.pageFlags &= ~PAGE_STATE_FLAG_FORCE_PAGE_CHANGE;
-        pageState.nextPageAt = now + PAGE_CYCLE_FREQUENCY;
-        pageState.nextToggleAt = now + PAGE_TOGGLE_FREQUENCY;
+        pageState.nextPageAt = currentTime + PAGE_CYCLE_FREQUENCY;
+        pageState.nextToggleAt = currentTime + PAGE_TOGGLE_FREQUENCY;
         pageState.toggleCounter = 0;
 
         // Some OLED displays do not respond on the first initialisation so refresh the display
@@ -649,7 +648,7 @@ void updateDisplay(void)
         return;
     }
 
-    if ((int32_t)(now - pageState.nextToggleAt) >= 0L) {
+    if ((int32_t)(currentTime - pageState.nextToggleAt) >= 0L) {
         pageState.toggleCounter++;
         pageState.nextToggleAt += PAGE_TOGGLE_FREQUENCY;
     }
@@ -680,7 +679,7 @@ void updateDisplay(void)
 #endif
 #ifdef GPS
         case PAGE_GPS:
-            showGpsPage(now);
+            showGpsPage(currentTime);
             break;
 #endif
 #ifdef ENABLE_DEBUG_OLED_PAGE
@@ -712,9 +711,10 @@ void displayInit(void)
     memset(&pageState, 0, sizeof(pageState));
     displaySetPage(PAGE_WELCOME);
 
-    updateDisplay();
+    const uint32_t now = micros();
+    updateDisplay(now);
 
-    displaySetNextPageChangeAt(micros() + (1000 * 1000 * 5));
+    displaySetNextPageChangeAt(now + (1000 * 1000 * 5));
 }
 
 void displayShowFixedPage(pageId_e pageId)

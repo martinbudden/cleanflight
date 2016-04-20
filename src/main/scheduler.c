@@ -45,7 +45,6 @@ static uint32_t totalWaitingTasks;
 static uint32_t totalWaitingTasksSamples;
 static uint32_t realtimeGuardInterval = REALTIME_GUARD_INTERVAL_MAX;
 
-uint32_t currentTime = 0;
 uint16_t averageSystemLoadPercent = 0;
 
 
@@ -202,7 +201,7 @@ void schedulerInit(void)
 void scheduler(void)
 {
     // Cache currentTime
-    currentTime = micros();
+    const uint32_t currentTime = micros();
 
     // Check for realtime tasks
     uint32_t timeToNextRealtimeTask = UINT32_MAX;
@@ -231,7 +230,7 @@ void scheduler(void)
                 task->taskAgeCycles = 1 + ((currentTime - task->lastSignaledAt) / task->desiredPeriod);
                 task->dynamicPriority = 1 + task->staticPriority * task->taskAgeCycles;
                 waitingTasks++;
-            } else if (task->checkFunc(currentTime - task->lastExecutedAt)) {
+            } else if (task->checkFunc(currentTime, currentTime - task->lastExecutedAt)) {
                 task->lastSignaledAt = currentTime;
                 task->taskAgeCycles = 1;
                 task->dynamicPriority = 1 + task->staticPriority;
@@ -274,7 +273,7 @@ void scheduler(void)
 
         // Execute task
         const uint32_t currentTimeBeforeTaskCall = micros();
-        selectedTask->taskFunc();
+        selectedTask->taskFunc(currentTimeBeforeTaskCall, selectedTask->taskLatestDeltaTime);
         const uint32_t taskExecutionTime = micros() - currentTimeBeforeTaskCall;
 
         selectedTask->averageExecutionTime = ((uint32_t)selectedTask->averageExecutionTime * 31 + taskExecutionTime) / 32;

@@ -190,11 +190,10 @@ void imuCalculateAcceleration(uint32_t deltaT)
 {
     static int32_t accZoffset = 0;
     static float accz_smooth = 0;
-    float dT;
     t_fp_vector accel_ned;
 
     // deltaT is measured in us ticks
-    dT = (float)deltaT * 1e-6f;
+    const float dT = (float)deltaT * 1e-6f;
 
     accel_ned.V.X = accSmooth[0];
     accel_ned.V.Y = accSmooth[1];
@@ -404,7 +403,7 @@ static bool isMagnetometerHealthy(void)
 }
 #endif
 
-static void imuCalculateEstimatedAttitude(void)
+static void imuCalculateEstimatedAttitude(uint32_t currentTime)
 {
     static filterStatePt1_t accLPFState[3];
     static uint32_t previousIMUUpdateTime;
@@ -414,8 +413,7 @@ static void imuCalculateEstimatedAttitude(void)
     bool useMag = false;
     bool useYaw = false;
 
-    uint32_t currentTime = micros();
-    uint32_t deltaT = currentTime - previousIMUUpdateTime;
+    const uint32_t deltaT = currentTime - previousIMUUpdateTime;
     previousIMUUpdateTime = currentTime;
 
     // Smooth and use only valid accelerometer readings
@@ -463,12 +461,12 @@ void imuUpdateAccelerometer(rollAndPitchTrims_t *accelerometerTrims)
     }
 }
 
-void imuUpdateGyroAndAttitude(void)
+void imuUpdateGyroAndAttitude(uint32_t currentTime)
 {
     gyroUpdate();
 
     if (sensors(SENSOR_ACC) && isAccelUpdatedAtLeastOnce) {
-        imuCalculateEstimatedAttitude();
+        imuCalculateEstimatedAttitude(currentTime);
     } else {
         accADC[X] = 0;
         accADC[Y] = 0;

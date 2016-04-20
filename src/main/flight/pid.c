@@ -48,6 +48,8 @@
 
 #include "flight/pid.h"
 
+extern uint32_t targetLooptime;
+
 int16_t axisPID[3];
 
 #ifdef BLACKBOX

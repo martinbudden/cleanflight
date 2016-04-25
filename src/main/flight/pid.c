@@ -66,6 +66,8 @@ void pidMultiWiiRewrite(const pidProfile_t *pidProfile, const controlRateConfig_
         uint16_t max_angle_inclination, const rollAndPitchTrims_t *angleTrim, const rxConfig_t *rxConfig);
 void pidMultiWii23(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig,
         uint16_t max_angle_inclination, const rollAndPitchTrims_t *angleTrim, const rxConfig_t *rxConfig);
+void pidINav(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig,
+        uint16_t max_angle_inclination, const rollAndPitchTrims_t *angleTrim, const rxConfig_t *rxConfig);
 
 typedef void (*pidControllerFuncPtr)(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig,
         uint16_t max_angle_inclination, const rollAndPitchTrims_t *angleTrim, const rxConfig_t *rxConfig);            // pid controller function prototype
@@ -145,6 +147,11 @@ void pidSetController(pidControllerType_e type)
 #ifndef SKIP_PID_MW23
         case PID_CONTROLLER_MW23:
             pid_controller = pidMultiWii23;
+            break;
+#endif
+#ifndef SKIP_PID_INAV
+        case PID_CONTROLLER_INAV:
+            pid_controller = pidINav;
             break;
 #endif
     }

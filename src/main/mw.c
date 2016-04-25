@@ -785,6 +785,9 @@ bool taskUpdateRxCheck(uint32_t currentDeltaTime)
 {
     UNUSED(currentDeltaTime);
     updateRx(currentTime);
+#ifndef SKIP_PID_INAV
+    updatePIDCoefficients(pidProfile(), currentControlRateProfile);
+#endif
     return shouldProcessRx(currentTime);
 }
 

@@ -17,9 +17,14 @@
 
 #pragma once
 
+#include <stdbool.h>
+#include <stdint.h>
+#include "io/rate_profile.h"
+
 #define PID_MAX_I 256
 #define PID_MAX_D 512
 #define PID_MAX_TOTAL_PID 1000
+#define GYRO_SATURATION_LIMIT   1800        // 1800dps
 
 #define GYRO_I_MAX 256                      // Gyro I limiter
 #define YAW_P_LIMIT_MIN 100                 // Maximum value for yaw P limiter
@@ -45,6 +50,7 @@ typedef enum {
 	PID_CONTROLLER_MW23 = 0,
     PID_CONTROLLER_MWREWRITE,
     PID_CONTROLLER_LUX_FLOAT,
+    PID_CONTROLLER_INAV,
     PID_COUNT
 } pidControllerType_e;
 
@@ -71,4 +77,5 @@ void pidFilterIsSetCheck(const pidProfile_t *pidProfile);
 void pidSetController(pidControllerType_e type);
 void pidResetITermAngle(void);
 void pidResetITerm(void);
+void updatePIDCoefficients(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig);
 

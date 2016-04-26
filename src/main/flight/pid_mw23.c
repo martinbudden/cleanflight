@@ -60,11 +60,14 @@ uint8_t dynP8[3], dynI8[3], dynD8[3];
 extern uint8_t motorCount;
 
 #ifdef BLACKBOX
-extern int32_t axisPID_P[3], axisPID_I[3], axisPID_D[3];
+extern int32_t axisPID_P[], axisPID_I[], axisPID_D[];
 #endif
-extern int32_t lastITerm[3], ITermLimit[3];
 
-extern biquad_t deltaFilterState[3];
+extern float dT;
+extern int32_t lastITerm[], ITermLimit[];
+
+extern biquad_t deltaBiquadFilterState[3];
+extern filterStatePt1_t deltaPt1FilterState[3];
 
 
 void pidResetITermAngle(void)
@@ -146,10 +149,14 @@ void pidMultiWii23(const pidProfile_t *pidProfile, const controlRateConfig_t *co
         // Delta from measurement
         delta = -(gyroError - lastErrorForDelta[axis]);
         lastErrorForDelta[axis] = gyroError;
-        if (pidProfile->dterm_cut_hz) {
-            // Dterm delta low pass
-            DTerm = delta;
-            DTerm = lrintf(applyBiQuadFilter((float) DTerm, &deltaFilterState[axis])) * 3;  // Keep same scaling as unfiltered DTerm
+        if (pidProfile->dterm_lpf_hz) {
+            // Dterm low pass filter
+            DTerm = delta * 3; // Keep same scaling as unfiltered DTerm
+#ifdef USE_PID_BIQUAD_FILTER
+            DTerm = lrintf(applyBiQuadFilter((float)DTerm, &deltaBiquadFilterState[axis]));
+#else
+            DTerm = filterApplyPt1((float)DTerm, &deltaPt1FilterState[axis], pidProfile->dterm_lpf_hz, dT) ;
+#endif
         } else {
             // When dterm filter disabled apply moving average to reduce noise
             DTerm  = delta1[axis] + delta2[axis] + delta;

@@ -105,8 +105,10 @@ PG_RESET_TEMPLATE(pidProfile_t, pidProfile,
     .I8[PIDVEL] = 45,
     .D8[PIDVEL] = 1,
 
+    .dterm_noise_robust_differentiator = 4,
+    .dterm_lpf_hz = 0,
+    .dterm_average_count = 0,
     .yaw_p_limit = YAW_P_LIMIT_MAX,
-    .dterm_cut_hz = 0,
 );
 
 void pidResetITerm(void)
@@ -117,17 +119,24 @@ void pidResetITerm(void)
     }
 }
 
-biquad_t deltaFilterState[3];
+biquad_t deltaBiquadFilterState[3];
+#ifndef USE_PID_BIQUAD_FILTER
+filterStatePt1_t deltaPt1FilterState[3];
+#endif
 
 void pidFilterIsSetCheck(const pidProfile_t *pidProfile)
 {
+#ifdef USE_PID_BIQUAD_FILTER
     static bool deltaStateIsSet = false;
-    if (!deltaStateIsSet && pidProfile->dterm_cut_hz) {
+    if (!deltaStateIsSet && pidProfile->dterm_lpf_hz) {
         for (int axis = 0; axis < 3; axis++) {
-            BiQuadNewLpf(pidProfile->dterm_cut_hz, &deltaFilterState[axis], targetLooptime);
+            BiQuadNewLpf(pidProfile->dterm_lpf_hz, &deltaBiquadFilterState[axis], targetLooptime);
         }
         deltaStateIsSet = true;
     }
+#else
+    UNUSED(pidProfile);
+#endif
 }
 
 void pidSetController(pidControllerType_e type)

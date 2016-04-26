@@ -54,10 +54,12 @@
 #include "flight/mixer.h"
 
 
+extern float dT;
 extern uint8_t PIDweight[3];
 extern int32_t lastITerm[3], ITermLimit[3];
 
-extern biquad_t deltaFilterState[3];
+extern biquad_t deltaBiquadFilterState[3];
+extern filterStatePt1_t deltaPt1FilterState[3];
 
 extern uint8_t motorCount;
 
@@ -68,8 +70,8 @@ extern int32_t axisPID_P[3], axisPID_I[3], axisPID_D[3];
 
 STATIC_UNIT_TESTED int16_t pidMultiWiiRewriteCore(int axis, const pidProfile_t *pidProfile, int32_t gyroRate, int32_t angleRate)
 {
-    static int32_t lastRateForDelta[3];
-    static int32_t deltaState[3][DTERM_AVERAGE_COUNT];
+    static int32_t lastRate[3][PID_LAST_RATE_COUNT];
+    static int32_t deltaState[3][PID_DELTA_MAX_SAMPLES];
 
     SET_PID_MULTI_WII_REWRITE_CORE_LOCALS(axis);
 
@@ -109,18 +111,36 @@ STATIC_UNIT_TESTED int16_t pidMultiWiiRewriteCore(int axis, const pidProfile_t *
         DTerm = 0;
     } else {
         // delta calculated from measurement
-        int32_t delta = -(gyroRate - lastRateForDelta[axis]);
-        lastRateForDelta[axis] = gyroRate;
-        // Divide delta by targetLooptime to get differential (ie dr/dt)
-        delta = (delta * ((uint16_t)0xFFFF / ((uint16_t)targetLooptime >> 4))) >> 6;
-        if (pidProfile->dterm_cut_hz) {
-            // DTerm delta low pass filter
-            delta = lrintf(applyBiQuadFilter((float)delta, &deltaFilterState[axis]));
+        int32_t delta;
+        if (pidProfile->dterm_noise_robust_differentiator) {
+            // Calculate derivative using 5-point noise-robust differentiator without time delay (one-sided or forward filters)
+            // by Pavel Holoborodko, see http://www.holoborodko.com/pavel/numerical-methods/numerical-derivative/smooth-low-noise-differentiators/
+            // h[0] = 5/8, h[-1] = 1/4, h[-2] = -1, h[-3] = -1/4, h[-4] = 3/8
+            delta = 5*gyroRate + 2*lastRate[axis][0] - 8*lastRate[axis][1] - 2*lastRate[axis][2] + 3*lastRate[axis][3];
+            delta /= (-8);
+            for (int i = PID_LAST_RATE_COUNT - 1; i > 0; i--) {
+                lastRate[axis][i] = lastRate[axis][i-1];
+            }
         } else {
-            // When DTerm low pass filter disabled apply moving average to reduce noise
-            delta = filterApplyAverage(delta, DTERM_AVERAGE_COUNT, deltaState[axis]);
+            delta = -(gyroRate - lastRate[axis][0]);
         }
-        DTerm = (delta * pidProfile->D8[axis] * PIDweight[axis] / 100) >> 6;
+
+        lastRate[axis][0] = gyroRate;
+        // Divide delta by targetLooptime to get differential (ie dr/dt)
+        delta = (delta * ((uint16_t)0xFFFF / ((uint16_t)targetLooptime >> 4))) >> 5;
+        if (pidProfile->dterm_lpf_hz) {
+            // DTerm low pass filter
+#ifdef USE_PID_BIQUAD_FILTER
+            delta = lrintf(applyBiQuadFilter((float)delta, &deltaBiquadFilterState[axis]));
+#else
+            delta = filterApplyPt1((float)delta, &deltaPt1FilterState[axis], pidProfile->dterm_lpf_hz, dT);
+#endif
+        }
+        if (pidProfile->dterm_average_count) {
+            // Apply moving average
+            delta = filterApplyAverage(delta, pidProfile->dterm_average_count, deltaState[axis]);
+        }
+        DTerm = (delta * pidProfile->D8[axis] * PIDweight[axis] / 100) >> 8;
         DTerm = constrain(DTerm, -PID_MAX_D, PID_MAX_D);
     }
 
@@ -137,7 +157,9 @@ STATIC_UNIT_TESTED int16_t pidMultiWiiRewriteCore(int axis, const pidProfile_t *
 void pidMultiWiiRewrite(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig,
         uint16_t max_angle_inclination, const rollAndPitchTrims_t *angleTrim, const rxConfig_t *rxConfig)
 {
+#ifdef USE_PID_BIQUAD_FILTER
     pidFilterIsSetCheck(pidProfile);
+#endif
 
     int8_t horizonLevelStrength;
     if (FLIGHT_MODE(HORIZON_MODE)) {

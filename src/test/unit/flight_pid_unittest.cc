@@ -61,13 +61,13 @@ extern "C" {
     extern uint32_t rcModeActivationMask;
     float dT; // dT for pidLuxFloat
     int32_t targetLooptime; // targetLooptime for pidMultiWiiRewrite
-    float unittest_pidLuxFloatCore_lastRateForDelta[3];
-    int32_t unittest_pidLuxFloatCore_deltaState[3][DTERM_AVERAGE_COUNT];
+    float unittest_pidLuxFloatCore_lastRate[3][PID_LAST_RATE_COUNT];
+    int32_t unittest_pidLuxFloatCore_deltaState[3][PID_DELTA_MAX_SAMPLES];
     float unittest_pidLuxFloatCore_PTerm[3];
     float unittest_pidLuxFloatCore_ITerm[3];
     float unittest_pidLuxFloatCore_DTerm[3];
-    int32_t unittest_pidMultiWiiRewriteCore_lastRateForDelta[3];
-    int32_t unittest_pidMultiWiiRewriteCore_deltaState[3][DTERM_AVERAGE_COUNT];
+    int32_t unittest_pidMultiWiiRewriteCore_lastRate[3][PID_LAST_RATE_COUNT];
+    int32_t unittest_pidMultiWiiRewriteCore_deltaState[3][PID_DELTA_MAX_SAMPLES];
     int32_t unittest_pidMultiWiiRewriteCore_PTerm[3];
     int32_t unittest_pidMultiWiiRewriteCore_ITerm[3];
     int32_t unittest_pidMultiWiiRewriteCore_DTerm[3];
@@ -75,12 +75,12 @@ extern "C" {
 
 static const float luxPTermScale = 1.0f / 128;
 static const float luxITermScale = 1000000.0f / 0x1000000;
-static const float luxDTermScale = (0.000001f * (float)0xFFFF) / 256;
+static const float luxDTermScale = (0.000001f * (float)0xFFFF) / 512;
 static const float luxGyroScale = 16.4f / 4; // the 16.4 is needed because mwrewrite does not scale according to the gyro model gyro.scale
 static const int mwrGyroScale = 4;
 #define TARGET_LOOPTIME 2048
 
-static const int deltaTotalSamples = DTERM_AVERAGE_COUNT;
+static const int deltaTotalSamples = 4;
 
 void resetPidProfile(pidProfile_t *pidProfile)
 {
@@ -116,7 +116,8 @@ void resetPidProfile(pidProfile_t *pidProfile)
     pidProfile->D8[PIDVEL] = 1;
 
     pidProfile->yaw_p_limit = YAW_P_LIMIT_MAX;
-    pidProfile->dterm_cut_hz = 0;
+    pidProfile->dterm_noise_robust_differentiator = 0;
+    pidProfile->dterm_average_count = deltaTotalSamples;
 }
 
 void resetRcCommands(void)
@@ -151,8 +152,10 @@ void pidControllerInitLuxFloatCore(void)
     PIDweight[FD_YAW] = 100;
     // reset the pidLuxFloat static values
     for (int axis = FD_ROLL; axis <= FD_YAW; ++axis) {
-        unittest_pidLuxFloatCore_lastRateForDelta[axis] = 0.0f;
-        for (int ii = 0; ii < DTERM_AVERAGE_COUNT; ++ii) { \
+        for (int ii = 0; ii < PID_LAST_RATE_COUNT; ++ii) { \
+            unittest_pidLuxFloatCore_lastRate[axis][ii] = 0.0f; \
+        } \
+        for (int ii = 0; ii < PID_DELTA_MAX_SAMPLES; ++ii) { \
             unittest_pidLuxFloatCore_deltaState[axis][ii] = 0.0f; \
         } \
     }
@@ -461,6 +464,40 @@ TEST(PIDUnittest, TestPidLuxFloatITermConstrain)
 //    EXPECT_FLOAT_EQ(PID_LUX_FLOAT_MAX_I, unittest_pidLuxFloatCore_ITerm[FD_ROLL]);
 }
 
+TEST(PIDUnittest, TestPidLuxFloatDTermRobust)
+{
+    controlRateConfig_t controlRate;
+    const uint16_t max_angle_inclination = 500; // 50 degrees
+    rollAndPitchTrims_t rollAndPitchTrims;
+    rxConfig_t rxConfig;
+
+    pidProfile_t *pidProfile = &testPidProfile;
+
+    pidControllerInitLuxFloat(&controlRate, max_angle_inclination, &rollAndPitchTrims, &rxConfig);
+    pidProfile->dterm_noise_robust_differentiator = 3;
+    pidProfile->dterm_average_count = 0;
+
+    EXPECT_EQ(0, unittest_pidLuxFloatCore_DTerm[FD_ROLL]);
+    const float angleRate = 0;
+    float gyroRate = 100;
+    float delta = -100;
+    float expectedDTerm = luxDTermScale * delta * pidProfile->D8[FD_ROLL] / dT;
+    pidLuxFloatCore(FD_ROLL, pidProfile, gyroRate, angleRate);
+    EXPECT_FLOAT_EQ(expectedDTerm * 5 /8, unittest_pidLuxFloatCore_DTerm[FD_ROLL]);
+    gyroRate -= delta;
+    pidLuxFloatCore(FD_ROLL, pidProfile, gyroRate, angleRate);
+    EXPECT_FLOAT_EQ(expectedDTerm * 12 /8, unittest_pidLuxFloatCore_DTerm[FD_ROLL]);
+    gyroRate -= delta;
+    pidLuxFloatCore(FD_ROLL, pidProfile, gyroRate, angleRate);
+    EXPECT_FLOAT_EQ(expectedDTerm * 11 /8, unittest_pidLuxFloatCore_DTerm[FD_ROLL]);
+    gyroRate -= delta;
+    pidLuxFloatCore(FD_ROLL, pidProfile, gyroRate, angleRate);
+    EXPECT_FLOAT_EQ(expectedDTerm * 8 /8, unittest_pidLuxFloatCore_DTerm[FD_ROLL]);
+    gyroRate -= delta;
+    pidLuxFloatCore(FD_ROLL, pidProfile, gyroRate, angleRate);
+    EXPECT_FLOAT_EQ(expectedDTerm * 8 /8, unittest_pidLuxFloatCore_DTerm[FD_ROLL]);
+}
+
 TEST(PIDUnittest, TestPidLuxFloatDTermConstrain)
 {
     controlRateConfig_t controlRate;
@@ -522,7 +559,7 @@ TEST(PIDUnittest, TestPidLuxFloatDTermConstrain)
     resetRcCommands();
     pid_controller(pidProfile, &controlRate, max_angle_inclination, &rollAndPitchTrims, &rxConfig);
     // following test will fail, since DTerm will be constrained for when dT = 0.001
-    //****//EXPECT_FLOAT_EQ(calcLuxDTerm(&pidProfile, FD_ROLL, rateErrorRoll) / deltaTotalSamples, unittest_pidLuxFloatCore_DTerm[FD_ROLL]);
+    //!!!!//EXPECT_FLOAT_EQ(calcLuxDTerm(&pidProfile, FD_ROLL, rateErrorRoll) / deltaTotalSamples, unittest_pidLuxFloatCore_DTerm[FD_ROLL]);
 }
 
 void pidControllerInitMultiWiiRewriteCore(void)
@@ -540,8 +577,10 @@ void pidControllerInitMultiWiiRewriteCore(void)
     PIDweight[FD_YAW] = 100;
     // reset the pidMultiWiiRewrite static values
     for (int axis = FD_ROLL; axis <= FD_YAW; ++axis) {
-        unittest_pidMultiWiiRewriteCore_lastRateForDelta[axis] = 0;
-        for (int ii = 0; ii < DTERM_AVERAGE_COUNT; ++ii) { \
+        for (int ii = 0; ii < PID_LAST_RATE_COUNT; ++ii) { \
+            unittest_pidMultiWiiRewriteCore_lastRate[axis][ii] = 0;
+        }
+        for (int ii = 0; ii < PID_DELTA_MAX_SAMPLES; ++ii) { \
             unittest_pidMultiWiiRewriteCore_deltaState[axis][ii] = 0; \
         } \
     }
@@ -612,7 +651,8 @@ int32_t calcMwrITermDelta(pidProfile_t *pidProfile, pidIndex_e axis, int rateErr
 }
 
 int32_t calcMwrDTerm(pidProfile_t *pidProfile, pidIndex_e axis, int rateError) {
-    int32_t ret = (rateError * ((uint16_t)0xFFFF / ((uint16_t)targetLooptime >> 4))) >> 6;
+    rateError /= mwrGyroScale;
+    int32_t ret = (rateError * ((uint16_t)0xFFFF / ((uint16_t)targetLooptime >> 4))) >> 5;
     ret =  (ret * pidProfile->D8[axis]) >> 8;
     ret = constrain(ret, -PID_MAX_D, PID_MAX_D);
     return ret;

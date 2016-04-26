@@ -59,7 +59,8 @@ extern float dT;
 extern uint8_t PIDweight[3];
 extern float lastITermf[3], ITermLimitf[3];
 
-extern biquad_t deltaFilterState[3];
+extern biquad_t deltaBiquadFilterState[3];
+extern filterStatePt1_t deltaPt1FilterState[3];
 
 extern uint8_t motorCount;
 
@@ -70,13 +71,13 @@ extern int32_t axisPID_P[3], axisPID_I[3], axisPID_D[3];
 // constants to scale pidLuxFloat so output is same as pidMultiWiiRewrite
 static const float luxPTermScale = 1.0f / 128;
 static const float luxITermScale = 1000000.0f / 0x1000000;
-static const float luxDTermScale = (0.000001f * (float)0xFFFF) / 256;
+static const float luxDTermScale = (0.000001f * (float)0xFFFF) / 512;
 static const float luxGyroScale = 16.4f / 4; // the 16.4 is needed because mwrewrite does not scale according to the gyro model gyro.scale
 
 STATIC_UNIT_TESTED int16_t pidLuxFloatCore(int axis, const pidProfile_t *pidProfile, float gyroRate, float angleRate)
 {
-    static float lastRateForDelta[3];
-    static float deltaState[3][DTERM_AVERAGE_COUNT];
+    static float lastRate[3][PID_LAST_RATE_COUNT];
+    static float deltaState[3][PID_DELTA_MAX_SAMPLES];
 
     SET_PID_LUX_FLOAT_CORE_LOCALS(axis);
 
@@ -110,17 +111,53 @@ STATIC_UNIT_TESTED int16_t pidLuxFloatCore(int axis, const pidProfile_t *pidProf
         // optimisation for when D8 is zero, often used by YAW axis
         DTerm = 0;
     } else {
-        // delta calculated from measurement
-        float delta = -(gyroRate - lastRateForDelta[axis]);
-        lastRateForDelta[axis] = gyroRate;
-        // Divide delta by dT to get differential (ie dr/dt)
-        delta *= (1.0f / dT);
-        if (pidProfile->dterm_cut_hz) {
+        float delta; // delta calculated from measurement
+        // Calculate derivative using noise-robust differentiator without time delay (one-sided or forward filters)
+        // by Pavel Holoborodko, see http://www.holoborodko.com/pavel/numerical-methods/numerical-derivative/smooth-low-noise-differentiators/
+        switch (pidProfile->dterm_noise_robust_differentiator) {
+        case 0:
+            // simple differentiation
+            // N=1: h[0] = 1, h[-1] = -1
+            delta = -(gyroRate - lastRate[axis][0]);
+            break;
+        case 1:
+            // N=2: h[0] = 1/2, h[-1] = 0, h[-2] = -1/2
+            delta = -(gyroRate - lastRate[axis][1]) / 2;
+            break;
+        case 2:
+            // N=3: h[0] = 1/4, h[-1] = 1/4, h[-2] = -1/4, h[-3] = -1/4
+            delta = -(gyroRate + lastRate[axis][0] - lastRate[axis][1] - lastRate[axis][2]) / 4;
+            break;
+        case 3:
+            // N=4: h[0] = 5/8, h[-1] = 1/4, h[-2] = -1, h[-3] = -1/4, h[-4] = 3/8
+            delta = -(5*gyroRate + 2*lastRate[axis][0] - 8*lastRate[axis][1] - 2*lastRate[axis][2] + 3*lastRate[axis][3]) / 8;
+            break;
+        case 4:
+            // N=5: h[0] = 3/8, h[-1] = 1/2, h[-2] = -1/2, h[-3] = -3/4, h[-4] = 1/8, h[-5] = 1/4
+            delta = -(3*gyroRate + 4*lastRate[axis][0] - 4*lastRate[axis][1] - 6*lastRate[axis][2] + 1*lastRate[axis][3]  + 2*lastRate[axis][4]) / 8;
+            break;
+        case 5:
+            // N=6: h[0] = 7/32, h[-1] = 1/2, h[-2] = -1/32, h[-3] = -3/4, h[-4] = -11/32, h[-5] = 1/4, h[-6] = 5/32
+            delta = -(7*gyroRate + 16*lastRate[axis][0] - 1*lastRate[axis][1] - 24*lastRate[axis][2] - 11*lastRate[axis][3]  + 8*lastRate[axis][4]+ 5*lastRate[axis][5]) / 32;
+            break;
+        }
+        delta /= dT;
+        memcpy(&lastRate[axis][1], &lastRate[axis][0], (PID_LAST_RATE_COUNT-1) * sizeof(float));
+        /*for (int i = PID_LAST_RATE_COUNT - 1; i > 0; i--) {
+            lastRate[axis][i] = lastRate[axis][i-1];
+        }*/
+        lastRate[axis][0] = gyroRate;
+        if (pidProfile->dterm_lpf_hz) {
             // DTerm delta low pass filter
-            delta = applyBiQuadFilter(delta, &deltaFilterState[axis]);
-        } else {
-            // When DTerm low pass filter disabled apply moving average to reduce noise
-            delta = filterApplyAveragef(delta, DTERM_AVERAGE_COUNT, deltaState[axis]);
+#ifdef USE_PID_BIQUAD_FILTER
+            delta = applyBiQuadFilter(delta, &deltaBiquadFilterState[axis]);
+#else
+            delta = filterApplyPt1(delta, &deltaPt1FilterState[axis], pidProfile->dterm_lpf_hz, dT);
+#endif
+        }
+        if (pidProfile->dterm_average_count) {
+            // Apply moving average
+            delta = filterApplyAveragef(delta, pidProfile->dterm_average_count, deltaState[axis]);
         }
         DTerm = luxDTermScale * delta * pidProfile->D8[axis] * PIDweight[axis] / 100;
         DTerm = constrainf(DTerm, -PID_MAX_D, PID_MAX_D);
@@ -139,7 +176,9 @@ STATIC_UNIT_TESTED int16_t pidLuxFloatCore(int axis, const pidProfile_t *pidProf
 void pidLuxFloat(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig,
         uint16_t max_angle_inclination, const rollAndPitchTrims_t *angleTrim, const rxConfig_t *rxConfig)
 {
+#ifdef USE_PID_BIQUAD_FILTER
     pidFilterIsSetCheck(pidProfile);
+#endif
 
     float horizonLevelStrength;
     if (FLIGHT_MODE(HORIZON_MODE)) {

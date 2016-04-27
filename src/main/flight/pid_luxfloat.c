@@ -76,24 +76,23 @@ static const float luxDTermScale = (0.000001f * (float)0xFFFF) / 512;
 static const float luxGyroScale = 16.4f / 4; // the 16.4 is needed because mwrewrite does not scale according to the gyro model gyro.scale
 
 
-// Filter coefficients by Pavel Holoborodko, see
-// http://www.holoborodko.com/pavel/numerical-methods/numerical-derivative/smooth-low-noise-differentiators/
-// N=2: h[0] = 1, h[-1] = -1
-// N=3: h[0] = 1/2, h[-1] = 0, h[-2] = -1/2
-// N=4: h[0] = 1/4, h[-1] = 1/4, h[-2] = -1/4, h[-3] = -1/4
-// N=5: h[0] = 5/8, h[-1] = 1/4, h[-2] = -1, h[-3] = -1/4, h[-4] = 3/8
-// N=6: h[0] = 3/8, h[-1] = 1/2, h[-2] = -1/2, h[-3] = -3/4, h[-4] = 1/8, h[-5] = 1/4
-// N=7: h[0] = 7/32, h[-1] = 1/2, h[-2] = -1/32, h[-3] = -3/4, h[-4] = -11/32, h[-5] = 1/4, h[-6] = 5/32
-// N=8: h[0] = 1/8, h[-1] = 13/32, h[-2] = 1/4, h[-3] = -15/32, h[-4] = -5/8, h[-5] = -1/32, h[-6] = 1/4, h[-7] = 3/32
-// first coefficient is the divisor
-static const int8_t nrdCoefficents2[] = { 1, 1, -1}; // filter length 2, simple differentiation
-static const int8_t nrdCoefficents3[] = { 2, 1,  0, -1};
-static const int8_t nrdCoefficents4[] = { 4, 1,  1, -1, -1};
-static const int8_t nrdCoefficents5[] = { 8, 5,  2, -8, -2,  3};
-static const int8_t nrdCoefficents6[] = { 8, 3,  4, -4, -6,  1,  2};
-static const int8_t nrdCoefficents7[] = {32, 7, 16, -1,-24,-11,  8,  5};
+/* Noise-robust differentiator filter coefficients by Pavel Holoborodko, see
+http://www.holoborodko.com/pavel/numerical-methods/numerical-derivative/smooth-low-noise-differentiators/
+N=2: h[0] = 1, h[-1] = -1
+N=3: h[0] = 1/2, h[-1] = 0, h[-2] = -1/2
+N=4: h[0] = 1/4, h[-1] = 1/4, h[-2] = -1/4, h[-3] = -1/4
+N=5: h[0] = 5/8, h[-1] = 1/4, h[-2] = -1, h[-3] = -1/4, h[-4] = 3/8
+N=6: h[0] = 3/8, h[-1] = 1/2, h[-2] = -1/2, h[-3] = -3/4, h[-4] = 1/8, h[-5] = 1/4
+N=7: h[0] = 7/32, h[-1] = 1/2, h[-2] = -1/32, h[-3] = -3/4, h[-4] = -11/32, h[-5] = 1/4, h[-6] = 5/32
+*/
+static const float nrdCoefficents2[] = { 1.0f,   -1.0f}; // filter length 2, simple differentiation
+static const float nrdCoefficents3[] = { 1.0f/2,  0.0f,   -1.0f/2};
+static const float nrdCoefficents4[] = { 1.0f/4,  1.0f/4, -1.0f/4, -1.0f/4};
+static const float nrdCoefficents5[] = { 5.0f/8,  1.0f/4, -1.0f,   -1.0f/4,  3.0f/8};
+static const float nrdCoefficents6[] = { 3.0f/8,  1.0f,   -1.0f,   -3.0f/4,  1.0f/8,  1.0f/4};
+static const float nrdCoefficents7[] = { 7.0f/32, 1.0f/2, -1.0f/32,-3.0f/4,-11.0f/32, 1.0f/4,  5.0f/32};
 
-static const int8_t *nrd[] = {
+static const float *nrd[] = {
         nrdCoefficents2,
         nrdCoefficents3,
         nrdCoefficents4,
@@ -102,7 +101,12 @@ static const int8_t *nrd[] = {
         nrdCoefficents7,
 };
 
-float applyFirFilterInt8Coeffs(float input, float firState[], uint8_t filterLength, const int8_t coeffs[])
+void firFilterInit(float firState[], uint8_t filterLength)
+{
+    memset(firState, 0, sizeof(float) * filterLength);
+}
+
+float firFilterApply(float input, float firState[], uint8_t filterLength, const float coeffs[])
 {
     memmove(&firState[1], &firState[0], (filterLength-1) * sizeof(float));
     firState[0] = input;
@@ -153,9 +157,9 @@ STATIC_UNIT_TESTED int16_t pidLuxFloatCore(int axis, const pidProfile_t *pidProf
         // Calculate derivative using FIR filter
         // FIR filter is noise-robust differentiator without time delay (one-sided or forward filters) by Pavel Holoborodko,
         // see http://www.holoborodko.com/pavel/numerical-methods/numerical-derivative/smooth-low-noise-differentiators/
-        const int8_t *coeffs = nrd[pidProfile->dterm_noise_robust_differentiator];
-        DTerm = applyFirFilterInt8Coeffs(gyroRate, DTermFirFilterState[axis], pidProfile->dterm_noise_robust_differentiator + 2, coeffs + 1);
-        DTerm = -DTerm / (coeffs[0] * dT);
+        const float *coeffs = nrd[pidProfile->dterm_noise_robust_differentiator];
+        DTerm = firFilterApply(gyroRate, DTermFirFilterState[axis], pidProfile->dterm_noise_robust_differentiator + 2, coeffs);
+        DTerm = -DTerm / dT;
         if (pidProfile->dterm_lpf_hz) {
             // DTerm delta low pass filter
 #ifdef USE_PID_BIQUAD_FILTER

@@ -122,33 +122,30 @@ void pidResetITerm(void)
 filterStatePt1_t deltaPt1FilterState[3];
 float DTermFirFilterState[3][PID_DTERM_FIR_MAX_LENGTH];
 
-void pidFilterIsSetCheck(void)
+static void pidFilterInit(void)
 {
-    static bool filterIsSet = false;
-    if (!filterIsSet) {
-        filterIsSet = true;
-        for (int axis = 0; axis < 3; axis++) {
-            firFilterInit(DTermFirFilterState[axis], PID_DTERM_FIR_MAX_LENGTH);
-        }
-     }
+    for (int axis = 0; axis < 3; axis++) {
+        firFilterInit(DTermFirFilterState[axis], PID_DTERM_FIR_MAX_LENGTH);
+    }
 }
 
 void pidSetController(pidControllerType_e type)
 {
+    pidFilterInit();
     switch (type) {
-        default:
-        case PID_CONTROLLER_MWREWRITE:
-            pid_controller = pidMultiWiiRewrite;
-            break;
+    default:
+    case PID_CONTROLLER_MWREWRITE:
+        pid_controller = pidMultiWiiRewrite;
+        break;
 #ifndef SKIP_PID_LUXFLOAT
-        case PID_CONTROLLER_LUX_FLOAT:
-            pid_controller = pidLuxFloat;
-            break;
+    case PID_CONTROLLER_LUX_FLOAT:
+        pid_controller = pidLuxFloat;
+        break;
 #endif
 #ifndef SKIP_PID_MW23
-        case PID_CONTROLLER_MW23:
-            pid_controller = pidMultiWii23;
-            break;
+    case PID_CONTROLLER_MW23:
+        pid_controller = pidMultiWii23;
+        break;
 #endif
     }
 }

@@ -132,8 +132,6 @@ STATIC_UNIT_TESTED int16_t pidLuxFloatCore(int axis, const pidProfile_t *pidProf
         DTerm = 0;
     } else {
         // Calculate derivative using FIR filter
-        // FIR filter is noise-robust differentiator without time delay (one-sided or forward filters) by Pavel Holoborodko,
-        // see http://www.holoborodko.com/pavel/numerical-methods/numerical-derivative/smooth-low-noise-differentiators/
         const float *coeffs = nrd[pidProfile->dterm_differentiator];
         DTerm = firFilterApply(gyroRate, DTermFirFilterState[axis], pidProfile->dterm_differentiator + 2, coeffs);
         DTerm = -DTerm / dT;
@@ -162,8 +160,6 @@ STATIC_UNIT_TESTED int16_t pidLuxFloatCore(int axis, const pidProfile_t *pidProf
 void pidLuxFloat(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig,
         uint16_t max_angle_inclination, const rollAndPitchTrims_t *angleTrim, const rxConfig_t *rxConfig)
 {
-    pidFilterIsSetCheck();
-
     float horizonLevelStrength;
     if (FLIGHT_MODE(HORIZON_MODE)) {
         // Figure out the most deflected stick position

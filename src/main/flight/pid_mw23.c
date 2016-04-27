@@ -86,8 +86,6 @@ void pidMultiWii23(const pidProfile_t *pidProfile, const controlRateConfig_t *co
     static int16_t lastErrorForDelta[2];
     static int32_t delta1[2], delta2[2];
 
-    pidFilterIsSetCheck();
-
     if (FLIGHT_MODE(HORIZON_MODE)) {
         prop = MIN(MAX(ABS(rcCommand[PITCH]), ABS(rcCommand[ROLL])), 512);
     }

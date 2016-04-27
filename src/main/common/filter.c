@@ -24,8 +24,8 @@
 #include "common/filter.h"
 #include "common/maths.h"
 
-#define M_LN2_FLOAT	0.69314718055994530942f
-#define M_PI_FLOAT	3.14159265358979323846f
+#define M_LN2_FLOAT 0.69314718055994530942f
+#define M_PI_FLOAT  3.14159265358979323846f
 
 #define BIQUAD_BANDWIDTH 1.9f     /* bandwidth in octaves */
 

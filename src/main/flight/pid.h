@@ -69,8 +69,6 @@ extern int16_t axisPID[FD_INDEX_COUNT];
 extern int32_t axisPID_P[FD_INDEX_COUNT], axisPID_I[FD_INDEX_COUNT], axisPID_D[FD_INDEX_COUNT];
 
 float pidScaleITermToRcInput(int axis);
-void pidFilterIsSetCheck(void);
-
 void pidSetController(pidControllerType_e type);
 void pidResetITermAngle(void);
 void pidResetITerm(void);

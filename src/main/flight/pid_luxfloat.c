@@ -142,10 +142,10 @@ STATIC_UNIT_TESTED int16_t pidLuxFloatCore(int axis, const pidProfile_t *pidProf
             break;
         }
         delta /= dT;
-        memcpy(&lastRate[axis][1], &lastRate[axis][0], (PID_LAST_RATE_COUNT-1) * sizeof(float));
-        /*for (int i = PID_LAST_RATE_COUNT - 1; i > 0; i--) {
+        //memcpy(&lastRate[axis][1], &lastRate[axis][0], (PID_LAST_RATE_COUNT-1) * sizeof(float));
+        for (int i = PID_LAST_RATE_COUNT - 1; i > 0; i--) {
             lastRate[axis][i] = lastRate[axis][i-1];
-        }*/
+        }
         lastRate[axis][0] = gyroRate;
         if (pidProfile->dterm_lpf_hz) {
             // DTerm delta low pass filter

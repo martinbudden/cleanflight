@@ -61,6 +61,7 @@ extern "C" {
     extern uint32_t rcModeActivationMask;
     float dT; // dT for pidLuxFloat
     int32_t targetLooptime; // targetLooptime for pidMultiWiiRewrite
+    float DTermFirFilterState[3][PID_DTERM_FIR_MAX_LENGTH];
     float unittest_pidLuxFloatCore_lastRate[3][PID_LAST_RATE_COUNT];
     int32_t unittest_pidLuxFloatCore_deltaState[3][PID_DELTA_MAX_SAMPLES];
     float unittest_pidLuxFloatCore_PTerm[3];
@@ -142,6 +143,7 @@ void pidControllerInitLuxFloatCore(void)
     resetPidProfile(&testPidProfile);
     pidResetITermAngle();
     pidResetITerm();
+    memset(DTermFirFilterState, 0, sizeof(DTermFirFilterState));
     targetLooptime = TARGET_LOOPTIME;
     dT = TARGET_LOOPTIME * 0.000001f;
 

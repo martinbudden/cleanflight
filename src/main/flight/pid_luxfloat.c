@@ -61,6 +61,7 @@ extern float lastITermf[3], ITermLimitf[3];
 
 extern biquad_t deltaBiquadFilterState[3];
 extern filterStatePt1_t deltaPt1FilterState[3];
+extern float DTermFirFilterState[3][PID_DTERM_FIR_MAX_LENGTH];
 
 extern uint8_t motorCount;
 
@@ -73,6 +74,42 @@ static const float luxPTermScale = 1.0f / 128;
 static const float luxITermScale = 1000000.0f / 0x1000000;
 static const float luxDTermScale = (0.000001f * (float)0xFFFF) / 512;
 static const float luxGyroScale = 16.4f / 4; // the 16.4 is needed because mwrewrite does not scale according to the gyro model gyro.scale
+
+
+// Filter coefficients, see http://www.holoborodko.com/pavel/numerical-methods/numerical-derivative/smooth-low-noise-differentiators/
+// N=2: h[0] = 1, h[-1] = -1
+// N=3: h[0] = 1/2, h[-1] = 0, h[-2] = -1/2
+// N=4: h[0] = 1/4, h[-1] = 1/4, h[-2] = -1/4, h[-3] = -1/4
+// N=5: h[0] = 5/8, h[-1] = 1/4, h[-2] = -1, h[-3] = -1/4, h[-4] = 3/8
+// N=6: h[0] = 3/8, h[-1] = 1/2, h[-2] = -1/2, h[-3] = -3/4, h[-4] = 1/8, h[-5] = 1/4
+// N=7: h[0] = 7/32, h[-1] = 1/2, h[-2] = -1/32, h[-3] = -3/4, h[-4] = -11/32, h[-5] = 1/4, h[-6] = 5/32
+// first coefficient is the divisor
+static const int nrdCoefficents2[] = { 1, 1, -1};
+static const int nrdCoefficents3[] = { 2, 1,  0, -1};
+static const int nrdCoefficents4[] = { 4, 1,  1, -1, -1};
+static const int nrdCoefficents5[] = { 8, 5,  2, -8, -2,  3};
+static const int nrdCoefficents6[] = { 8, 3,  4, -4, -6,  1,  2};
+static const int nrdCoefficents7[] = {32, 7, 16, -1,-24,-11,  8,  5};
+
+static const int* nrd[] = {
+        nrdCoefficents2,
+        nrdCoefficents3,
+        nrdCoefficents4,
+        nrdCoefficents5,
+        nrdCoefficents6,
+        nrdCoefficents7,
+};
+
+float applyFirFilterIntCoeffs(float input, float firState[], uint8_t filterLength, const int coeffs[])
+{
+    memmove(&firState[1], &firState[0], (filterLength-1) * sizeof(float));
+    firState[0] = input;
+    float ret = 0.0f;
+    for (int ii = 0; ii < filterLength; ++ii) {
+        ret += coeffs[ii] * firState[ii];
+    }
+    return ret;
+}
 
 STATIC_UNIT_TESTED int16_t pidLuxFloatCore(int axis, const pidProfile_t *pidProfile, float gyroRate, float angleRate)
 {
@@ -111,55 +148,25 @@ STATIC_UNIT_TESTED int16_t pidLuxFloatCore(int axis, const pidProfile_t *pidProf
         // optimisation for when D8 is zero, often used by YAW axis
         DTerm = 0;
     } else {
-        float delta; // delta calculated from measurement
-        // Calculate derivative using noise-robust differentiator without time delay (one-sided or forward filters)
-        // by Pavel Holoborodko, see http://www.holoborodko.com/pavel/numerical-methods/numerical-derivative/smooth-low-noise-differentiators/
-        switch (pidProfile->dterm_noise_robust_differentiator) {
-        case 0:
-            // simple differentiation
-            // N=1: h[0] = 1, h[-1] = -1
-            delta = -(gyroRate - lastRate[axis][0]);
-            break;
-        case 1:
-            // N=2: h[0] = 1/2, h[-1] = 0, h[-2] = -1/2
-            delta = -(gyroRate - lastRate[axis][1]) / 2;
-            break;
-        case 2:
-            // N=3: h[0] = 1/4, h[-1] = 1/4, h[-2] = -1/4, h[-3] = -1/4
-            delta = -(gyroRate + lastRate[axis][0] - lastRate[axis][1] - lastRate[axis][2]) / 4;
-            break;
-        case 3:
-            // N=4: h[0] = 5/8, h[-1] = 1/4, h[-2] = -1, h[-3] = -1/4, h[-4] = 3/8
-            delta = -(5*gyroRate + 2*lastRate[axis][0] - 8*lastRate[axis][1] - 2*lastRate[axis][2] + 3*lastRate[axis][3]) / 8;
-            break;
-        case 4:
-            // N=5: h[0] = 3/8, h[-1] = 1/2, h[-2] = -1/2, h[-3] = -3/4, h[-4] = 1/8, h[-5] = 1/4
-            delta = -(3*gyroRate + 4*lastRate[axis][0] - 4*lastRate[axis][1] - 6*lastRate[axis][2] + 1*lastRate[axis][3]  + 2*lastRate[axis][4]) / 8;
-            break;
-        case 5:
-            // N=6: h[0] = 7/32, h[-1] = 1/2, h[-2] = -1/32, h[-3] = -3/4, h[-4] = -11/32, h[-5] = 1/4, h[-6] = 5/32
-            delta = -(7*gyroRate + 16*lastRate[axis][0] - 1*lastRate[axis][1] - 24*lastRate[axis][2] - 11*lastRate[axis][3]  + 8*lastRate[axis][4]+ 5*lastRate[axis][5]) / 32;
-            break;
-        }
-        delta /= dT;
-        memmove(&lastRate[axis][1], &lastRate[axis][0], (PID_LAST_RATE_COUNT-1) * sizeof(float));
-        /*for (int i = PID_LAST_RATE_COUNT - 1; i > 0; i--) {
-            lastRate[axis][i] = lastRate[axis][i-1];
-        }*/
-        lastRate[axis][0] = gyroRate;
+        // Calculate derivative using FIR filter
+        // FIR filter is noise-robust differentiator without time delay (one-sided or forward filters) by Pavel Holoborodko,
+        // see http://www.holoborodko.com/pavel/numerical-methods/numerical-derivative/smooth-low-noise-differentiators/
+        const int* coeffs = nrd[pidProfile->dterm_noise_robust_differentiator];
+        DTerm = applyFirFilterIntCoeffs(gyroRate, DTermFirFilterState[axis], pidProfile->dterm_noise_robust_differentiator + 2, coeffs + 1);
+        DTerm = -DTerm / (coeffs[0] * dT);
         if (pidProfile->dterm_lpf_hz) {
             // DTerm delta low pass filter
 #ifdef USE_PID_BIQUAD_FILTER
-            delta = applyBiQuadFilter(delta, &deltaBiquadFilterState[axis]);
+            DTerm = applyBiQuadFilter(DTerm, &deltaBiquadFilterState[axis]);
 #else
-            delta = filterApplyPt1(delta, &deltaPt1FilterState[axis], pidProfile->dterm_lpf_hz, dT);
+            DTerm = filterApplyPt1(DTerm, &deltaPt1FilterState[axis], pidProfile->dterm_lpf_hz, dT);
 #endif
         }
         if (pidProfile->dterm_average_count) {
             // Apply moving average
-            delta = filterApplyAveragef(delta, pidProfile->dterm_average_count, deltaState[axis]);
+            DTerm = filterApplyAveragef(DTerm, pidProfile->dterm_average_count, deltaState[axis]);
         }
-        DTerm = luxDTermScale * delta * pidProfile->D8[axis] * PIDweight[axis] / 100;
+        DTerm = DTerm * luxDTermScale * pidProfile->D8[axis] * PIDweight[axis] / 100;
         DTerm = constrainf(DTerm, -PID_MAX_D, PID_MAX_D);
     }
 

@@ -123,6 +123,7 @@ biquad_t deltaBiquadFilterState[3];
 #ifndef USE_PID_BIQUAD_FILTER
 filterStatePt1_t deltaPt1FilterState[3];
 #endif
+float DTermFirFilterState[3][PID_DTERM_FIR_MAX_LENGTH];
 
 void pidFilterIsSetCheck(const pidProfile_t *pidProfile)
 {
@@ -135,6 +136,7 @@ void pidFilterIsSetCheck(const pidProfile_t *pidProfile)
         deltaStateIsSet = true;
     }
 #else
+    memset(DTermFirFilterState, 0, sizeof(DTermFirFilterState));
     UNUSED(pidProfile);
 #endif
 }

@@ -88,7 +88,7 @@ static const float nrdCoeffs2[] = { 1.0f,   -1.0f}; // filter length 2, simple d
 static const float nrdCoeffs3[] = { 1.0f/2,  0.0f,   -1.0f/2};
 static const float nrdCoeffs4[] = { 1.0f/4,  1.0f/4, -1.0f/4, -1.0f/4};
 static const float nrdCoeffs5[] = { 5.0f/8,  1.0f/4, -1.0f,   -1.0f/4,  3.0f/8};
-static const float nrdCoeffs6[] = { 3.0f/8,  1.0f,   -1.0f,   -3.0f/4,  1.0f/8,  1.0f/4};
+static const float nrdCoeffs6[] = { 3.0f/8,  1.0f/2, -1.0f/2, -3.0f/4,  1.0f/8,  1.0f/4};
 static const float nrdCoeffs7[] = { 7.0f/32, 1.0f/2, -1.0f/32,-3.0f/4,-11.0f/32, 1.0f/4,  5.0f/32};
 
 static const float *nrd[] = {nrdCoeffs2, nrdCoeffs3, nrdCoeffs4, nrdCoeffs5, nrdCoeffs6, nrdCoeffs7};

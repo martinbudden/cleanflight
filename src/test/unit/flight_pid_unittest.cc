@@ -55,6 +55,7 @@ extern "C" {
     int16_t pidLuxFloatCore(int axis, const pidProfile_t *pidProfile, float gyroRate, float AngleRate);
     int16_t pidMultiWiiRewriteCore(int axis, const pidProfile_t *pidProfile, int32_t gyroRate, int32_t AngleRate);
     void pidResetITerm(void);
+    void pidFilterInit(void);
     extern pidControllerFuncPtr pid_controller;
     extern uint8_t PIDweight[3];
     extern bool motorLimitReached;
@@ -143,7 +144,7 @@ void pidControllerInitLuxFloatCore(void)
     resetPidProfile(&testPidProfile);
     pidResetITermAngle();
     pidResetITerm();
-    memset(DTermFirFilterState, 0, sizeof(DTermFirFilterState));
+    pidFilterInit();
     targetLooptime = TARGET_LOOPTIME;
     dT = TARGET_LOOPTIME * 0.000001f;
 
@@ -395,7 +396,7 @@ TEST(PIDUnittest, TestPidLuxFloatIntegrationForQuadraticFunction)
     pidControllerInitLuxFloat(&controlRate, max_angle_inclination, &rollAndPitchTrims, &rxConfig);
     resetRcCommands();
 
-    // Test PID integration for a linear function:
+    // Test PID integration for a quadratic function:
     //    rateError = k * t * t
     // Integral:
     //    IrateError = (1/3) * k * t ^ 3
@@ -499,6 +500,59 @@ TEST(PIDUnittest, TestPidLuxFloatDTermRobust)
     gyroRate -= delta;
     pidLuxFloatCore(FD_ROLL, pidProfile, gyroRate, angleRate);
     EXPECT_FLOAT_EQ(expectedDTerm * 8 /8, unittest_pidLuxFloatCore_DTerm[FD_ROLL]);
+}
+
+TEST(PIDUnittest, TestPidLuxFloatDifferentiationForQuadraticFunction)
+{
+    controlRateConfig_t controlRate;
+    const uint16_t max_angle_inclination = 500; // 50 degrees
+    rollAndPitchTrims_t rollAndPitchTrims;
+    rxConfig_t rxConfig;
+
+    pidProfile_t *pidProfile = &testPidProfile;
+
+    for (int differentiator = 3; differentiator <= PID_MAX_DIFFERENTIATOR; ++differentiator) {
+        // get exact differential for quadratic function for differentiator >=3
+        pidControllerInitLuxFloat(&controlRate, max_angle_inclination, &rollAndPitchTrims, &rxConfig);
+        pidProfile->dterm_differentiator = differentiator;
+        pidProfile->dterm_average_count = 0;
+
+        // Test PID integration for a quadratic function:
+        //    rateError = k * t * t
+        // Differential:
+        //    DrateError = 2 * k * t
+
+        const float angleRate = 0;
+        const float k = 800; // arbitrary value of k
+        float t = 0.0f;
+        // set rateError to k * t * t
+        float gyroRate = -k * t * t;
+        pidLuxFloatCore(FD_ROLL, pidProfile, gyroRate, angleRate);
+        float actDTerm = 2 * k * t * pidProfile->D8[ROLL] * luxDTermScale; // actual value of integral
+        float pidDTerm = unittest_pidLuxFloatCore_DTerm[FD_ROLL]; // integral as estimated by PID
+        EXPECT_FLOAT_EQ(actDTerm, pidDTerm); // both are zero at this point
+
+        // do pidProfile->dterm_differentiator + 2 iterations to fill up filter state buffer
+        for (int ii = 0; ii < pidProfile->dterm_differentiator + 2; ++ii) {
+            t += dT;
+            // set rateError to k * t * t
+            gyroRate = -k * t * t;
+            pidLuxFloatCore(FD_ROLL, pidProfile, gyroRate, angleRate);
+            pidDTerm = unittest_pidLuxFloatCore_DTerm[FD_ROLL];
+            actDTerm = 2 * k * t * pidProfile->D8[ROLL] * luxDTermScale;
+            EXPECT_NEAR(actDTerm, pidDTerm, 0.006); // won't get good match until state buffer is full
+        }
+        for (int ii = 0; ii < 10; ++ii) {
+            t += dT;
+            // set rateError to k * t * t
+            gyroRate = -k * t * t;
+            pidLuxFloatCore(FD_ROLL, pidProfile, gyroRate, angleRate);
+            pidDTerm = unittest_pidLuxFloatCore_DTerm[FD_ROLL];
+            actDTerm = 2 * k * t * pidProfile->D8[ROLL] * luxDTermScale;
+            EXPECT_NEAR(actDTerm, pidDTerm, 0.0000001);
+            EXPECT_NEAR(actDTerm, pidDTerm, 0.000001);
+        }
+    }
 }
 
 TEST(PIDUnittest, TestPidLuxFloatDTermConstrain)

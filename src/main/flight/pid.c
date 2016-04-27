@@ -122,7 +122,7 @@ void pidResetITerm(void)
 filterStatePt1_t deltaPt1FilterState[3];
 float DTermFirFilterState[3][PID_DTERM_FIR_MAX_LENGTH];
 
-static void pidFilterInit(void)
+STATIC_UNIT_TESTED void pidFilterInit(void)
 {
     for (int axis = 0; axis < 3; axis++) {
         firFilterInit(DTermFirFilterState[axis], PID_DTERM_FIR_MAX_LENGTH);

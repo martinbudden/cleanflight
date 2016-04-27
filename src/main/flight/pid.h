@@ -26,8 +26,8 @@
 #define YAW_P_LIMIT_MAX 500                 // Maximum value for yaw P limiter
 
 #define PID_DELTA_MAX_SAMPLES 8
-#define PID_LAST_RATE_COUNT 7
-#define PID_DTERM_FIR_MAX_LENGTH 7
+#define PID_LAST_RATE_COUNT 8
+#define PID_DTERM_FIR_MAX_LENGTH 8
 #define PID_MAX_DIFFERENTIATOR (PID_DTERM_FIR_MAX_LENGTH-2)
 
 typedef enum {

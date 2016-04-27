@@ -540,7 +540,7 @@ TEST(PIDUnittest, TestPidLuxFloatDifferentiationForQuadraticFunction)
             pidLuxFloatCore(FD_ROLL, pidProfile, gyroRate, angleRate);
             pidDTerm = unittest_pidLuxFloatCore_DTerm[FD_ROLL];
             actDTerm = 2 * k * t * pidProfile->D8[ROLL] * luxDTermScale;
-            EXPECT_NEAR(actDTerm, pidDTerm, 0.006); // won't get good match until state buffer is full
+            EXPECT_NEAR(actDTerm, pidDTerm, 0.0065); // won't get good match until state buffer is full
         }
         for (int ii = 0; ii < 10; ++ii) {
             t += dT;
@@ -550,7 +550,6 @@ TEST(PIDUnittest, TestPidLuxFloatDifferentiationForQuadraticFunction)
             pidDTerm = unittest_pidLuxFloatCore_DTerm[FD_ROLL];
             actDTerm = 2 * k * t * pidProfile->D8[ROLL] * luxDTermScale;
             EXPECT_NEAR(actDTerm, pidDTerm, 0.0000001);
-            EXPECT_NEAR(actDTerm, pidDTerm, 0.000001);
         }
     }
 }

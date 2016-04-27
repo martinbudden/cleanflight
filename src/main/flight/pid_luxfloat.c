@@ -59,7 +59,6 @@ extern float dT;
 extern uint8_t PIDweight[3];
 extern float lastITermf[3], ITermLimitf[3];
 
-extern biquad_t deltaBiquadFilterState[3];
 extern filterStatePt1_t deltaPt1FilterState[3];
 extern float DTermFirFilterState[3][PID_DTERM_FIR_MAX_LENGTH];
 
@@ -85,37 +84,15 @@ N=5: h[0] = 5/8, h[-1] = 1/4, h[-2] = -1, h[-3] = -1/4, h[-4] = 3/8
 N=6: h[0] = 3/8, h[-1] = 1/2, h[-2] = -1/2, h[-3] = -3/4, h[-4] = 1/8, h[-5] = 1/4
 N=7: h[0] = 7/32, h[-1] = 1/2, h[-2] = -1/32, h[-3] = -3/4, h[-4] = -11/32, h[-5] = 1/4, h[-6] = 5/32
 */
-static const float nrdCoefficents2[] = { 1.0f,   -1.0f}; // filter length 2, simple differentiation
-static const float nrdCoefficents3[] = { 1.0f/2,  0.0f,   -1.0f/2};
-static const float nrdCoefficents4[] = { 1.0f/4,  1.0f/4, -1.0f/4, -1.0f/4};
-static const float nrdCoefficents5[] = { 5.0f/8,  1.0f/4, -1.0f,   -1.0f/4,  3.0f/8};
-static const float nrdCoefficents6[] = { 3.0f/8,  1.0f,   -1.0f,   -3.0f/4,  1.0f/8,  1.0f/4};
-static const float nrdCoefficents7[] = { 7.0f/32, 1.0f/2, -1.0f/32,-3.0f/4,-11.0f/32, 1.0f/4,  5.0f/32};
+static const float nrdCoeffs2[] = { 1.0f,   -1.0f}; // filter length 2, simple differentiation
+static const float nrdCoeffs3[] = { 1.0f/2,  0.0f,   -1.0f/2};
+static const float nrdCoeffs4[] = { 1.0f/4,  1.0f/4, -1.0f/4, -1.0f/4};
+static const float nrdCoeffs5[] = { 5.0f/8,  1.0f/4, -1.0f,   -1.0f/4,  3.0f/8};
+static const float nrdCoeffs6[] = { 3.0f/8,  1.0f,   -1.0f,   -3.0f/4,  1.0f/8,  1.0f/4};
+static const float nrdCoeffs7[] = { 7.0f/32, 1.0f/2, -1.0f/32,-3.0f/4,-11.0f/32, 1.0f/4,  5.0f/32};
 
-static const float *nrd[] = {
-        nrdCoefficents2,
-        nrdCoefficents3,
-        nrdCoefficents4,
-        nrdCoefficents5,
-        nrdCoefficents6,
-        nrdCoefficents7,
-};
+static const float *nrd[] = {nrdCoeffs2, nrdCoeffs3, nrdCoeffs4, nrdCoeffs5, nrdCoeffs6, nrdCoeffs7};
 
-void firFilterInit(float firState[], uint8_t filterLength)
-{
-    memset(firState, 0, sizeof(float) * filterLength);
-}
-
-float firFilterApply(float input, float firState[], uint8_t filterLength, const float coeffs[])
-{
-    memmove(&firState[1], &firState[0], (filterLength-1) * sizeof(float));
-    firState[0] = input;
-    float ret = 0.0f;
-    for (int ii = 0; ii < filterLength; ++ii) {
-        ret += coeffs[ii] * firState[ii];
-    }
-    return ret;
-}
 
 STATIC_UNIT_TESTED int16_t pidLuxFloatCore(int axis, const pidProfile_t *pidProfile, float gyroRate, float angleRate)
 {
@@ -157,16 +134,12 @@ STATIC_UNIT_TESTED int16_t pidLuxFloatCore(int axis, const pidProfile_t *pidProf
         // Calculate derivative using FIR filter
         // FIR filter is noise-robust differentiator without time delay (one-sided or forward filters) by Pavel Holoborodko,
         // see http://www.holoborodko.com/pavel/numerical-methods/numerical-derivative/smooth-low-noise-differentiators/
-        const float *coeffs = nrd[pidProfile->dterm_noise_robust_differentiator];
-        DTerm = firFilterApply(gyroRate, DTermFirFilterState[axis], pidProfile->dterm_noise_robust_differentiator + 2, coeffs);
+        const float *coeffs = nrd[pidProfile->dterm_differentiator];
+        DTerm = firFilterApply(gyroRate, DTermFirFilterState[axis], pidProfile->dterm_differentiator + 2, coeffs);
         DTerm = -DTerm / dT;
         if (pidProfile->dterm_lpf_hz) {
             // DTerm delta low pass filter
-#ifdef USE_PID_BIQUAD_FILTER
-            DTerm = applyBiQuadFilter(DTerm, &deltaBiquadFilterState[axis]);
-#else
             DTerm = filterApplyPt1(DTerm, &deltaPt1FilterState[axis], pidProfile->dterm_lpf_hz, dT);
-#endif
         }
         if (pidProfile->dterm_average_count) {
             // Apply moving average
@@ -189,9 +162,7 @@ STATIC_UNIT_TESTED int16_t pidLuxFloatCore(int axis, const pidProfile_t *pidProf
 void pidLuxFloat(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig,
         uint16_t max_angle_inclination, const rollAndPitchTrims_t *angleTrim, const rxConfig_t *rxConfig)
 {
-#ifdef USE_PID_BIQUAD_FILTER
-    pidFilterIsSetCheck(pidProfile);
-#endif
+    pidFilterIsSetCheck();
 
     float horizonLevelStrength;
     if (FLIGHT_MODE(HORIZON_MODE)) {

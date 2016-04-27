@@ -17,7 +17,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdlib.h>
+#include <string.h>
 #include <math.h>
 
 #include "common/axis.h"
@@ -119,5 +119,21 @@ float filterApplyAveragef(float input, uint8_t count, float averageState[])
     averageState[0] = input;
     sum += input;
     return sum / count;
+}
+
+void firFilterInit(float firState[], uint8_t filterLength)
+{
+    memset(firState, 0, sizeof(float) * filterLength);
+}
+
+float firFilterApply(float input, float firState[], uint8_t filterLength, const float coeffs[])
+{
+    memmove(&firState[1], &firState[0], (filterLength-1) * sizeof(float));
+    firState[0] = input;
+    float ret = 0.0f;
+    for (int ii = 0; ii < filterLength; ++ii) {
+        ret += coeffs[ii] * firState[ii];
+    }
+    return ret;
 }
 

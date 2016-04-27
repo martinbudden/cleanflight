@@ -117,7 +117,7 @@ void resetPidProfile(pidProfile_t *pidProfile)
     pidProfile->D8[PIDVEL] = 1;
 
     pidProfile->yaw_p_limit = YAW_P_LIMIT_MAX;
-    pidProfile->dterm_noise_robust_differentiator = 0;
+    pidProfile->dterm_differentiator = 0;
     pidProfile->dterm_lpf_hz = 0;
     pidProfile->dterm_average_count = deltaTotalSamples;
 }
@@ -477,7 +477,7 @@ TEST(PIDUnittest, TestPidLuxFloatDTermRobust)
     pidProfile_t *pidProfile = &testPidProfile;
 
     pidControllerInitLuxFloat(&controlRate, max_angle_inclination, &rollAndPitchTrims, &rxConfig);
-    pidProfile->dterm_noise_robust_differentiator = 3;
+    pidProfile->dterm_differentiator = 3;
     pidProfile->dterm_average_count = 0;
 
     EXPECT_EQ(0, unittest_pidLuxFloatCore_DTerm[FD_ROLL]);

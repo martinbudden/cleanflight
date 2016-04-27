@@ -58,7 +58,6 @@ extern float dT;
 extern uint8_t PIDweight[3];
 extern int32_t lastITerm[3], ITermLimit[3];
 
-extern biquad_t deltaBiquadFilterState[3];
 extern filterStatePt1_t deltaPt1FilterState[3];
 
 extern uint8_t motorCount;
@@ -112,7 +111,7 @@ STATIC_UNIT_TESTED int16_t pidMultiWiiRewriteCore(int axis, const pidProfile_t *
     } else {
         // delta calculated from measurement
         int32_t delta;
-        if (pidProfile->dterm_noise_robust_differentiator) {
+        if (pidProfile->dterm_differentiator) {
             // Calculate derivative using 5-point noise-robust differentiator without time delay (one-sided or forward filters)
             // by Pavel Holoborodko, see http://www.holoborodko.com/pavel/numerical-methods/numerical-derivative/smooth-low-noise-differentiators/
             // h[0] = 5/8, h[-1] = 1/4, h[-2] = -1, h[-3] = -1/4, h[-4] = 3/8
@@ -130,11 +129,7 @@ STATIC_UNIT_TESTED int16_t pidMultiWiiRewriteCore(int axis, const pidProfile_t *
         delta = (delta * ((uint16_t)0xFFFF / ((uint16_t)targetLooptime >> 4))) >> 5;
         if (pidProfile->dterm_lpf_hz) {
             // DTerm low pass filter
-#ifdef USE_PID_BIQUAD_FILTER
-            delta = lrintf(applyBiQuadFilter((float)delta, &deltaBiquadFilterState[axis]));
-#else
             delta = filterApplyPt1((float)delta, &deltaPt1FilterState[axis], pidProfile->dterm_lpf_hz, dT);
-#endif
         }
         if (pidProfile->dterm_average_count) {
             // Apply moving average
@@ -157,9 +152,7 @@ STATIC_UNIT_TESTED int16_t pidMultiWiiRewriteCore(int axis, const pidProfile_t *
 void pidMultiWiiRewrite(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig,
         uint16_t max_angle_inclination, const rollAndPitchTrims_t *angleTrim, const rxConfig_t *rxConfig)
 {
-#ifdef USE_PID_BIQUAD_FILTER
-    pidFilterIsSetCheck(pidProfile);
-#endif
+    pidFilterIsSetCheck();
 
     int8_t horizonLevelStrength;
     if (FLIGHT_MODE(HORIZON_MODE)) {

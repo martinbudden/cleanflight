@@ -690,7 +690,7 @@ const clivalue_t valueTable[] = {
 
     { "yaw_p_limit",                VAR_UINT16 | PROFILE_VALUE, .config.minmax = { YAW_P_LIMIT_MIN, YAW_P_LIMIT_MAX } , PG_PID_PROFILE, offsetof(pidProfile_t, yaw_p_limit)},
     { "dterm_lowpass_hz",           VAR_UINT16 | PROFILE_VALUE, .config.minmax = { 0, 500 } , PG_PID_PROFILE, offsetof(pidProfile_t, dterm_lpf_hz)},
-    { "dterm_nrd",                  VAR_UINT8  | PROFILE_VALUE, .config.minmax = { 0, PID_MAX_NRD } , PG_PID_PROFILE, offsetof(pidProfile_t, dterm_noise_robust_differentiator)},
+    { "dterm_differentiator",      VAR_UINT8  | PROFILE_VALUE, .config.minmax = { 0, PID_MAX_DIFFERENTIATOR } , PG_PID_PROFILE, offsetof(pidProfile_t, dterm_differentiator)},
     { "dterm_average_count",        VAR_UINT8  | PROFILE_VALUE, .config.minmax = { 0, PID_DELTA_MAX_SAMPLES } , PG_PID_PROFILE, offsetof(pidProfile_t, dterm_average_count)},
 
 #ifdef GTUNE

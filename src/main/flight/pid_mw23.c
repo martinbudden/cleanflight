@@ -66,7 +66,6 @@ extern int32_t axisPID_P[], axisPID_I[], axisPID_D[];
 extern float dT;
 extern int32_t lastITerm[], ITermLimit[];
 
-extern biquad_t deltaBiquadFilterState[3];
 extern filterStatePt1_t deltaPt1FilterState[3];
 
 
@@ -87,7 +86,7 @@ void pidMultiWii23(const pidProfile_t *pidProfile, const controlRateConfig_t *co
     static int16_t lastErrorForDelta[2];
     static int32_t delta1[2], delta2[2];
 
-    pidFilterIsSetCheck(pidProfile);
+    pidFilterIsSetCheck();
 
     if (FLIGHT_MODE(HORIZON_MODE)) {
         prop = MIN(MAX(ABS(rcCommand[PITCH]), ABS(rcCommand[ROLL])), 512);
@@ -152,11 +151,7 @@ void pidMultiWii23(const pidProfile_t *pidProfile, const controlRateConfig_t *co
         if (pidProfile->dterm_lpf_hz) {
             // Dterm low pass filter
             DTerm = delta * 3; // Keep same scaling as unfiltered DTerm
-#ifdef USE_PID_BIQUAD_FILTER
-            DTerm = lrintf(applyBiQuadFilter((float)DTerm, &deltaBiquadFilterState[axis]));
-#else
             DTerm = filterApplyPt1((float)DTerm, &deltaPt1FilterState[axis], pidProfile->dterm_lpf_hz, dT) ;
-#endif
         } else {
             // When dterm filter disabled apply moving average to reduce noise
             DTerm  = delta1[axis] + delta2[axis] + delta;

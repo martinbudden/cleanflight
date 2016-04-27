@@ -105,7 +105,7 @@ PG_RESET_TEMPLATE(pidProfile_t, pidProfile,
     .I8[PIDVEL] = 45,
     .D8[PIDVEL] = 1,
 
-    .dterm_noise_robust_differentiator = 4,
+    .dterm_noise_robust_differentiator = 3,
     .dterm_lpf_hz = 0,
     .dterm_average_count = 0,
     .yaw_p_limit = YAW_P_LIMIT_MAX,

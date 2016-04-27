@@ -117,6 +117,7 @@ void resetPidProfile(pidProfile_t *pidProfile)
 
     pidProfile->yaw_p_limit = YAW_P_LIMIT_MAX;
     pidProfile->dterm_noise_robust_differentiator = 0;
+    pidProfile->dterm_lpf_hz = 0;
     pidProfile->dterm_average_count = deltaTotalSamples;
 }
 

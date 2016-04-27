@@ -76,22 +76,24 @@ static const float luxDTermScale = (0.000001f * (float)0xFFFF) / 512;
 static const float luxGyroScale = 16.4f / 4; // the 16.4 is needed because mwrewrite does not scale according to the gyro model gyro.scale
 
 
-// Filter coefficients, see http://www.holoborodko.com/pavel/numerical-methods/numerical-derivative/smooth-low-noise-differentiators/
+// Filter coefficients by Pavel Holoborodko, see
+// http://www.holoborodko.com/pavel/numerical-methods/numerical-derivative/smooth-low-noise-differentiators/
 // N=2: h[0] = 1, h[-1] = -1
 // N=3: h[0] = 1/2, h[-1] = 0, h[-2] = -1/2
 // N=4: h[0] = 1/4, h[-1] = 1/4, h[-2] = -1/4, h[-3] = -1/4
 // N=5: h[0] = 5/8, h[-1] = 1/4, h[-2] = -1, h[-3] = -1/4, h[-4] = 3/8
 // N=6: h[0] = 3/8, h[-1] = 1/2, h[-2] = -1/2, h[-3] = -3/4, h[-4] = 1/8, h[-5] = 1/4
 // N=7: h[0] = 7/32, h[-1] = 1/2, h[-2] = -1/32, h[-3] = -3/4, h[-4] = -11/32, h[-5] = 1/4, h[-6] = 5/32
+// N=8: h[0] = 1/8, h[-1] = 13/32, h[-2] = 1/4, h[-3] = -15/32, h[-4] = -5/8, h[-5] = -1/32, h[-6] = 1/4, h[-7] = 3/32
 // first coefficient is the divisor
-static const int nrdCoefficents2[] = { 1, 1, -1};
-static const int nrdCoefficents3[] = { 2, 1,  0, -1};
-static const int nrdCoefficents4[] = { 4, 1,  1, -1, -1};
-static const int nrdCoefficents5[] = { 8, 5,  2, -8, -2,  3};
-static const int nrdCoefficents6[] = { 8, 3,  4, -4, -6,  1,  2};
-static const int nrdCoefficents7[] = {32, 7, 16, -1,-24,-11,  8,  5};
+static const int8_t nrdCoefficents2[] = { 1, 1, -1}; // filter length 2, simple differentiation
+static const int8_t nrdCoefficents3[] = { 2, 1,  0, -1};
+static const int8_t nrdCoefficents4[] = { 4, 1,  1, -1, -1};
+static const int8_t nrdCoefficents5[] = { 8, 5,  2, -8, -2,  3};
+static const int8_t nrdCoefficents6[] = { 8, 3,  4, -4, -6,  1,  2};
+static const int8_t nrdCoefficents7[] = {32, 7, 16, -1,-24,-11,  8,  5};
 
-static const int* nrd[] = {
+static const int8_t *nrd[] = {
         nrdCoefficents2,
         nrdCoefficents3,
         nrdCoefficents4,
@@ -100,7 +102,7 @@ static const int* nrd[] = {
         nrdCoefficents7,
 };
 
-float applyFirFilterIntCoeffs(float input, float firState[], uint8_t filterLength, const int coeffs[])
+float applyFirFilterInt8Coeffs(float input, float firState[], uint8_t filterLength, const int8_t coeffs[])
 {
     memmove(&firState[1], &firState[0], (filterLength-1) * sizeof(float));
     firState[0] = input;
@@ -151,8 +153,8 @@ STATIC_UNIT_TESTED int16_t pidLuxFloatCore(int axis, const pidProfile_t *pidProf
         // Calculate derivative using FIR filter
         // FIR filter is noise-robust differentiator without time delay (one-sided or forward filters) by Pavel Holoborodko,
         // see http://www.holoborodko.com/pavel/numerical-methods/numerical-derivative/smooth-low-noise-differentiators/
-        const int* coeffs = nrd[pidProfile->dterm_noise_robust_differentiator];
-        DTerm = applyFirFilterIntCoeffs(gyroRate, DTermFirFilterState[axis], pidProfile->dterm_noise_robust_differentiator + 2, coeffs + 1);
+        const int8_t *coeffs = nrd[pidProfile->dterm_noise_robust_differentiator];
+        DTerm = applyFirFilterInt8Coeffs(gyroRate, DTermFirFilterState[axis], pidProfile->dterm_noise_robust_differentiator + 2, coeffs + 1);
         DTerm = -DTerm / (coeffs[0] * dT);
         if (pidProfile->dterm_lpf_hz) {
             // DTerm delta low pass filter

@@ -25,6 +25,8 @@
 #define YAW_P_LIMIT_MIN 100                 // Maximum value for yaw P limiter
 #define YAW_P_LIMIT_MAX 500                 // Maximum value for yaw P limiter
 
+//#define DTERM_PRECISE_ON_LINEAR
+
 #define PID_DTERM_AVERAGE_FILTER_MAX_LENGTH 8
 #define PID_DTERM_FIR_MAX_LENGTH 8
 #define PID_MAX_DIFFERENTIATOR (PID_DTERM_FIR_MAX_LENGTH-2)

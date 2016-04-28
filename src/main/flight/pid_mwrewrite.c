@@ -71,21 +71,33 @@ extern int32_t axisPID_P[3], axisPID_I[3], axisPID_D[3];
 http://www.holoborodko.com/pavel/numerical-methods/numerical-derivative/smooth-low-noise-differentiators/
 N=2: h[0] = 1, h[-1] = -1
 N=3: h[0] = 1/2, h[-1] = 0, h[-2] = -1/2
-N=4: h[0] = 1/4, h[-1] = 1/4, h[-2] = -1/4, h[-3] = -1/4
+Precise on 1, x:
+N=4: 1/4  (h[0] = 1, h[-1] = 1, h[-2] =-1, h[-3] =-1)
+N=5: 1/8  (h[0] = 1, h[-1] = 2, h[-2] = 0, h[-3] =-2, h[-4] =-1)
+N=5: 1/16 (h[0] = 1, h[-1] = 3, h[-2] = 2, h[-3] =-2, h[-4] =-3, h[-5] =-1)
+N=7: 1/32 (h[0] = 1, h[-1] = 4, h[-2] = 5, h[-3] = 0, h[-4] =-5, h[-5] =-4, h[-6] =-1)
+N=8: 1/64 (h[0] = 1, h[-1] = 5, h[-2] = 9, h[-3] = 5, h[-4] =-5, h[-5] =-9, h[-6] =-5, h[-7] =-1)
+Precise on 1, x, x^2:
 N=5: h[0] = 5/8, h[-1] = 1/4, h[-2] = -1, h[-3] = -1/4, h[-4] = 3/8
 N=6: h[0] = 3/8, h[-1] = 1/2, h[-2] = -1/2, h[-3] = -3/4, h[-4] = 1/8, h[-5] = 1/4
 N=7: h[0] = 7/32, h[-1] = 1/2, h[-2] = -1/32, h[-3] = -3/4, h[-4] = -11/32, h[-5] = 1/4, h[-6] = 5/32
 N=8: h[0] = 1/8, h[-1] = 13/32, h[-2] = 1/4, h[-3] = -15/32, h[-4] = -5/8, h[-5] = -1/32, h[-6] = 1/4, h[-7] = 3/32
 */
 
-static const int8_t nrdCoeffs2[] = { 64,-64}; // filter length 2, simple differentiation
-static const int8_t nrdCoeffs3[] = { 32,  0,-32};
-static const int8_t nrdCoeffs4[] = {  8,  8, -8, -8};
-static const int8_t nrdCoeffs5[] = { 40,  8,-64,-16, 24};
-static const int8_t nrdCoeffs6[] = { 24, 32,-32,-48,  8, 16};
-static const int8_t nrdCoeffs7[] = { 14, 32, -2,-48,-22, 16, 10};
-static const int8_t nrdCoeffs8[] = {  8, 26, 16,-30,-40, -2, 16, 6};
-
+static const int8_t nrdCoeffs2[] = { 64,-64 }; // filter length 2, simple differentiation
+static const int8_t nrdCoeffs3[] = { 32,  0,-32 };
+static const int8_t nrdCoeffs4[] = { 16, 16,-16,-16 };
+#ifdef DTERM_PRECISE_ON_LINEAR
+static const int8_t nrdCoeffs5[] = {  8, 16,  0,-16, -8 };
+static const int8_t nrdCoeffs6[] = {  4, 12,  8, -8,-12, -4 };
+static const int8_t nrdCoeffs7[] = {  2,  8, 10,  0,-10, -8, -2 };
+static const int8_t nrdCoeffs8[] = {  1,  5,  9,  5, -5, -9, -5, -1 };
+#else
+static const int8_t nrdCoeffs5[] = { 40,  8,-64,-16, 24 };
+static const int8_t nrdCoeffs6[] = { 24, 32,-32,-48,  8, 16 };
+static const int8_t nrdCoeffs7[] = { 14, 32, -2,-48,-22, 16, 10 };
+static const int8_t nrdCoeffs8[] = {  8, 26, 16,-30,-40, -2, 16,  6 };
+#endif
 static const int8_t *nrd[] = {nrdCoeffs2, nrdCoeffs3, nrdCoeffs4, nrdCoeffs5, nrdCoeffs6, nrdCoeffs7, nrdCoeffs8};
 
 

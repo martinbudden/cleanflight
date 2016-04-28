@@ -497,6 +497,7 @@ TEST(PIDUnittest, TestPidLuxFloatDTermRobust)
     EXPECT_FLOAT_EQ(expectedDTerm * 8 /8, unittest_pidLuxFloatCore_DTerm[FD_ROLL]);
 }
 
+#ifndef DTERM_PRECISE_ON_LINEAR
 TEST(PIDUnittest, TestPidLuxFloatDifferentiationForQuadraticFunction)
 {
     controlRateConfig_t controlRate;
@@ -612,6 +613,7 @@ TEST(PIDUnittest, TestPidLuxFloatDTermConstrain)
     // following test will fail, since DTerm will be constrained for when dT = 0.001
     //!!!!//EXPECT_FLOAT_EQ(calcLuxDTerm(&pidProfile, FD_ROLL, rateErrorRoll) / DTermAverageCount, unittest_pidLuxFloatCore_DTerm[FD_ROLL]);
 }
+#endif
 
 void pidControllerInitMultiWiiRewriteCore(void)
 {

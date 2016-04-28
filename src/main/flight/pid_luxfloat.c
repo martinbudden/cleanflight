@@ -59,7 +59,7 @@ extern float dT;
 extern uint8_t PIDweight[3];
 extern float lastITermf[3], ITermLimitf[3];
 
-extern filterStatePt1_t deltaPt1FilterState[3];
+extern filterStatePt1_t DTermPt1FilterState[3];
 extern float DTermFirFilterState[3][PID_DTERM_FIR_MAX_LENGTH];
 
 extern uint8_t motorCount;
@@ -99,8 +99,7 @@ static const float *nrd[] = {nrdCoeffs2, nrdCoeffs3, nrdCoeffs4, nrdCoeffs5, nrd
 
 STATIC_UNIT_TESTED int16_t pidLuxFloatCore(int axis, const pidProfile_t *pidProfile, float gyroRate, float angleRate)
 {
-    static float lastRate[3][PID_LAST_RATE_COUNT];
-    static float deltaState[3][PID_DELTA_MAX_SAMPLES];
+    static float DTermAverageFilterState[3][PID_DELTA_MAX_SAMPLES];
 
     SET_PID_LUX_FLOAT_CORE_LOCALS(axis);
 
@@ -140,11 +139,11 @@ STATIC_UNIT_TESTED int16_t pidLuxFloatCore(int axis, const pidProfile_t *pidProf
         DTerm = -DTerm / dT;
         if (pidProfile->dterm_lpf_hz) {
             // DTerm delta low pass filter
-            DTerm = filterApplyPt1(DTerm, &deltaPt1FilterState[axis], pidProfile->dterm_lpf_hz, dT);
+            DTerm = filterApplyPt1(DTerm, &DTermPt1FilterState[axis], pidProfile->dterm_lpf_hz, dT);
         }
         if (pidProfile->dterm_average_count) {
             // Apply moving average
-            DTerm = filterApplyAveragef(DTerm, pidProfile->dterm_average_count, deltaState[axis]);
+            DTerm = filterApplyAveragef(DTerm, pidProfile->dterm_average_count, DTermAverageFilterState[axis]);
         }
         DTerm = DTerm * luxDTermScale * pidProfile->D8[axis] * PIDweight[axis] / 100;
         DTerm = constrainf(DTerm, -PID_MAX_D, PID_MAX_D);

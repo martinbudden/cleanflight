@@ -58,7 +58,7 @@ extern float dT;
 extern uint8_t PIDweight[3];
 extern int32_t lastITerm[3], ITermLimit[3];
 
-extern filterStatePt1_t deltaPt1FilterState[3];
+extern filterStatePt1_t DTermPt1FilterState[3];
 
 extern uint8_t motorCount;
 
@@ -70,7 +70,7 @@ extern int32_t axisPID_P[3], axisPID_I[3], axisPID_D[3];
 STATIC_UNIT_TESTED int16_t pidMultiWiiRewriteCore(int axis, const pidProfile_t *pidProfile, int32_t gyroRate, int32_t angleRate)
 {
     static int32_t lastRate[3][PID_LAST_RATE_COUNT];
-    static int32_t deltaState[3][PID_DELTA_MAX_SAMPLES];
+    static int32_t DTermAverageFilterState[3][PID_DELTA_MAX_SAMPLES];
 
     SET_PID_MULTI_WII_REWRITE_CORE_LOCALS(axis);
 
@@ -129,11 +129,11 @@ STATIC_UNIT_TESTED int16_t pidMultiWiiRewriteCore(int axis, const pidProfile_t *
         delta = (delta * ((uint16_t)0xFFFF / ((uint16_t)targetLooptime >> 4))) >> 5;
         if (pidProfile->dterm_lpf_hz) {
             // DTerm low pass filter
-            delta = filterApplyPt1((float)delta, &deltaPt1FilterState[axis], pidProfile->dterm_lpf_hz, dT);
+            delta = filterApplyPt1((float)delta, &DTermPt1FilterState[axis], pidProfile->dterm_lpf_hz, dT);
         }
         if (pidProfile->dterm_average_count) {
             // Apply moving average
-            delta = filterApplyAverage(delta, pidProfile->dterm_average_count, deltaState[axis]);
+            delta = filterApplyAverage(delta, pidProfile->dterm_average_count, DTermAverageFilterState[axis]);
         }
         DTerm = (delta * pidProfile->D8[axis] * PIDweight[axis] / 100) >> 8;
         DTerm = constrain(DTerm, -PID_MAX_D, PID_MAX_D);

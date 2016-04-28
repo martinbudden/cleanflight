@@ -129,11 +129,11 @@ STATIC_UNIT_TESTED int16_t pidMultiWiiRewriteCore(int axis, const pidProfile_t *
         delta = (delta * ((uint16_t)0xFFFF / ((uint16_t)targetLooptime >> 4))) >> 5;
         if (pidProfile->dterm_lpf_hz) {
             // DTerm low pass filter
-            delta = filterApplyPt1((float)delta, &DTermPt1FilterState[axis], pidProfile->dterm_lpf_hz, dT);
+            delta = pt1FilterApply((float)delta, &DTermPt1FilterState[axis], pidProfile->dterm_lpf_hz, dT);
         }
         if (pidProfile->dterm_average_count) {
             // Apply moving average
-            delta = filterApplyAverage(delta, pidProfile->dterm_average_count, DTermAverageFilterState[axis]);
+            delta = averageFilterApplyInt(delta, DTermAverageFilterState[axis], pidProfile->dterm_average_count);
         }
         DTerm = (delta * pidProfile->D8[axis] * PIDweight[axis] / 100) >> 8;
         DTerm = constrain(DTerm, -PID_MAX_D, PID_MAX_D);

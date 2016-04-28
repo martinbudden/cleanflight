@@ -15,25 +15,27 @@
  * along with Cleanflight.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#pragma once
+
 typedef struct filterStatePt1_s {
-	float state;
-	float RC;
-	float constdT;
+    float state;
+    float RC;
+    float constdT;
 } filterStatePt1_t;
 
-/* this holds the data required to update samples thru a filter */
+// this holds the data required to update samples thru a filter
 typedef struct biquad_s {
     float b0, b1, b2, a1, a2;
     float x1, x2, y1, y2;
 } biquad_t;
 
-float filterApplyPt1(float input, filterStatePt1_t *filter, uint8_t f_cut, float dt);
+float pt1FilterApply(float input, filterStatePt1_t *filter, uint8_t f_cut, float dt);
 
-float applyBiQuadFilter(float sample, biquad_t *state);
 void BiQuadNewLpf(float filterCutFreq, biquad_t *newState, uint32_t refreshRate);
+float applyBiQuadFilter(float sample, biquad_t *state);
 
-int32_t filterApplyAverage(int32_t input, uint8_t count, int32_t averageState[]);
-float filterApplyAveragef(float input, uint8_t count, float averageState[]);
+int32_t averageFilterApplyInt(int32_t input, int32_t filterState[], uint8_t filterLength);
+float averageFilterApply(float input, float filterState[], uint8_t filterLength);
 
-void firFilterInit(float firState[], uint8_t filterLength);
-float firFilterApply(float input, float firState[], uint8_t filterLength, const float coeffs[]);
+void firFilterInit(float filterState[], uint8_t filterLength);
+float firFilterApply(float input, float filterState[], uint8_t filterLength, const float coeffs[]);

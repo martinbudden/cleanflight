@@ -30,12 +30,12 @@
 #define BIQUAD_BANDWIDTH 1.9f     /* bandwidth in octaves */
 
 // PT1 Low Pass filter (when no dT specified it will be calculated from the cycleTime)
-float filterApplyPt1(float input, filterStatePt1_t *filter, uint8_t f_cut, float dT) {
+float pt1FilterApply(float input, filterStatePt1_t *filter, uint8_t f_cut, float dT) {
 
-	// Pre calculate and store RC
-	if (!filter->RC) {
-		filter->RC = 1.0f / ( 2.0f * (float)M_PI * f_cut );
-	}
+    // Pre calculate and store RC
+    if (!filter->RC) {
+        filter->RC = 1.0f / ( 2.0f * (float)M_PI * f_cut );
+    }
 
     filter->state = filter->state + dT / (filter->RC + dT) * (input - filter->state);
 
@@ -97,42 +97,42 @@ float applyBiQuadFilter(float sample, biquad_t *state)
     return result;
 }
 
-int32_t filterApplyAverage(int32_t input, uint8_t count, int32_t averageState[])
+int32_t averageFilterApplyInt(int32_t input, int32_t filterState[], uint8_t filterLength)
 {
     int32_t sum = 0;
-    for (int ii = count - 1; ii > 0; --ii) {
-        averageState[ii] = averageState[ii-1];
-        sum += averageState[ii];
+    for (int ii = filterLength - 1; ii > 0; --ii) {
+        filterState[ii] = filterState[ii-1];
+        sum += filterState[ii];
     }
-    averageState[0] = input;
+    filterState[0] = input;
     sum += input;
-    return sum / count;
+    return sum / filterLength;
 }
 
-float filterApplyAveragef(float input, uint8_t count, float averageState[])
+float averageFilterApply(float input, float filterState[], uint8_t filterLength)
 {
     float sum = 0;
-    for (int ii = count - 1; ii > 0; --ii) {
-        averageState[ii] = averageState[ii-1];
-        sum += averageState[ii];
+    for (int ii = filterLength - 1; ii > 0; --ii) {
+        filterState[ii] = filterState[ii-1];
+        sum += filterState[ii];
     }
-    averageState[0] = input;
+    filterState[0] = input;
     sum += input;
-    return sum / count;
+    return sum / filterLength;
 }
 
-void firFilterInit(float firState[], uint8_t filterLength)
+void firFilterInit(float filterState[], uint8_t filterLength)
 {
-    memset(firState, 0, sizeof(float) * filterLength);
+    memset(filterState, 0, sizeof(float) * filterLength);
 }
 
-float firFilterApply(float input, float firState[], uint8_t filterLength, const float coeffs[])
+float firFilterApply(float input, float filterState[], uint8_t filterLength, const float coeffs[])
 {
-    memmove(&firState[1], &firState[0], (filterLength-1) * sizeof(float));
-    firState[0] = input;
+    memmove(&filterState[1], &filterState[0], (filterLength-1) * sizeof(float));
+    filterState[0] = input;
     float ret = 0.0f;
     for (int ii = 0; ii < filterLength; ++ii) {
-        ret += coeffs[ii] * firState[ii];
+        ret += coeffs[ii] * filterState[ii];
     }
     return ret;
 }

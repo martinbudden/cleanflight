@@ -139,11 +139,11 @@ STATIC_UNIT_TESTED int16_t pidLuxFloatCore(int axis, const pidProfile_t *pidProf
         DTerm = -DTerm / dT;
         if (pidProfile->dterm_lpf_hz) {
             // DTerm delta low pass filter
-            DTerm = filterApplyPt1(DTerm, &DTermPt1FilterState[axis], pidProfile->dterm_lpf_hz, dT);
+            DTerm = pt1FilterApply(DTerm, &DTermPt1FilterState[axis], pidProfile->dterm_lpf_hz, dT);
         }
         if (pidProfile->dterm_average_count) {
             // Apply moving average
-            DTerm = filterApplyAveragef(DTerm, pidProfile->dterm_average_count, DTermAverageFilterState[axis]);
+            DTerm = averageFilterApply(DTerm, DTermAverageFilterState[axis], pidProfile->dterm_average_count);
         }
         DTerm = DTerm * luxDTermScale * pidProfile->D8[axis] * PIDweight[axis] / 100;
         DTerm = constrainf(DTerm, -PID_MAX_D, PID_MAX_D);

@@ -639,8 +639,7 @@ void taskMainPidLoop(void)
     dT = (float)cycleTime * 0.000001f;
 
     // Calculate average cycle time and average jitter
-    filteredCycleTime = filterApplyPt1(cycleTime, &filteredCycleTimeState, 1, dT);
-
+    filteredCycleTime = pt1FilterApply(cycleTime, &filteredCycleTimeState, 1, dT);
     debug[0] = cycleTime;
     debug[1] = cycleTime - filteredCycleTime;
 

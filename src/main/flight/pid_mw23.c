@@ -149,7 +149,7 @@ void pidMultiWii23(const pidProfile_t *pidProfile, const controlRateConfig_t *co
         if (pidProfile->dterm_lpf_hz) {
             // Dterm low pass filter
             DTerm = delta * 3; // Keep same scaling as unfiltered DTerm
-            DTerm = filterApplyPt1((float)DTerm, &DTermPt1FilterState[axis], pidProfile->dterm_lpf_hz, dT) ;
+            DTerm = pt1FilterApply((float)DTerm, &DTermPt1FilterState[axis], pidProfile->dterm_lpf_hz, dT) ;
         } else {
             // When dterm filter disabled apply moving average to reduce noise
             DTerm  = delta1[axis] + delta2[axis] + delta;

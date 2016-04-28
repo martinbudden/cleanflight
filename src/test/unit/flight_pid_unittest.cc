@@ -63,12 +63,11 @@ extern "C" {
     float dT; // dT for pidLuxFloat
     int32_t targetLooptime; // targetLooptime for pidMultiWiiRewrite
     float DTermFirFilterState[3][PID_DTERM_FIR_MAX_LENGTH];
-    int32_t unittest_pidLuxFloatCore_DTermAverageFilterState[3][PID_DELTA_MAX_SAMPLES];
+    int32_t unittest_pidLuxFloatCore_DTermAverageFilterState[3][PID_DTERM_AVERAGE_FILTER_MAX_LENGTH];
     float unittest_pidLuxFloatCore_PTerm[3];
     float unittest_pidLuxFloatCore_ITerm[3];
     float unittest_pidLuxFloatCore_DTerm[3];
-    int32_t unittest_pidMultiWiiRewriteCore_lastRate[3][PID_LAST_RATE_COUNT];
-    int32_t unittest_pidMultiWiiRewriteCore_DTermAverageFilterState[3][PID_DELTA_MAX_SAMPLES];
+    int32_t unittest_pidMultiWiiRewriteCore_DTermAverageFilterState[3][PID_DTERM_AVERAGE_FILTER_MAX_LENGTH];
     int32_t unittest_pidMultiWiiRewriteCore_PTerm[3];
     int32_t unittest_pidMultiWiiRewriteCore_ITerm[3];
     int32_t unittest_pidMultiWiiRewriteCore_DTerm[3];
@@ -155,7 +154,7 @@ void pidControllerInitLuxFloatCore(void)
     PIDweight[FD_YAW] = 100;
     // reset the pidLuxFloat static values
     for (int axis = FD_ROLL; axis <= FD_YAW; ++axis) {
-        for (int ii = 0; ii < PID_DELTA_MAX_SAMPLES; ++ii) { \
+        for (int ii = 0; ii < PID_DTERM_AVERAGE_FILTER_MAX_LENGTH; ++ii) { \
             unittest_pidLuxFloatCore_DTermAverageFilterState[axis][ii] = 0.0f; \
         } \
     }
@@ -622,6 +621,7 @@ void pidControllerInitMultiWiiRewriteCore(void)
     dT = TARGET_LOOPTIME * 0.000001f;
     pidResetITermAngle();
     pidResetITerm();
+    pidFilterInit();
     resetGyroADC();
     // set up the PIDWeights to 100%, so they are neutral in the tests
     PIDweight[FD_ROLL] = 100;
@@ -629,10 +629,7 @@ void pidControllerInitMultiWiiRewriteCore(void)
     PIDweight[FD_YAW] = 100;
     // reset the pidMultiWiiRewrite static values
     for (int axis = FD_ROLL; axis <= FD_YAW; ++axis) {
-        for (int ii = 0; ii < PID_LAST_RATE_COUNT; ++ii) { \
-            unittest_pidMultiWiiRewriteCore_lastRate[axis][ii] = 0;
-        }
-        for (int ii = 0; ii < PID_DELTA_MAX_SAMPLES; ++ii) { \
+        for (int ii = 0; ii < PID_DTERM_AVERAGE_FILTER_MAX_LENGTH; ++ii) { \
             unittest_pidMultiWiiRewriteCore_DTermAverageFilterState[axis][ii] = 0; \
         } \
     }

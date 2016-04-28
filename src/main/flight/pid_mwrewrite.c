@@ -59,6 +59,7 @@ extern uint8_t PIDweight[3];
 extern int32_t lastITerm[3], ITermLimit[3];
 
 extern filterStatePt1_t DTermPt1FilterState[3];
+extern int32_t DTermFirFilterStateInt32[3][PID_DTERM_FIR_MAX_LENGTH];
 
 extern uint8_t motorCount;
 
@@ -66,11 +67,31 @@ extern uint8_t motorCount;
 extern int32_t axisPID_P[3], axisPID_I[3], axisPID_D[3];
 #endif
 
+/* Noise-robust differentiator filter coefficients by Pavel Holoborodko, see
+http://www.holoborodko.com/pavel/numerical-methods/numerical-derivative/smooth-low-noise-differentiators/
+N=2: h[0] = 1, h[-1] = -1
+N=3: h[0] = 1/2, h[-1] = 0, h[-2] = -1/2
+N=4: h[0] = 1/4, h[-1] = 1/4, h[-2] = -1/4, h[-3] = -1/4
+N=5: h[0] = 5/8, h[-1] = 1/4, h[-2] = -1, h[-3] = -1/4, h[-4] = 3/8
+N=6: h[0] = 3/8, h[-1] = 1/2, h[-2] = -1/2, h[-3] = -3/4, h[-4] = 1/8, h[-5] = 1/4
+N=7: h[0] = 7/32, h[-1] = 1/2, h[-2] = -1/32, h[-3] = -3/4, h[-4] = -11/32, h[-5] = 1/4, h[-6] = 5/32
+N=8: h[0] = 1/8, h[-1] = 13/32, h[-2] = 1/4, h[-3] = -15/32, h[-4] = -5/8, h[-5] = -1/32, h[-6] = 1/4, h[-7] = 3/32
+*/
+
+static const int8_t nrdCoeffs2[] = { 64,-64}; // filter length 2, simple differentiation
+static const int8_t nrdCoeffs3[] = { 32,  0,-32};
+static const int8_t nrdCoeffs4[] = {  8,  8, -8, -8};
+static const int8_t nrdCoeffs5[] = { 40,  8,-64,-16, 24};
+static const int8_t nrdCoeffs6[] = { 24, 32,-32,-48,  8, 16};
+static const int8_t nrdCoeffs7[] = { 14, 32, -2,-48,-22, 16, 10};
+static const int8_t nrdCoeffs8[] = {  8, 26, 16,-30,-40, -2, 16, 6};
+
+static const int8_t *nrd[] = {nrdCoeffs2, nrdCoeffs3, nrdCoeffs4, nrdCoeffs5, nrdCoeffs6, nrdCoeffs7, nrdCoeffs8};
+
 
 STATIC_UNIT_TESTED int16_t pidMultiWiiRewriteCore(int axis, const pidProfile_t *pidProfile, int32_t gyroRate, int32_t angleRate)
 {
-    static int32_t lastRate[3][PID_LAST_RATE_COUNT];
-    static int32_t DTermAverageFilterState[3][PID_DELTA_MAX_SAMPLES];
+    static int32_t DTermAverageFilterState[3][PID_DTERM_AVERAGE_FILTER_MAX_LENGTH];
 
     SET_PID_MULTI_WII_REWRITE_CORE_LOCALS(axis);
 
@@ -111,20 +132,10 @@ STATIC_UNIT_TESTED int16_t pidMultiWiiRewriteCore(int axis, const pidProfile_t *
     } else {
         // delta calculated from measurement
         int32_t delta;
-        if (pidProfile->dterm_differentiator) {
-            // Calculate derivative using 5-point noise-robust differentiator without time delay (one-sided or forward filters)
-            // by Pavel Holoborodko, see http://www.holoborodko.com/pavel/numerical-methods/numerical-derivative/smooth-low-noise-differentiators/
-            // h[0] = 5/8, h[-1] = 1/4, h[-2] = -1, h[-3] = -1/4, h[-4] = 3/8
-            delta = 5*gyroRate + 2*lastRate[axis][0] - 8*lastRate[axis][1] - 2*lastRate[axis][2] + 3*lastRate[axis][3];
-            delta /= (-8);
-            for (int i = PID_LAST_RATE_COUNT - 1; i > 0; i--) {
-                lastRate[axis][i] = lastRate[axis][i-1];
-            }
-        } else {
-            delta = -(gyroRate - lastRate[axis][0]);
-        }
+        // Calculate derivative using FIR filter
+        const int8_t *coeffs = nrd[pidProfile->dterm_differentiator];
+        delta = -firFilterInt32Apply(gyroRate, DTermFirFilterStateInt32[axis], pidProfile->dterm_differentiator + 2, coeffs);
 
-        lastRate[axis][0] = gyroRate;
         // Divide delta by targetLooptime to get differential (ie dr/dt)
         delta = (delta * ((uint16_t)0xFFFF / ((uint16_t)targetLooptime >> 4))) >> 5;
         if (pidProfile->dterm_lpf_hz) {
@@ -133,7 +144,7 @@ STATIC_UNIT_TESTED int16_t pidMultiWiiRewriteCore(int axis, const pidProfile_t *
         }
         if (pidProfile->dterm_average_count) {
             // Apply moving average
-            delta = averageFilterApplyInt(delta, DTermAverageFilterState[axis], pidProfile->dterm_average_count);
+            delta = averageFilterInt32Apply(delta, DTermAverageFilterState[axis], pidProfile->dterm_average_count);
         }
         DTerm = (delta * pidProfile->D8[axis] * PIDweight[axis] / 100) >> 8;
         DTerm = constrain(DTerm, -PID_MAX_D, PID_MAX_D);

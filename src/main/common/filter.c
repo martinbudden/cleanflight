@@ -97,9 +97,9 @@ float applyBiQuadFilter(float sample, biquad_t *state)
     return result;
 }
 
-int32_t averageFilterApplyInt(int32_t input, int32_t filterState[], uint8_t filterLength)
+float averageFilterApply(float input, float filterState[], uint8_t filterLength)
 {
-    int32_t sum = 0;
+    float sum = 0;
     for (int ii = filterLength - 1; ii > 0; --ii) {
         filterState[ii] = filterState[ii-1];
         sum += filterState[ii];
@@ -109,9 +109,9 @@ int32_t averageFilterApplyInt(int32_t input, int32_t filterState[], uint8_t filt
     return sum / filterLength;
 }
 
-float averageFilterApply(float input, float filterState[], uint8_t filterLength)
+int32_t averageFilterInt32Apply(int32_t input, int32_t filterState[], uint8_t filterLength)
 {
-    float sum = 0;
+    int32_t sum = 0;
     for (int ii = filterLength - 1; ii > 0; --ii) {
         filterState[ii] = filterState[ii-1];
         sum += filterState[ii];
@@ -137,3 +137,20 @@ float firFilterApply(float input, float filterState[], uint8_t filterLength, con
     return ret;
 }
 
+void firFilterInt32Init(int32_t filterState[], uint8_t filterLength)
+{
+    memset(filterState, 0, sizeof(float) * filterLength);
+}
+
+// integer based FIR filter
+// coefficients are multiples of 1/64
+int32_t firFilterInt32Apply(int32_t input, int32_t filterState[], uint8_t filterLength, const int8_t coeffs[])
+{
+    memmove(&filterState[1], &filterState[0], (filterLength-1) * sizeof(float));
+    filterState[0] = input;
+    int32_t ret = 0;
+    for (int ii = 0; ii < filterLength; ++ii) {
+        ret += coeffs[ii] * filterState[ii];
+    }
+    return ret / 64;
+}

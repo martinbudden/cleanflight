@@ -99,7 +99,7 @@ static const float *nrd[] = {nrdCoeffs2, nrdCoeffs3, nrdCoeffs4, nrdCoeffs5, nrd
 
 STATIC_UNIT_TESTED int16_t pidLuxFloatCore(int axis, const pidProfile_t *pidProfile, float gyroRate, float angleRate)
 {
-    static float DTermAverageFilterState[3][PID_DELTA_MAX_SAMPLES];
+    static float DTermAverageFilterState[3][PID_DTERM_AVERAGE_FILTER_MAX_LENGTH];
 
     SET_PID_LUX_FLOAT_CORE_LOCALS(axis);
 

@@ -34,8 +34,11 @@ float pt1FilterApply(float input, filterStatePt1_t *filter, uint8_t f_cut, float
 void BiQuadNewLpf(float filterCutFreq, biquad_t *newState, uint32_t refreshRate);
 float applyBiQuadFilter(float sample, biquad_t *state);
 
-int32_t averageFilterApplyInt(int32_t input, int32_t filterState[], uint8_t filterLength);
+int32_t averageFilterInt32Apply(int32_t input, int32_t filterState[], uint8_t filterLength);
 float averageFilterApply(float input, float filterState[], uint8_t filterLength);
 
 void firFilterInit(float filterState[], uint8_t filterLength);
 float firFilterApply(float input, float filterState[], uint8_t filterLength, const float coeffs[]);
+
+void firFilterInt32Init(int32_t filterState[], uint8_t filterLength);
+int32_t firFilterInt32Apply(int32_t input, int32_t filterState[], uint8_t filterLength, const int8_t coeffs[]);

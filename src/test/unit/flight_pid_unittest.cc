@@ -166,9 +166,9 @@ void pidControllerInitLuxFloatCore(void)
     resetGyroADC();
     pidLuxFloatState.kGyro = luxGyroScale * gyro.scale;
     // set up the PIDWeights to 100%, so they are neutral in the tests
-    pidLuxFloatState.stateAxis[FD_ROLL].PIDweight = 100;
-    pidLuxFloatState.stateAxis[FD_PITCH].PIDweight = 100;
-    pidLuxFloatState.stateAxis[FD_YAW].PIDweight = 100;
+    PIDweight[FD_ROLL] = 100;
+    PIDweight[FD_PITCH] = 100;
+    PIDweight[FD_YAW] = 100;
 }
 
 void pidControllerInitLuxFloat(controlRateConfig_t *controlRate, uint16_t max_angle_inclination, rollAndPitchTrims_t *rollAndPitchTrims, rxConfig_t *rxConfig)

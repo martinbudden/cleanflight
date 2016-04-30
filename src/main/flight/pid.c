@@ -59,6 +59,8 @@ uint8_t PIDweight[3];
 
 int32_t lastITerm[3], ITermLimit[3];
 float lastITermf[3], ITermLimitf[3];
+filterStatePt1_t DTermPt1FilterState[3];
+
 
 void pidLuxFloatInit(const pidProfile_t *pidProfile);
 void pidMultiWiiRewriteInit(const pidProfile_t *pidProfile);
@@ -141,8 +143,6 @@ void pidResetITerm(void)
     }
 }
 
-filterStatePt1_t DTermPt1FilterState[3];
-
 void pidSetController(pidControllerType_e type)
 {
     switch (type) {
@@ -165,6 +165,9 @@ void pidSetController(pidControllerType_e type)
 #endif
 #ifndef SKIP_PID_MW23
     case PID_CONTROLLER_MW23:
+        pidController.updateGyro = pidNOP;
+        pidController.updateRc = pidMultiWii23Shim;
+        pidController.calculate = pidNOP;
         pid_controller = pidMultiWii23Shim;
         break;
 #endif

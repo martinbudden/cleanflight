@@ -57,6 +57,7 @@
 #include "flight/mixer.h"
 
 extern float dT;
+extern uint8_t PIDweight[3];
 
 extern uint8_t motorCount;
 
@@ -142,11 +143,11 @@ void pidLuxFloatUpdateGyroState(const pidProfile_t *pidProfile)
     }
 }
 
-static float calcHorizonLevelStrength(const pidProfile_t *pidProfile, const rxConfig_t *rxConfig)
+static float calcHorizonLevelStrength(const pidProfile_t *pidProfile)
 {
     // Figure out the most deflected stick position
-    const int32_t stickPosAil = ABS(getRcStickDeflection(FD_ROLL, rxConfig->midrc));
-    const int32_t stickPosEle = ABS(getRcStickDeflection(FD_PITCH, rxConfig->midrc));
+    const int32_t stickPosAil = ABS(getRcStickDeflection(FD_ROLL, rxConfig()->midrc));
+    const int32_t stickPosEle = ABS(getRcStickDeflection(FD_PITCH, rxConfig()->midrc));
     const int32_t mostDeflectedPos = MAX(stickPosAil, stickPosEle);
 
     // Progressively turn off the horizon self level strength as the stick is banged over
@@ -159,12 +160,12 @@ static float calcHorizonLevelStrength(const pidProfile_t *pidProfile, const rxCo
     return horizonLevelStrength;
 }
 
-static void pidUpdateRcStateAxis(int axis, const pidProfile_t *pidProfile, pidLuxFloatStateAxis_t* pidStateAxis, float horizonLevelStrength,
-        const controlRateConfig_t *controlRateConfig, uint16_t max_angle_inclination, const rollAndPitchTrims_t *angleTrim)
+static void pidUpdateRcStateAxis(int axis, const pidProfile_t *pidProfile, pidLuxFloatStateAxis_t* pidStateAxis,
+        const controlRateConfig_t *controlRateConfig)
 {
-    pidStateAxis->kP = luxPTermScale * pidProfile->P8[axis] * pidStateAxis->PIDweight / 100;
+    pidStateAxis->kP = luxPTermScale * pidProfile->P8[axis] * PIDweight[axis] / 100;
     pidStateAxis->kI = luxITermScale * pidProfile->I8[axis] * dT;
-    pidStateAxis->kD = luxDTermScale * pidProfile->D8[axis] * pidStateAxis->PIDweight / 100;
+    pidStateAxis->kD = luxDTermScale * pidProfile->D8[axis] * PIDweight[axis] / 100;
 
     const uint8_t rate = controlRateConfig->rates[axis];
 
@@ -178,6 +179,8 @@ static void pidUpdateRcStateAxis(int axis, const pidProfile_t *pidProfile, pidLu
         if (FLIGHT_MODE(ANGLE_MODE) || FLIGHT_MODE(HORIZON_MODE)) {
             // calculate error angle and limit the angle to the max inclination
             // multiplication of rcCommand corresponds to changing the sticks scaling here
+            const uint16_t max_angle_inclination = imuConfig()->max_angle_inclination;
+            const rollAndPitchTrims_t *angleTrim = &accelerometerConfig()->accelerometerTrims;
 #ifdef GPS
             const float errorAngle = constrain(2 * rcCommand[axis] + GPS_angle[axis], -((int)max_angle_inclination), max_angle_inclination)
                     - attitude.raw[axis] + angleTrim->raw[axis];
@@ -192,6 +195,7 @@ static void pidUpdateRcStateAxis(int axis, const pidProfile_t *pidProfile, pidLu
                 // HORIZON mode
                 // mix in errorAngle to desiredRate to add a little auto-level feel.
                 // horizonLevelStrength has been scaled to the stick input
+                const float horizonLevelStrength = calcHorizonLevelStrength(pidProfile);
                 pidStateAxis->desiredRate += errorAngle * pidProfile->I8[PIDLEVEL] * horizonLevelStrength / 16.0f;
             }
         }
@@ -200,10 +204,14 @@ static void pidUpdateRcStateAxis(int axis, const pidProfile_t *pidProfile, pidLu
 
 void pidLuxFloatUpdateRcState(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig)
 {
-    const float horizonLevelStrength = FLIGHT_MODE(HORIZON_MODE) ? calcHorizonLevelStrength(pidProfile, rxConfig()) : 1;
+    pidLuxFloatState.antiWindupProtection = false;
+    if (IS_RC_MODE_ACTIVE(BOXAIRMODE)) {
+        if (STATE(ANTI_WINDUP) || motorLimitReached) {
+           pidLuxFloatState.antiWindupProtection = true;
+        }
+    }
     for (int axis = 0; axis < 3; axis++) {
-        pidUpdateRcStateAxis(axis, pidProfile, &pidLuxFloatState.stateAxis[axis], horizonLevelStrength,
-                controlRateConfig, imuConfig()->max_angle_inclination, &accelerometerConfig()->accelerometerTrims);
+        pidUpdateRcStateAxis(axis, pidProfile, &pidLuxFloatState.stateAxis[axis], controlRateConfig);
     }
 }
 
@@ -249,7 +257,7 @@ void pidLuxFloatCalculate(const pidProfile_t *pidProfile)
 
 void pidLuxFloatInit(const pidProfile_t *pidProfile)
 {
-    //memset(&pidLuxFloatState, 0, sizeof(pidLuxFloatState));
+    memset(&pidLuxFloatState, 0, sizeof(pidLuxFloatState));
     pidLuxFloatState.kGyro = luxGyroScale * gyro.scale;
     const float *coeffs = nrd[pidProfile->dterm_differentiator];
     for (int axis = 0; axis < 3; ++ axis) {

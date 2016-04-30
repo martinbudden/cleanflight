@@ -31,7 +31,6 @@ typedef struct pidLuxFloatStateAxis_s {
     float gyroRate;
     float desiredRate;
 
-    uint8_t PIDweight;
     float PTerm;
     float ITerm;
     float ITermLimit;

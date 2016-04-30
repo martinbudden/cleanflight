@@ -32,42 +32,49 @@ extern "C" {
 TEST(FilterUnittest, TestFilterApplyAverageInt)
 {
 #define VALUE_COUNT 4
+    averageFilterInt32_t filterState;
     int32_t valueState[VALUE_COUNT];
-    for (int ii = 0; ii < VALUE_COUNT; ++ii) {
-        valueState[ii] = 0;
-    }
-    int average = averageFilterInt32Apply(8, valueState, VALUE_COUNT);
+
+    averageFilterInt32Init(&filterState, valueState, VALUE_COUNT);
+
+    averageFilterInt32Update(&filterState, 8);
+    int average = averageFilterInt32Apply(&filterState);
     EXPECT_EQ(2, average); // 8/4
     EXPECT_EQ(8, valueState[0]);
     EXPECT_EQ(0, valueState[1]);
 
-    average = averageFilterInt32Apply(16, valueState, VALUE_COUNT);
+    averageFilterInt32Update(&filterState, 16);
+    average = averageFilterInt32Apply(&filterState);
     EXPECT_EQ(6, average); // (8+16)/4
     EXPECT_EQ(16, valueState[0]);
     EXPECT_EQ(8, valueState[1]);
 
 
-    average = averageFilterInt32Apply(4, valueState, VALUE_COUNT);
+    averageFilterInt32Update(&filterState, 4);
+    average = averageFilterInt32Apply(&filterState);
     EXPECT_EQ(7, average); // (8+16+4)/4
     EXPECT_EQ(4, valueState[0]);
     EXPECT_EQ(16, valueState[1]);
     EXPECT_EQ(8, valueState[2]);
 
-    average = averageFilterInt32Apply(-12, valueState, VALUE_COUNT);
+    averageFilterInt32Update(&filterState, -12);
+    average = averageFilterInt32Apply(&filterState);
     EXPECT_EQ(4, average); // (8+16+4-12)/4
     EXPECT_EQ(-12, valueState[0]);
     EXPECT_EQ(4, valueState[1]);
     EXPECT_EQ(16, valueState[2]);
     EXPECT_EQ(8, valueState[3]);
 
-    average = averageFilterInt32Apply(48, valueState, VALUE_COUNT);
+    averageFilterInt32Update(&filterState, 48);
+    average = averageFilterInt32Apply(&filterState);
     EXPECT_EQ(14, average); // (16+4-12+48)/4
     EXPECT_EQ(48, valueState[0]);
     EXPECT_EQ(-12, valueState[1]);
     EXPECT_EQ(4, valueState[2]);
     EXPECT_EQ(16, valueState[3]);
 
-    average = averageFilterInt32Apply(4, valueState, VALUE_COUNT);
+    averageFilterInt32Update(&filterState, 4);
+    average = averageFilterInt32Apply(&filterState);
     EXPECT_EQ(11, average); // (4-12+48+4)/4
     EXPECT_EQ(4, valueState[0]);
     EXPECT_EQ(48, valueState[1]);
@@ -78,16 +85,19 @@ TEST(FilterUnittest, TestFilterApplyAverageInt)
 TEST(FilterUnittest, TestFilterApplyAverageInt2)
 {
 #define VALUE_COUNT 4
+    averageFilterInt32_t filterState;
     int32_t valueState[3][VALUE_COUNT];
-    for (int ii = 0; ii < VALUE_COUNT; ++ii) {
-        valueState[0][ii] = 0;
-    }
-    int average = averageFilterInt32Apply(8, valueState[0], VALUE_COUNT);
+
+    averageFilterInt32Init(&filterState, valueState[0], VALUE_COUNT);
+
+    averageFilterInt32Update(&filterState, 8);
+    int average = averageFilterInt32Apply(&filterState);
     EXPECT_EQ(2, average); // 8/4
     EXPECT_EQ(8, valueState[0][0]);
     EXPECT_EQ(0, valueState[0][1]);
 
-    average = averageFilterInt32Apply(16, valueState[0], VALUE_COUNT);
+    averageFilterInt32Update(&filterState, 16);
+    average = averageFilterInt32Apply(&filterState);
     EXPECT_EQ(6, average); // (8+16)/4
     EXPECT_EQ(16, valueState[0][0]);
     EXPECT_EQ(8, valueState[0][1]);
@@ -97,42 +107,49 @@ TEST(FilterUnittest, TestFilterApplyAverageInt2)
 TEST(FilterUnittest, TestFilterApplyAverage)
 {
 #define VALUE_COUNT 4
+    averageFilter_t filterState;
     float valueState[VALUE_COUNT];
-    for (int ii = 0; ii < VALUE_COUNT; ++ii) {
-        valueState[ii] = 0;
-    }
-    int average = averageFilterApply(8, valueState, VALUE_COUNT);
+
+    averageFilterInit(&filterState, valueState, VALUE_COUNT);
+
+    averageFilterUpdate(&filterState, 8);
+    float average = averageFilterApply(&filterState);
     EXPECT_EQ(2, average); // 8/4
     EXPECT_EQ(8, valueState[0]);
     EXPECT_EQ(0, valueState[1]);
 
-    average = averageFilterApply(16, valueState, VALUE_COUNT);
+    averageFilterUpdate(&filterState, 16);
+    average = averageFilterApply(&filterState);
     EXPECT_EQ(6, average); // (8+16)/4
     EXPECT_EQ(16, valueState[0]);
     EXPECT_EQ(8, valueState[1]);
 
 
-    average = averageFilterApply(4, valueState, VALUE_COUNT);
+    averageFilterUpdate(&filterState, 4);
+    average = averageFilterApply(&filterState);
     EXPECT_EQ(7, average); // (8+16+4)/4
     EXPECT_EQ(4, valueState[0]);
     EXPECT_EQ(16, valueState[1]);
     EXPECT_EQ(8, valueState[2]);
 
-    average = averageFilterApply(-12, valueState, VALUE_COUNT);
+    averageFilterUpdate(&filterState, -12);
+    average = averageFilterApply(&filterState);
     EXPECT_EQ(4, average); // (8+16+4-12)/4
     EXPECT_EQ(-12, valueState[0]);
     EXPECT_EQ(4, valueState[1]);
     EXPECT_EQ(16, valueState[2]);
     EXPECT_EQ(8, valueState[3]);
 
-    average = averageFilterApply(48, valueState, VALUE_COUNT);
+    averageFilterUpdate(&filterState, 48);
+    average = averageFilterApply(&filterState);
     EXPECT_EQ(14, average); // (16+4-12+48)/4
     EXPECT_EQ(48, valueState[0]);
     EXPECT_EQ(-12, valueState[1]);
     EXPECT_EQ(4, valueState[2]);
     EXPECT_EQ(16, valueState[3]);
 
-    average = averageFilterApply(4, valueState, VALUE_COUNT);
+    averageFilterUpdate(&filterState, 4);
+    average = averageFilterApply(&filterState);
     EXPECT_EQ(11, average); // (4-12+48+4)/4
     EXPECT_EQ(4, valueState[0]);
     EXPECT_EQ(48, valueState[1]);

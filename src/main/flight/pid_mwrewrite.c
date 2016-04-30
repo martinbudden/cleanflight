@@ -59,12 +59,12 @@ extern uint8_t PIDweight[3];
 extern int32_t lastITerm[3], ITermLimit[3];
 
 extern filterStatePt1_t DTermPt1FilterState[3];
-//extern int32_t DTermFirFilterStateInt32[3][PID_DTERM_FIR_MAX_LENGTH];
-firFilterInt32_t DTermFirFilterInt32State;
-float DTermFirFilterInt32Buf[3][PID_DTERM_FIR_MAX_LENGTH];
 
-averageFilterInt32_t DTermAverageFilterInt32State;
-float DTermAverageFilterInt32Buf[3][PID_DTERM_AVERAGE_FILTER_MAX_LENGTH];
+static firFilterInt32_t DTermFirFilterInt32State[3];
+static int32_t DTermFirFilterInt32Buf[3][PID_DTERM_FIR_MAX_LENGTH];
+
+static averageFilterInt32_t DTermAverageFilterInt32State[3];
+static int32_t DTermAverageFilterInt32Buf[3][PID_DTERM_AVERAGE_FILTER_MAX_LENGTH];
 
 extern uint8_t motorCount;
 
@@ -108,8 +108,6 @@ static const int8_t *nrd[] = {nrdCoeffs2, nrdCoeffs3, nrdCoeffs4, nrdCoeffs5, nr
 
 STATIC_UNIT_TESTED int16_t pidMultiWiiRewriteCore(int axis, const pidProfile_t *pidProfile, int32_t gyroRate, int32_t desiredRate)
 {
-    static int32_t DTermAverageFilterState[3][PID_DTERM_AVERAGE_FILTER_MAX_LENGTH];
-
     SET_PID_MULTI_WII_REWRITE_CORE_LOCALS(axis);
 
     const int32_t rateError = desiredRate - gyroRate;
@@ -149,8 +147,8 @@ STATIC_UNIT_TESTED int16_t pidMultiWiiRewriteCore(int axis, const pidProfile_t *
     } else {
         // delta calculated from measurement
         // Calculate derivative using FIR filter
-        firFilterInt32Update(&DTermFirFilterInt32State, gyroRate);
-        int32_t delta = -firFilterInt32Apply(&DTermFirFilterInt32State);
+        firFilterInt32Update(&DTermFirFilterInt32State[axis], gyroRate);
+        int32_t delta = -firFilterInt32Apply(&DTermFirFilterInt32State[axis]);
 
         // Divide delta by targetLooptime to get differential (ie dr/dt)
         delta = (delta * ((uint16_t)0xFFFF / ((uint16_t)targetLooptime >> 4))) >> 5;
@@ -160,8 +158,8 @@ STATIC_UNIT_TESTED int16_t pidMultiWiiRewriteCore(int axis, const pidProfile_t *
         }
         if (pidProfile->dterm_average_count) {
             // Apply moving average
-            averageFilterInt32Update(&DTermAverageFilterState[axis], delta);
-            delta = averageFilterInt32Apply(&DTermAverageFilterState[axis]);
+            averageFilterInt32Update(&DTermAverageFilterInt32State[axis], delta);
+            delta = averageFilterInt32Apply(&DTermAverageFilterInt32State[axis]);
         }
         DTerm = (delta * pidProfile->D8[axis] * PIDweight[axis] / 100) >> 8;
         DTerm = constrain(DTerm, -PID_MAX_D, PID_MAX_D);
@@ -177,6 +175,14 @@ STATIC_UNIT_TESTED int16_t pidMultiWiiRewriteCore(int axis, const pidProfile_t *
     return PTerm + ITerm + DTerm;
 }
 
+void pidMultiWiiRewriteInit(const pidProfile_t *pidProfile)
+{
+    for (int axis = 0; axis < 3; ++ axis) {
+        const int8_t *coeffs = nrd[pidProfile->dterm_differentiator];
+        firFilterInt32Init(&DTermFirFilterInt32State[axis], DTermFirFilterInt32Buf[axis], pidProfile->dterm_differentiator + 2, coeffs);
+        averageFilterInt32Init(&DTermAverageFilterInt32State[axis], DTermAverageFilterInt32Buf[axis], pidProfile->dterm_average_count);
+    }
+}
 void pidMultiWiiRewrite(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig,
         uint16_t max_angle_inclination, const rollAndPitchTrims_t *angleTrim, const rxConfig_t *rxConfig)
 {

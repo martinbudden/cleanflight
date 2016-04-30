@@ -49,6 +49,7 @@
 #include "io/rate_profile.h"
 
 #include "flight/pid.h"
+#include "flight/pid_luxfloat.h"
 #include "config/config_unittest.h"
 #include "flight/imu.h"
 #include "flight/navigation.h"
@@ -63,11 +64,6 @@ extern uint8_t motorCount;
 extern int32_t axisPID_P[3], axisPID_I[3], axisPID_D[3];
 #endif
 
-// constants to scale pidLuxFloat so output is same as pidMultiWiiRewrite
-static const float luxPTermScale = 1.0f / 128;
-static const float luxITermScale = 1000000.0f / 0x1000000;
-static const float luxDTermScale = (0.000001f * (float)0xFFFF) / 512;
-static const float luxGyroScale = 16.4f / 4; // the 16.4 is needed because mwrewrite does not scale according to the gyro model gyro.scale
 
 
 /* Noise-robust differentiator filter coefficients by Pavel Holoborodko, see
@@ -103,40 +99,12 @@ static const float nrdCoeffs8[] = { 1.0f/8, 13.0f/32, 1.0f/4,-15.0f/32,-5.0f/8, 
 #endif
 static const float *nrd[] = {nrdCoeffs2, nrdCoeffs3, nrdCoeffs4, nrdCoeffs5, nrdCoeffs6, nrdCoeffs7, nrdCoeffs8};
 
-typedef struct pidStateAxis_s {
-    float kP;
-    float kI;
-    float kD;
-    float kT;
 
-    float gyroRate;
-    float desiredRate;
+STATIC_UNIT_TESTED pidLuxFloatState_t pidLuxFloatState;
 
-
-    uint8_t PIDweight;
-    float PTerm;
-    float ITerm;
-    float ITermLimitf;
-    float DTerm;
-
-    filterStatePt1_t DTermPt1FilterState;
-    firFilter_t DTermFirFilterState;
-    float DTermFirFilterBuf[PID_DTERM_FIR_MAX_LENGTH];
-    averageFilter_t DTermAverageFilterState;
-    float DTermAverageFilterBuf[PID_DTERM_AVERAGE_FILTER_MAX_LENGTH];
-} pidStateAxis_t;
-
-typedef struct pidState_s {
-    pidStateAxis_t stateAxis[FD_INDEX_COUNT];
-} pidState_t;
-
-static pidState_t pidState;
-
-STATIC_UNIT_TESTED void pidUpdateGyroStateAxis(flight_dynamics_index_t axis, const pidProfile_t *pidProfile, pidStateAxis_t* pidStateAxis)
+STATIC_UNIT_TESTED void pidUpdateGyroStateAxis(flight_dynamics_index_t axis, const pidProfile_t *pidProfile, pidLuxFloatStateAxis_t* pidStateAxis)
 {
-    SET_PID_LUX_FLOAT_CORE_LOCALS(axis);
-
-    pidStateAxis->gyroRate = luxGyroScale * gyroADC[axis] * gyro.scale;
+    pidStateAxis->gyroRate = luxGyroScale * gyro.scale * gyroADC[axis];
     const float rateError = pidStateAxis->desiredRate - pidStateAxis->gyroRate;
 
 
@@ -164,7 +132,7 @@ STATIC_UNIT_TESTED void pidUpdateGyroStateAxis(flight_dynamics_index_t axis, con
 void pidUpdateGyroState(const pidProfile_t *pidProfile)
 {
     for (int axis = 0; axis < 3; axis++) {
-        pidUpdateGyroStateAxis(axis, pidProfile, &pidState.stateAxis[axis]);
+        pidUpdateGyroStateAxis(axis, pidProfile, &pidLuxFloatState.stateAxis[axis]);
     }
 }
 
@@ -185,7 +153,7 @@ static float calcHorizonLevelStrength(const pidProfile_t *pidProfile, const rxCo
     return horizonLevelStrength;
 }
 
-static void pidUpdateRcStateAxis(int axis, const pidProfile_t *pidProfile, pidStateAxis_t* pidStateAxis, float horizonLevelStrength,
+static void pidUpdateRcStateAxis(int axis, const pidProfile_t *pidProfile, pidLuxFloatStateAxis_t* pidStateAxis, float horizonLevelStrength,
         const controlRateConfig_t *controlRateConfig, uint16_t max_angle_inclination, const rollAndPitchTrims_t *angleTrim)
 {
     pidStateAxis->kP = luxPTermScale * pidProfile->P8[axis] * pidStateAxis->PIDweight / 100;
@@ -230,12 +198,12 @@ void pidUpdateRcState(const pidProfile_t *pidProfile, const controlRateConfig_t 
 {
     const float horizonLevelStrength = FLIGHT_MODE(HORIZON_MODE) ? calcHorizonLevelStrength(pidProfile, rxConfig) : 1;
     for (int axis = 0; axis < 3; axis++) {
-        pidUpdateRcStateAxis(axis, pidProfile, &pidState.stateAxis[axis], horizonLevelStrength,
+        pidUpdateRcStateAxis(axis, pidProfile, &pidLuxFloatState.stateAxis[axis], horizonLevelStrength,
                 controlRateConfig, max_angle_inclination, angleTrim);
     }
 }
 
-static int16_t pidCalculateAxis(int axis, const pidProfile_t *pidProfile, pidStateAxis_t* pidStateAxis)
+static int16_t pidCalculateAxis(int axis, const pidProfile_t *pidProfile, pidLuxFloatStateAxis_t* pidStateAxis)
 {
     const float rateError = pidStateAxis->desiredRate - pidStateAxis->gyroRate;
 
@@ -253,9 +221,9 @@ static int16_t pidCalculateAxis(int axis, const pidProfile_t *pidProfile, pidSta
     // Anti windup protection
     if (IS_RC_MODE_ACTIVE(BOXAIRMODE)) {
         if (STATE(ANTI_WINDUP) || motorLimitReached) {
-            pidStateAxis->ITerm = constrainf(pidStateAxis->ITerm, -pidStateAxis->ITermLimitf, pidStateAxis->ITermLimitf);
+            pidStateAxis->ITerm = constrainf(pidStateAxis->ITerm, -pidStateAxis->ITermLimit, pidStateAxis->ITermLimit);
         } else {
-            pidStateAxis->ITermLimitf = ABS(pidStateAxis->ITerm);
+            pidStateAxis->ITermLimit = ABS(pidStateAxis->ITerm);
         }
     }
     // -----calculate D component
@@ -276,30 +244,27 @@ static int16_t pidCalculateAxis(int axis, const pidProfile_t *pidProfile, pidSta
         calculate_Gtune(axis);
     }
 #endif
-    GET_PID_LUX_FLOAT_CORE_LOCALS(axis);
+    GET_PID_LUX_FLOAT_CALCULATE_AXIS_LOCALS(axis);
     // -----calculate total PID output
     return lrintf(pidStateAxis->PTerm + pidStateAxis->ITerm + pidStateAxis->DTerm);
 }
 
-void pidCalculate(const pidProfile_t *pidProfile)
+void pidLuxFloatCalculate(const pidProfile_t *pidProfile)
 {
     for (int axis = 0; axis < 3; axis++) {
-        axisPID[axis] = pidCalculateAxis(axis, pidProfile, &pidState.stateAxis[axis]);
+        axisPID[axis] = pidCalculateAxis(axis, pidProfile, &pidLuxFloatState.stateAxis[axis]);
     }
 }
 
-static void pidInitAxis(const pidProfile_t *pidProfile, pidStateAxis_t* pidStateAxis)
+void pidLuxFloatInit(const pidProfile_t *pidProfile)
 {
     const float *coeffs = nrd[pidProfile->dterm_differentiator];
-    firFilterInit(&pidStateAxis->DTermFirFilterState, pidStateAxis->DTermFirFilterBuf, pidProfile->dterm_differentiator + 2, coeffs);
-
-    averageFilterInit(&pidStateAxis->DTermAverageFilterState, pidStateAxis->DTermAverageFilterBuf, pidProfile->dterm_average_count);
-}
-
-void pidInit(const pidProfile_t *pidProfile)
-{
-    for (int axis = 0; axis < 3; axis++) {
-        pidInitAxis(pidProfile, &pidState.stateAxis[axis]);
+    for (int axis = 0; axis < 3; ++ axis) {
+        pidLuxFloatStateAxis_t* pidStateAxis = &pidLuxFloatState.stateAxis[axis];
+        pidStateAxis->ITerm = 0.0f;
+        pidStateAxis->ITermLimit = 0.0f;
+        firFilterInit(&pidStateAxis->DTermFirFilterState, pidStateAxis->DTermFirFilterBuf, pidProfile->dterm_differentiator + 2, coeffs);
+        averageFilterInit(&pidStateAxis->DTermAverageFilterState, pidStateAxis->DTermAverageFilterBuf, pidProfile->dterm_average_count);
     }
 }
 
@@ -308,7 +273,7 @@ void pidLuxFloat(const pidProfile_t *pidProfile, const controlRateConfig_t *cont
 {
     pidUpdateRcState(pidProfile, controlRateConfig, max_angle_inclination, angleTrim, rxConfig);
     pidUpdateGyroState(pidProfile);
-    pidCalculate(pidProfile);
+    pidLuxFloatCalculate(pidProfile);
 }
 
 #endif

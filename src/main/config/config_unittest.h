@@ -46,32 +46,20 @@ bool unittest_outsideRealtimeGuardInterval;
 #ifdef SRC_MAIN_FLIGHT_PID_LUXFLOAT_C_
 #ifdef UNIT_TEST
 
-float unittest_pidLuxFloatCore_DTermAverageFilterState[3][PID_DTERM_AVERAGE_FILTER_MAX_LENGTH];
 float unittest_pidLuxFloatCore_PTerm[3];
 float unittest_pidLuxFloatCore_ITerm[3];
 float unittest_pidLuxFloatCore_DTerm[3];
 
-#define SET_PID_LUX_FLOAT_CORE_LOCALS(axis) \
+#define GET_PID_LUX_FLOAT_CALCULATE_AXIS_LOCALS(axis) \
     { \
-        for (int ii = 0; ii < PID_DTERM_AVERAGE_FILTER_MAX_LENGTH; ++ii) { \
-            DTermAverageFilterState[axis][ii] = unittest_pidLuxFloatCore_DTermAverageFilterState[axis][ii]; \
-        } \
-    }
-
-#define GET_PID_LUX_FLOAT_CORE_LOCALS(axis) \
-    { \
-        for (int ii = 0; ii < PID_DTERM_AVERAGE_FILTER_MAX_LENGTH; ++ii) { \
-            unittest_pidLuxFloatCore_DTermAverageFilterState[axis][ii] = DTermAverageFilterState[axis][ii]; \
-        } \
-        unittest_pidLuxFloatCore_PTerm[axis] = PTerm; \
-        unittest_pidLuxFloatCore_ITerm[axis] = ITerm; \
-        unittest_pidLuxFloatCore_DTerm[axis] = DTerm; \
+        unittest_pidLuxFloatCore_PTerm[axis] = pidStateAxis->PTerm; \
+        unittest_pidLuxFloatCore_ITerm[axis] = pidStateAxis->ITerm; \
+        unittest_pidLuxFloatCore_DTerm[axis] = pidStateAxis->DTerm; \
     }
 
 #else
 
-#define SET_PID_LUX_FLOAT_CORE_LOCALS(axis) {}
-#define GET_PID_LUX_FLOAT_CORE_LOCALS(axis) {}
+#define GET_PID_LUX_FLOAT_CALCULATE_AXIS_LOCALS(axis) {}
 
 #endif // UNIT_TEST
 #endif // SRC_MAIN_FLIGHT_PID_LUXFLOAT_C_
@@ -85,18 +73,10 @@ int32_t unittest_pidMultiWiiRewriteCore_PTerm[3];
 int32_t unittest_pidMultiWiiRewriteCore_ITerm[3];
 int32_t unittest_pidMultiWiiRewriteCore_DTerm[3];
 
-#define SET_PID_MULTI_WII_REWRITE_CORE_LOCALS(axis) \
-    { \
-        for (int ii = 0; ii < PID_DTERM_AVERAGE_FILTER_MAX_LENGTH; ++ii) { \
-            DTermAverageFilterState[axis][ii] = unittest_pidMultiWiiRewriteCore_DTermAverageFilterState[axis][ii]; \
-        } \
-    }
+#define SET_PID_MULTI_WII_REWRITE_CORE_LOCALS(axis) {}
 
 #define GET_PID_MULTI_WII_REWRITE_CORE_LOCALS(axis) \
     { \
-        for (int ii = 0; ii < PID_DTERM_AVERAGE_FILTER_MAX_LENGTH; ++ii) { \
-            unittest_pidMultiWiiRewriteCore_DTermAverageFilterState[axis][ii] = DTermAverageFilterState[axis][ii]; \
-        } \
         unittest_pidMultiWiiRewriteCore_PTerm[axis] = PTerm; \
         unittest_pidMultiWiiRewriteCore_ITerm[axis] = ITerm; \
         unittest_pidMultiWiiRewriteCore_DTerm[axis] = DTerm; \

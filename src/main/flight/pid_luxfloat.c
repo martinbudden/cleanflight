@@ -65,6 +65,7 @@ extern uint8_t motorCount;
 extern int32_t axisPID_P[3], axisPID_I[3], axisPID_D[3];
 #endif
 
+STATIC_UNIT_TESTED pidLuxFloatState_t pidLuxFloatState;
 
 
 /* Noise-robust differentiator filter coefficients by Pavel Holoborodko, see
@@ -100,8 +101,6 @@ static const float nrdCoeffs8[] = { 1.0f/8, 13.0f/32, 1.0f/4,-15.0f/32,-5.0f/8, 
 #endif
 static const float *nrd[] = {nrdCoeffs2, nrdCoeffs3, nrdCoeffs4, nrdCoeffs5, nrdCoeffs6, nrdCoeffs7, nrdCoeffs8};
 
-
-STATIC_UNIT_TESTED pidLuxFloatState_t pidLuxFloatState;
 
 STATIC_UNIT_TESTED void pidUpdateGyroStateAxis(flight_dynamics_index_t axis, const pidProfile_t *pidProfile, pidLuxFloatStateAxis_t* pidStateAxis)
 {
@@ -261,7 +260,7 @@ void pidLuxFloatInit(const pidProfile_t *pidProfile)
     pidLuxFloatState.kGyro = luxGyroScale * gyro.scale;
     const float *coeffs = nrd[pidProfile->dterm_differentiator];
     for (int axis = 0; axis < 3; ++ axis) {
-        pidLuxFloatStateAxis_t* pidStateAxis = &pidLuxFloatState.stateAxis[axis];
+        pidLuxFloatStateAxis_t *pidStateAxis = &pidLuxFloatState.stateAxis[axis];
         pidStateAxis->ITerm = 0.0f;
         pidStateAxis->ITermLimit = 0.0f;
         firFilterInit(&pidStateAxis->DTermFirFilterState, pidStateAxis->DTermFirFilterBuf, pidProfile->dterm_differentiator + 2, coeffs);

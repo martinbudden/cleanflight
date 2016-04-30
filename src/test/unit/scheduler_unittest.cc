@@ -33,6 +33,7 @@ enum {
     updateBatteryTime = 1,
     updateRxCheckTime = 34,
     updateRxMainTime = 10,
+    updateMotorsTime = 150,
     processGPSTime = 10,
     updateCompassTime = 195,
     updateBaroTime = 201,
@@ -62,6 +63,7 @@ extern "C" {
     void taskUpdateBattery(void) {simulatedTime+=updateBatteryTime;}
     bool taskUpdateRxCheck(uint32_t currentDeltaTime) {UNUSED(currentDeltaTime);simulatedTime+=updateRxCheckTime;return false;}
     void taskUpdateRxMain(void) {simulatedTime+=updateRxMainTime;}
+    void taskUpdateMotors(void) {simulatedTime+=updateMotorsTime;}
     void taskProcessGPS(void) {simulatedTime+=processGPSTime;}
     void taskUpdateCompass(void) {simulatedTime+=updateCompassTime;}
     void taskUpdateBaro(void) {simulatedTime+=updateBaroTime;}
@@ -85,8 +87,8 @@ extern "C" {
 
 TEST(SchedulerUnittest, TestPriorites)
 {
-    EXPECT_EQ(14, TASK_COUNT);
-          // if any of these fail then task priorities have changed and ordering in TestQueue needs to be re-checked
+    EXPECT_EQ(15, TASK_COUNT);
+    // if any of these fail then task priorities have changed and ordering in TestQueue needs to be re-checked
     EXPECT_EQ(TASK_PRIORITY_HIGH, cfTasks[TASK_SYSTEM].staticPriority);
     EXPECT_EQ(TASK_PRIORITY_REALTIME, cfTasks[TASK_GYROPID].staticPriority);
     EXPECT_EQ(TASK_PRIORITY_MEDIUM, cfTasks[TASK_ACCEL].staticPriority);

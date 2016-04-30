@@ -101,13 +101,13 @@ static const int8_t nrdCoeffs8[] = {  8, 26, 16,-30,-40, -2, 16,  6 };
 static const int8_t *nrd[] = {nrdCoeffs2, nrdCoeffs3, nrdCoeffs4, nrdCoeffs5, nrdCoeffs6, nrdCoeffs7, nrdCoeffs8};
 
 
-STATIC_UNIT_TESTED int16_t pidMultiWiiRewriteCore(int axis, const pidProfile_t *pidProfile, int32_t gyroRate, int32_t angleRate)
+STATIC_UNIT_TESTED int16_t pidMultiWiiRewriteCore(int axis, const pidProfile_t *pidProfile, int32_t gyroRate, int32_t desiredRate)
 {
     static int32_t DTermAverageFilterState[3][PID_DTERM_AVERAGE_FILTER_MAX_LENGTH];
 
     SET_PID_MULTI_WII_REWRITE_CORE_LOCALS(axis);
 
-    const int32_t rateError = angleRate - gyroRate;
+    const int32_t rateError = desiredRate - gyroRate;
 
     // -----calculate P component
     int32_t PTerm = (rateError * pidProfile->P8[axis] * PIDweight[axis] / 100) >> 7;
@@ -196,13 +196,13 @@ void pidMultiWiiRewrite(const pidProfile_t *pidProfile, const controlRateConfig_
         const uint8_t rate = controlRateConfig->rates[axis];
 
         // -----Get the desired angle rate depending on flight mode
-        int32_t angleRate;
+        int32_t desiredRate;
         if (axis == FD_YAW) {
             // YAW is always gyro-controlled (MAG correction is applied to rcCommand)
-            angleRate = (((int32_t)(rate + 27) * rcCommand[YAW]) >> 5);
+            desiredRate = (((int32_t)(rate + 27) * rcCommand[YAW]) >> 5);
         } else {
             // control is GYRO based for ACRO and HORIZON - direct sticks control is applied to rate PID
-            angleRate = ((int32_t)(rate + 27) * rcCommand[axis]) >> 4;
+            desiredRate = ((int32_t)(rate + 27) * rcCommand[axis]) >> 4;
             if (FLIGHT_MODE(ANGLE_MODE) || FLIGHT_MODE(HORIZON_MODE)) {
                 // calculate error angle and limit the angle to the max inclination
                 // multiplication of rcCommand corresponds to changing the sticks scaling here
@@ -215,12 +215,12 @@ void pidMultiWiiRewrite(const pidProfile_t *pidProfile, const controlRateConfig_
 #endif
                 if (FLIGHT_MODE(ANGLE_MODE)) {
                     // ANGLE mode
-                    angleRate = (errorAngle * pidProfile->P8[PIDLEVEL]) >> 4;
+                    desiredRate = (errorAngle * pidProfile->P8[PIDLEVEL]) >> 4;
                 } else {
                     // HORIZON mode
-                    // mix in errorAngle to desired angleRate to add a little auto-level feel.
+                    // mix in errorAngle to desiredRate to add a little auto-level feel.
                     // horizonLevelStrength has been scaled to the stick input
-                    angleRate += (errorAngle * pidProfile->I8[PIDLEVEL] * horizonLevelStrength / 100) >> 4;
+                    desiredRate += (errorAngle * pidProfile->I8[PIDLEVEL] * horizonLevelStrength / 100) >> 4;
                 }
             }
         }

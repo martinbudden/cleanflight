@@ -109,13 +109,13 @@ static const float nrdCoeffs8[] = { 1.0f/8, 13.0f/32, 1.0f/4,-15.0f/32,-5.0f/8, 
 static const float *nrd[] = {nrdCoeffs2, nrdCoeffs3, nrdCoeffs4, nrdCoeffs5, nrdCoeffs6, nrdCoeffs7, nrdCoeffs8};
 
 
-STATIC_UNIT_TESTED int16_t pidLuxFloatCore(int axis, const pidProfile_t *pidProfile, float gyroRate, float angleRate)
+STATIC_UNIT_TESTED int16_t pidLuxFloatCore(int axis, const pidProfile_t *pidProfile, float gyroRate, float desiredRate)
 {
     static float DTermAverageFilterState[3][PID_DTERM_AVERAGE_FILTER_MAX_LENGTH];
 
     SET_PID_LUX_FLOAT_CORE_LOCALS(axis);
 
-    const float rateError = angleRate - gyroRate;
+    const float rateError = desiredRate - gyroRate;
 
     // -----calculate P component
     float PTerm = luxPTermScale * rateError * pidProfile->P8[axis] * PIDweight[axis] / 100;
@@ -195,13 +195,13 @@ void pidLuxFloat(const pidProfile_t *pidProfile, const controlRateConfig_t *cont
         const uint8_t rate = controlRateConfig->rates[axis];
 
         // -----Get the desired angle rate depending on flight mode
-        float angleRate;
+        float desiredRate;
         if (axis == FD_YAW) {
             // YAW is always gyro-controlled (MAG correction is applied to rcCommand) 100dps to 1100dps max yaw rate
-            angleRate = (float)((rate + 27) * rcCommand[YAW]) / 32.0f;
+            desiredRate = (float)((rate + 27) * rcCommand[YAW]) / 32.0f;
         } else {
             // control is GYRO based for ACRO and HORIZON - direct sticks control is applied to rate PID
-            angleRate = (float)((rate + 27) * rcCommand[axis]) / 16.0f; // 200dps to 1200dps max roll/pitch rate
+            desiredRate = (float)((rate + 27) * rcCommand[axis]) / 16.0f; // 200dps to 1200dps max roll/pitch rate
             if (FLIGHT_MODE(ANGLE_MODE) || FLIGHT_MODE(HORIZON_MODE)) {
                 // calculate error angle and limit the angle to the max inclination
                 // multiplication of rcCommand corresponds to changing the sticks scaling here
@@ -214,19 +214,19 @@ void pidLuxFloat(const pidProfile_t *pidProfile, const controlRateConfig_t *cont
 #endif
                 if (FLIGHT_MODE(ANGLE_MODE)) {
                     // ANGLE mode
-                    angleRate = errorAngle * pidProfile->P8[PIDLEVEL] / 16.0f;
+                    desiredRate = errorAngle * pidProfile->P8[PIDLEVEL] / 16.0f;
                 } else {
                     // HORIZON mode
-                    // mix in errorAngle to desired angleRate to add a little auto-level feel.
+                    // mix in errorAngle to desiredRate to add a little auto-level feel.
                     // horizonLevelStrength has been scaled to the stick input
-                    angleRate += errorAngle * pidProfile->I8[PIDLEVEL] * horizonLevelStrength / 16.0f;
+                    desiredRate += errorAngle * pidProfile->I8[PIDLEVEL] * horizonLevelStrength / 16.0f;
                 }
             }
         }
 
         // --------low-level gyro-based PID. ----------
         const float gyroRate = luxGyroScale * gyroADC[axis] * gyro.scale;
-        axisPID[axis] = pidLuxFloatCore(axis, pidProfile, gyroRate, angleRate);
+        axisPID[axis] = pidLuxFloatCore(axis, pidProfile, gyroRate, desiredRate);
         //axisPID[axis] = constrain(axisPID[axis], -PID_LUX_FLOAT_MAX_PID, PID_LUX_FLOAT_MAX_PID);
 #ifdef GTUNE
         if (FLIGHT_MODE(GTUNE_MODE) && ARMING_FLAG(ARMED)) {

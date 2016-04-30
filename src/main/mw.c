@@ -179,14 +179,18 @@ bool isCalibrating(void)
     return (!isAccelerationCalibrationComplete() && sensors(SENSOR_ACC)) || (!isGyroCalibrationComplete());
 }
 
-/*
-This function processes RX dependent coefficients when new RX commands are available
-Those are: TPA, throttle expo
-*/
-void processRxDependentCoefficients(void) {
+#if defined(BARO) || defined(SONAR)
+    static haveProcessedAnnexCodeOnce = false;
+#endif
 
+void annexCode(void)
+{
     int32_t tmp, tmp2;
     int32_t axis, prop1 = 0, prop2;
+
+#if defined(BARO) || defined(SONAR)
+    haveProcessedAnnexCodeOnce = true;
+#endif
 
     // PITCH & ROLL only dynamic PID adjustment,  depending on throttle value
     if (rcData[THROTTLE] < currentControlRateProfile->tpa_breakpoint) {
@@ -652,6 +656,72 @@ void taskMainPidLoop(void)
 
     imuUpdateGyroAndAttitude();
 
+    annexCode();
+
+    if (rxConfig()->rcSmoothing) {
+        filterRc();
+    }
+
+#ifdef MAG
+        if (sensors(SENSOR_MAG)) {
+            updateMagHold();
+        }
+#endif
+
+#if defined(BARO) || defined(SONAR)
+        if (sensors(SENSOR_BARO) || sensors(SENSOR_SONAR)) {
+            if (FLIGHT_MODE(BARO_MODE) || FLIGHT_MODE(SONAR_MODE)) {
+                applyAltHold();
+            }
+        }
+#endif
+
+    // If we're armed, at minimum throttle, and we do arming via the
+    // sticks, do not process yaw input from the rx.  We do this so the
+    // motors do not spin up while we are trying to arm or disarm.
+    // Allow yaw control for tricopters if the user wants the servo to move even when unarmed.
+    if (isUsingSticksForArming() && rcData[THROTTLE] <= rxConfig()->mincheck
+#ifndef USE_QUAD_MIXER_ONLY
+#ifdef USE_SERVOS
+                && !((mixerConfig()->mixerMode == MIXER_TRI || mixerConfig()->mixerMode == MIXER_CUSTOM_TRI) && mixerConfig()->tri_unarmed_servo)
+#endif
+                && mixerConfig()->mixerMode != MIXER_AIRPLANE
+                && mixerConfig()->mixerMode != MIXER_FLYING_WING
+#endif
+    ) {
+        rcCommand[YAW] = 0;
+    }
+
+    if (throttleCorrectionConfig()->throttle_correction_value && (FLIGHT_MODE(ANGLE_MODE) || FLIGHT_MODE(HORIZON_MODE))) {
+        rcCommand[THROTTLE] += calculateThrottleAngleCorrection(throttleCorrectionConfig()->throttle_correction_value);
+    }
+
+#ifdef GPS
+    if (sensors(SENSOR_GPS)) {
+        if ((FLIGHT_MODE(GPS_HOME_MODE) || FLIGHT_MODE(GPS_HOLD_MODE)) && STATE(GPS_FIX_HOME)) {
+            updateGpsStateForHomeAndHoldMode();
+        }
+    }
+#endif
+
+    // PID - note this is function pointer set by setPIDController()
+    pid_controller(pidProfile(), currentControlRateProfile);
+
+    mixTable();
+
+#ifdef USE_SERVOS
+    filterServos();
+    writeServos();
+#endif
+
+    if (motorControlEnable) {
+        writeMotors();
+    }
+
+#ifdef USE_SDCARD
+        afatfs_poll();
+#endif
+
 #ifdef BLACKBOX
     if (!cliMode && feature(FEATURE_BLACKBOX)) {
         handleBlackbox();
@@ -659,18 +729,6 @@ void taskMainPidLoop(void)
 #endif
 }
 
-void taskUpdateMotors(void)
-{
-    pidController.calculate(pidProfile());
-    mixTable();
-#ifdef USE_SERVOS
-    filterServos();
-    writeServos();
-#endif
-    if (motorControlEnable) {
-        writeMotors();
-    }
-}
 // Function for loop trigger
 void taskMainPidLoopChecker(void)
 {
@@ -685,7 +743,7 @@ void taskMainPidLoopChecker(void)
             }
         }
     }
-    pidController.updateGyro(pidProfile());
+
     taskMainPidLoop();
 }
 
@@ -744,69 +802,21 @@ void taskUpdateRxMain(void)
     processRxDependentCoefficients();
 
     isRXDataNew = true;
-    annexCode();
-
-    if (rxConfig()->rcSmoothing) {
-        filterRc();
-    }
-
-#ifdef MAG
-    if (sensors(SENSOR_MAG)) {
-        updateMagHold();
-    }
-#endif
-
-
-    // If we're armed, at minimum throttle, and we do arming via the
-    // sticks, do not process yaw input from the rx.  We do this so the
-    // motors do not spin up while we are trying to arm or disarm.
-    // Allow yaw control for tricopters if the user wants the servo to move even when unarmed.
-    if (isUsingSticksForArming() && rcData[THROTTLE] <= rxConfig()->mincheck
-#ifndef USE_QUAD_MIXER_ONLY
-#ifdef USE_SERVOS
-                && !((mixerConfig()->mixerMode == MIXER_TRI || mixerConfig()->mixerMode == MIXER_CUSTOM_TRI) && mixerConfig()->tri_unarmed_servo)
-#endif
-                && mixerConfig()->mixerMode != MIXER_AIRPLANE
-                && mixerConfig()->mixerMode != MIXER_FLYING_WING
-#endif
-    ) {
-        rcCommand[YAW] = 0;
-    }
-
-    if (throttleCorrectionConfig()->throttle_correction_value && (FLIGHT_MODE(ANGLE_MODE) || FLIGHT_MODE(HORIZON_MODE))) {
-        rcCommand[THROTTLE] += calculateThrottleAngleCorrection(throttleCorrectionConfig()->throttle_correction_value);
-    }
-
-#ifdef GPS
-    if (sensors(SENSOR_GPS)) {
-        if ((FLIGHT_MODE(GPS_HOME_MODE) || FLIGHT_MODE(GPS_HOLD_MODE)) && STATE(GPS_FIX_HOME)) {
-            updateGpsStateForHomeAndHoldMode();
-        }
-    }
-#endif
-
-    pidController.updateRc(pidProfile(), currentControlRateProfile);
-    // PID - note this is function pointer set by setPIDController()
-    //pid_controller(pidProfile(), currentControlRateProfile);
-
 
 #ifdef BARO
     // the 'annexCode' initialses rcCommand, updateAltHoldState depends on valid rcCommand data.
-    if (sensors(SENSOR_BARO)) {
-        updateAltHoldState();
+    if (haveProcessedAnnexCodeOnce) {
+        if (sensors(SENSOR_BARO)) {
+            updateAltHoldState();
+        }
     }
 #endif
 
 #ifdef SONAR
     // the 'annexCode' initialses rcCommand, updateAltHoldState depends on valid rcCommand data.
-    if (sensors(SENSOR_SONAR)) {
-        updateSonarAltHoldState();
-    }
-#endif
-#if defined(BARO) || defined(SONAR)
-    if (sensors(SENSOR_BARO) || sensors(SENSOR_SONAR)) {
-        if (FLIGHT_MODE(BARO_MODE) || FLIGHT_MODE(SONAR_MODE)) {
-            applyAltHold();
+    if (haveProcessedAnnexCodeOnce) {
+        if (sensors(SENSOR_SONAR)) {
+            updateSonarAltHoldState();
         }
     }
 #endif

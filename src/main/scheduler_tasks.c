@@ -28,7 +28,6 @@ void taskUpdateBeeper(void);
 void taskUpdateBattery(void);
 bool taskUpdateRxCheck(uint32_t currentDeltaTime);
 void taskUpdateRxMain(void);
-void taskUpdateMotors(void);
 void taskProcessGPS(void);
 void taskUpdateCompass(void);
 void taskUpdateBaro(void);
@@ -58,7 +57,7 @@ cfTask_t cfTasks[TASK_COUNT] = {
     [TASK_ACCEL] = {
         .taskName = "ACCEL",
         .taskFunc = taskUpdateAccelerometer,
-        .desiredPeriod = 1000,                  // every 1 ms
+        .desiredPeriod = 1000000 / 1000,     // every 10ms
         .staticPriority = TASK_PRIORITY_MEDIUM,
     },
 
@@ -90,13 +89,6 @@ cfTask_t cfTasks[TASK_COUNT] = {
         .checkFunc = taskUpdateRxCheck,
         .taskFunc = taskUpdateRxMain,
         .desiredPeriod = 1000000 / 50,          // If event-based scheduling doesn't work, fallback to periodic scheduling
-        .staticPriority = TASK_PRIORITY_HIGH,
-    },
-
-    [TASK_MOTORS] = {
-        .taskName = "MOTORS",
-        .taskFunc = taskUpdateMotors,
-        .desiredPeriod = 1000,
         .staticPriority = TASK_PRIORITY_HIGH,
     },
 

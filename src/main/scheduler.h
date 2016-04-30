@@ -50,7 +50,6 @@ typedef enum {
 #endif
     TASK_BATTERY,
     TASK_RX,
-    TASK_MOTORS,
 #ifdef GPS
     TASK_GPS,
 #endif

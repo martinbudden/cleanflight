@@ -27,7 +27,9 @@ extern "C" {
     #include "common/filter.h"
 
     #include "config/runtime_config.h"
+    #include "config/config.h"
     #include "config/parameter_group.h"
+    #include "config/parameter_group_ids.h"
 
     #include "drivers/sensor.h"
     #include "drivers/accgyro.h"
@@ -43,8 +45,6 @@ extern "C" {
     #include "flight/pid_luxfloat.h"
     #include "config/config_unittest.h"
     #include "flight/imu.h"
-
-    pidProfile_t testPidProfile;
 }
 
 #include "unittest_macros.h"
@@ -76,12 +76,21 @@ extern "C" {
     int32_t unittest_pidMultiWiiRewriteCore_PTerm[3];
     int32_t unittest_pidMultiWiiRewriteCore_ITerm[3];
     int32_t unittest_pidMultiWiiRewriteCore_DTerm[3];
+    PG_REGISTER(imuConfig_t, imuConfig, PG_IMU_CONFIG, 0);
+    PG_REGISTER(rxConfig_t, rxConfig, PG_RX_CONFIG, 0);
+    PG_REGISTER_PROFILE(accelerometerConfig_t, accelerometerConfig, PG_ACCELEROMETER_CONFIG, 0);
 }
 
 static const int mwrGyroScale = 4;
 #define TARGET_LOOPTIME 2048
 
 static const int DTermAverageCount = 4;
+
+pidProfile_t *testPidProfile()
+{
+    return pidProfile();
+}
+
 
 void resetPidProfile(pidProfile_t *pidProfile)
 {
@@ -139,16 +148,17 @@ void resetGyroADC(void)
 
 void pidControllerInitLuxFloatCore(void)
 {
-    resetPidProfile(&testPidProfile);
+    resetPidProfile(pidProfile());
     pidSetController(PID_CONTROLLER_LUX_FLOAT);
     pidResetITermAngle();
     pidResetITerm();
-    pidLuxFloatInit(&testPidProfile);
+    pidLuxFloatInit(testPidProfile());
     targetLooptime = TARGET_LOOPTIME;
     dT = TARGET_LOOPTIME * 0.000001f;
 
     gyro.scale = 1.0f / luxGyroScale;
     resetGyroADC();
+    pidLuxFloatState.kGyro = luxGyroScale * gyro.scale;
     // set up the PIDWeights to 100%, so they are neutral in the tests
     pidLuxFloatState.stateAxis[FD_ROLL].PIDweight = 100;
     pidLuxFloatState.stateAxis[FD_PITCH].PIDweight = 100;
@@ -231,11 +241,10 @@ TEST(PIDUnittest, TestPidLuxFloat)
 {
     controlRateConfig_t controlRate;
     const uint16_t max_angle_inclination = 500; // 50 degrees
-    rollAndPitchTrims_t rollAndPitchTrims;
-    rxConfig_t rxConfig;
+    rollAndPitchTrims_t *rollAndPitchTrims = &accelerometerConfig()->accelerometerTrims;
 
-    pidProfile_t *pidProfile = &testPidProfile;
-    pidControllerInitLuxFloat(&controlRate, max_angle_inclination, &rollAndPitchTrims, &rxConfig);
+    pidProfile_t *pidProfile = testPidProfile();
+    pidControllerInitLuxFloat(&controlRate, max_angle_inclination, rollAndPitchTrims, rxConfig());
 
     // set up a rateError of zero on all axes
     resetRcCommands();
@@ -251,7 +260,7 @@ TEST(PIDUnittest, TestPidLuxFloat)
     const float rateErrorYaw = 100;
 
     // run the PID controller. Check expected PID values
-    pidControllerInitLuxFloat(&controlRate, max_angle_inclination, &rollAndPitchTrims, &rxConfig);
+    pidControllerInitLuxFloat(&controlRate, max_angle_inclination, rollAndPitchTrims, rxConfig());
     EXPECT_EQ(2, pidLuxFloatState.stateAxis[FD_ROLL].DTermFirFilterState.length);
 
     gyroADC[FD_ROLL] = -rateErrorRoll;
@@ -262,7 +271,7 @@ TEST(PIDUnittest, TestPidLuxFloat)
     float ITermPitch = calcLuxITermDelta(pidProfile, FD_PITCH, rateErrorPitch);
     float ITermYaw = calcLuxITermDelta(pidProfile, FD_YAW, rateErrorYaw);
 
-    pidLuxFloat(pidProfile, &controlRate, max_angle_inclination, &rollAndPitchTrims, &rxConfig);
+    pidLuxFloat(pidProfile, &controlRate, max_angle_inclination, rollAndPitchTrims, rxConfig());
     EXPECT_FLOAT_EQ(-rateErrorRoll, pidLuxFloatState.stateAxis[FD_ROLL].gyroRate);
     EXPECT_FLOAT_EQ(-rateErrorPitch, pidLuxFloatState.stateAxis[FD_PITCH].gyroRate);
     EXPECT_FLOAT_EQ(-rateErrorYaw, pidLuxFloatState.stateAxis[FD_YAW].gyroRate);
@@ -289,7 +298,7 @@ TEST(PIDUnittest, TestPidLuxFloat)
     // Error rates unchanged, so expect P unchanged, I integrated and D averaged over DTermAverageCount
     ITermRoll += calcLuxITermDelta(pidProfile, FD_ROLL, rateErrorRoll);
     ITermPitch += calcLuxITermDelta(pidProfile, FD_PITCH, rateErrorPitch);
-    pid_controller(pidProfile, &controlRate, max_angle_inclination, &rollAndPitchTrims, &rxConfig);
+    pid_controller(pidProfile, &controlRate, max_angle_inclination, rollAndPitchTrims, rxConfig());
     EXPECT_FLOAT_EQ(calcLuxPTerm(pidProfile, FD_ROLL, rateErrorRoll), pidLuxFloatState.stateAxis[FD_ROLL].PTerm);
     EXPECT_FLOAT_EQ(ITermRoll, pidLuxFloatState.stateAxis[FD_ROLL].ITerm);
     expectedDTerm = DTermAverageCount < 2 ? 0 : calcLuxDTerm(pidProfile, FD_ROLL, rateErrorRoll) / DTermAverageCount;
@@ -303,7 +312,7 @@ TEST(PIDUnittest, TestPidLuxFloat)
     // Error rates unchanged, so expect P unchanged, I integrated and D averaged over DTermAverageCount
     ITermRoll += calcLuxITermDelta(pidProfile, FD_ROLL, rateErrorRoll);
     ITermPitch += calcLuxITermDelta(pidProfile, FD_PITCH, rateErrorPitch);
-    pid_controller(pidProfile, &controlRate, max_angle_inclination, &rollAndPitchTrims, &rxConfig);
+    pid_controller(pidProfile, &controlRate, max_angle_inclination, rollAndPitchTrims, rxConfig());
     EXPECT_FLOAT_EQ(calcLuxPTerm(pidProfile, FD_ROLL, rateErrorRoll), pidLuxFloatState.stateAxis[FD_ROLL].PTerm);
     EXPECT_FLOAT_EQ(ITermRoll, pidLuxFloatState.stateAxis[FD_ROLL].ITerm);
     expectedDTerm = DTermAverageCount < 3 ? 0 : calcLuxDTerm(pidProfile, FD_ROLL, rateErrorRoll) / DTermAverageCount;
@@ -317,7 +326,7 @@ TEST(PIDUnittest, TestPidLuxFloat)
     // Error rates unchanged, so expect P unchanged, I integrated and D averaged over DTermAverageCount
     ITermRoll += calcLuxITermDelta(pidProfile, FD_ROLL, rateErrorRoll);
     ITermPitch += calcLuxITermDelta(pidProfile, FD_PITCH, rateErrorPitch);
-    pid_controller(pidProfile, &controlRate, max_angle_inclination, &rollAndPitchTrims, &rxConfig);
+    pid_controller(pidProfile, &controlRate, max_angle_inclination, rollAndPitchTrims, rxConfig());
     EXPECT_FLOAT_EQ(calcLuxPTerm(pidProfile, FD_ROLL, rateErrorRoll), pidLuxFloatState.stateAxis[FD_ROLL].PTerm);
     EXPECT_FLOAT_EQ(ITermRoll, pidLuxFloatState.stateAxis[FD_ROLL].ITerm);
     expectedDTerm = DTermAverageCount < 4 ? 0 : calcLuxDTerm(pidProfile, FD_ROLL, rateErrorRoll) / DTermAverageCount;
@@ -335,7 +344,7 @@ TEST(PIDUnittest, TestPidLuxFloatIntegrationForLinearFunction)
     rollAndPitchTrims_t rollAndPitchTrims;
     rxConfig_t rxConfig;
 
-    pidProfile_t *pidProfile = &testPidProfile;
+    pidProfile_t *pidProfile = testPidProfile();
 
     pidControllerInitLuxFloat(&controlRate, max_angle_inclination, &rollAndPitchTrims, &rxConfig);
     EXPECT_EQ(0, pidLuxFloatState.stateAxis[FD_ROLL].ITerm);
@@ -386,7 +395,7 @@ TEST(PIDUnittest, TestPidLuxFloatIntegrationForQuadraticFunction)
     rollAndPitchTrims_t rollAndPitchTrims;
     rxConfig_t rxConfig;
 
-    pidProfile_t *pidProfile = &testPidProfile;
+    pidProfile_t *pidProfile = testPidProfile();
 
     pidControllerInitLuxFloat(&controlRate, max_angle_inclination, &rollAndPitchTrims, &rxConfig);
     resetRcCommands();
@@ -434,7 +443,7 @@ TEST(PIDUnittest, TestPidLuxFloatITermConstrain)
     rollAndPitchTrims_t rollAndPitchTrims;
     rxConfig_t rxConfig;
 
-    pidProfile_t *pidProfile = &testPidProfile;
+    pidProfile_t *pidProfile = testPidProfile();
 
     // set rateError to zero, ITerm should be zero
     pidControllerInitLuxFloat(&controlRate, max_angle_inclination, &rollAndPitchTrims, &rxConfig);
@@ -470,11 +479,11 @@ TEST(PIDUnittest, TestPidLuxFloatDTermRobust0)
     rollAndPitchTrims_t rollAndPitchTrims;
     rxConfig_t rxConfig;
 
-    pidProfile_t *pidProfile = &testPidProfile;
+    pidProfile_t *pidProfile = testPidProfile();
 
     pidControllerInitLuxFloat(&controlRate, max_angle_inclination, &rollAndPitchTrims, &rxConfig);
     pidProfile->dterm_average_count = 0;
-    pidLuxFloatInit(&testPidProfile);
+    pidLuxFloatInit(testPidProfile());
 
     const float angleRate = 0;
     float gyroRate = 100;
@@ -503,7 +512,7 @@ TEST(PIDUnittest, TestPidLuxFloatDTermRobust3)
     rollAndPitchTrims_t rollAndPitchTrims;
     rxConfig_t rxConfig;
 
-    pidProfile_t *pidProfile = &testPidProfile;
+    pidProfile_t *pidProfile = testPidProfile();
 
     pidControllerInitLuxFloat(&controlRate, max_angle_inclination, &rollAndPitchTrims, &rxConfig);
     pidProfile->dterm_differentiator = 3;
@@ -538,7 +547,7 @@ TEST(PIDUnittest, TestPidLuxFloatDifferentiationForQuadraticFunction)
     rollAndPitchTrims_t rollAndPitchTrims;
     rxConfig_t rxConfig;
 
-    pidProfile_t *pidProfile = &testPidProfile;
+    pidProfile_t *pidProfile = testPidProfile();
 
     for (int differentiator = 3; differentiator <= PID_MAX_DIFFERENTIATOR; ++differentiator) {
         // get exact differential for quadratic function for differentiator >=3
@@ -591,7 +600,7 @@ TEST(PIDUnittest, TestPidLuxFloatDTermConstrain)
     rollAndPitchTrims_t rollAndPitchTrims;
     rxConfig_t rxConfig;
 
-    pidProfile_t *pidProfile = &testPidProfile;
+    pidProfile_t *pidProfile = testPidProfile();
 
     // set rateError to zero, DTerm should be zero
     pidControllerInitLuxFloat(&controlRate, max_angle_inclination, &rollAndPitchTrims, &rxConfig);
@@ -653,12 +662,12 @@ TEST(PIDUnittest, TestPidLuxFloatDTermConstrain)
 void pidControllerInitMultiWiiRewriteCore(void)
 {
     pidSetController(PID_CONTROLLER_MWREWRITE);
-    resetPidProfile(&testPidProfile);
+    resetPidProfile(testPidProfile());
     targetLooptime = TARGET_LOOPTIME; // normalised targetLooptime for pidMultiWiiRewrite
     dT = TARGET_LOOPTIME * 0.000001f;
     pidResetITermAngle();
     pidResetITerm();
-    pidMultiWiiRewriteInit(&testPidProfile);
+    pidMultiWiiRewriteInit(testPidProfile());
     resetGyroADC();
     // set up the PIDWeights to 100%, so they are neutral in the tests
     PIDweight[FD_ROLL] = 100;
@@ -740,7 +749,7 @@ int32_t calcMwrDTerm(pidProfile_t *pidProfile, pidIndex_e axis, int rateError) {
 
 TEST(PIDUnittest, TestPidMultiWiiRewrite)
 {
-    pidProfile_t *pidProfile = &testPidProfile;
+    pidProfile_t *pidProfile = testPidProfile();
     resetPidProfile(pidProfile);
 
     controlRateConfig_t controlRate;
@@ -797,7 +806,7 @@ TEST(PIDUnittest, TestPidMultiWiiRewriteITermConstrain)
     rollAndPitchTrims_t rollAndPitchTrims;
     rxConfig_t rxConfig;
 
-    pidProfile_t *pidProfile = &testPidProfile;
+    pidProfile_t *pidProfile = testPidProfile();
 
     // set rateError to zero, ITerm should be zero
     pidControllerInitMultiWiiRewrite(&controlRate, max_angle_inclination, &rollAndPitchTrims, &rxConfig);
@@ -828,7 +837,7 @@ TEST(PIDUnittest, TestPidMultiWiiRewriteITermConstrain)
 #ifdef XXX
 TEST(PIDUnittest, TestPidMultiWiiRewritePidLuxFloatCoreEquivalence)
 {
-    pidProfile_t *pidProfile = &testPidProfile;
+    pidProfile_t *pidProfile = testPidProfile();
     const int angleRate = 200;
 
     pidControllerInitLuxFloatCore();
@@ -863,7 +872,7 @@ TEST(PIDUnittest, TestPidMultiWiiRewritePidLuxFloatCoreEquivalence)
 
 TEST(PIDUnittest, TestPidMultiWiiRewritePidLuxFloatEquivalence)
 {
-    pidProfile_t *pidProfile = &testPidProfile;
+    pidProfile_t *pidProfile = testPidProfile();
 
     controlRateConfig_t controlRate;
 

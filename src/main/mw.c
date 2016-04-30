@@ -123,6 +123,18 @@ typedef void (*pidControllerFuncPtr)(const pidProfile_t *pidProfile, const contr
 
 extern pidControllerFuncPtr pid_controller;
 
+typedef void (*pidUpdateGyroFunctionPtr)(void);
+typedef void (*pidUpdateRcFunctionPtr)(const controlRateConfig_t *controlRateConfig);
+typedef void (*pidCalculateFunctionPtr)(void);
+
+typedef struct pidFunctionPointers_s {
+    pidUpdateGyroFunctionPtr updateGyro;
+    pidUpdateRcFunctionPtr updateRc;
+    pidCalculateFunctionPtr calculate;
+} pidFunctionPointers_t;
+extern pidFunctionPointers_t pidController;
+
+
 void applyAndSaveAccelerometerTrimsDelta(rollAndPitchTrims_t *rollAndPitchTrimsDelta)
 {
     accelerometerConfig()->accelerometerTrims.values.roll += rollAndPitchTrimsDelta->values.roll;
@@ -701,6 +713,9 @@ void taskMainPidLoop(void)
     }
 #endif
 
+    pidController.updateGyro();
+    pidController.updateRc(currentControlRateProfile);
+    pidController.calculate();
     // PID - note this is function pointer set by setPIDController()
     pid_controller(
         pidProfile(),

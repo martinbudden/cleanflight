@@ -175,12 +175,12 @@ STATIC_UNIT_TESTED int16_t pidMultiWiiRewriteCore(int axis, const pidProfile_t *
     return PTerm + ITerm + DTerm;
 }
 
-void pidMultiWiiRewriteInit(const pidProfile_t *pidProfile)
+void pidMultiWiiRewriteInit(void)
 {
     for (int axis = 0; axis < 3; ++ axis) {
-        const int8_t *coeffs = nrd[pidProfile->dterm_differentiator];
-        firFilterInt32Init(&DTermFirFilterInt32State[axis], DTermFirFilterInt32Buf[axis], pidProfile->dterm_differentiator + 2, coeffs);
-        averageFilterInt32Init(&DTermAverageFilterInt32State[axis], DTermAverageFilterInt32Buf[axis], pidProfile->dterm_average_count);
+        const int8_t *coeffs = nrd[pidProfile()->dterm_differentiator];
+        firFilterInt32Init(&DTermFirFilterInt32State[axis], DTermFirFilterInt32Buf[axis], pidProfile()->dterm_differentiator + 2, coeffs);
+        averageFilterInt32Init(&DTermAverageFilterInt32State[axis], DTermAverageFilterInt32Buf[axis], pidProfile()->dterm_average_count);
     }
 }
 void pidMultiWiiRewrite(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig,

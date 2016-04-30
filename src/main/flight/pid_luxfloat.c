@@ -34,6 +34,7 @@
 
 #include "config/parameter_group.h"
 #include "config/runtime_config.h"
+#include "config/config_unittest.h"
 
 #include "drivers/sensor.h"
 #include "drivers/accgyro.h"
@@ -50,7 +51,6 @@
 
 #include "flight/pid.h"
 #include "flight/pid_luxfloat.h"
-#include "config/config_unittest.h"
 #include "flight/imu.h"
 #include "flight/navigation.h"
 #include "flight/gtune.h"
@@ -104,12 +104,18 @@ STATIC_UNIT_TESTED pidLuxFloatState_t pidLuxFloatState;
 
 STATIC_UNIT_TESTED void pidUpdateGyroStateAxis(flight_dynamics_index_t axis, const pidProfile_t *pidProfile, pidLuxFloatStateAxis_t* pidStateAxis)
 {
-    pidStateAxis->gyroRate = luxGyroScale * gyro.scale * gyroADC[axis];
+    pidStateAxis->gyroRate = pidLuxFloatState.kGyro * gyroADC[axis];
     const float rateError = pidStateAxis->desiredRate - pidStateAxis->gyroRate;
 
-
     // -----calculate I component
-    pidStateAxis->ITerm += rateError * pidStateAxis->kI * dT;
+    pidStateAxis->ITerm += rateError * pidStateAxis->kI;
+    // limit maximum integrator value to prevent WindUp - accumulating extreme values when system is saturated.
+    pidStateAxis->ITerm = constrainf(pidStateAxis->ITerm, -PID_MAX_I, PID_MAX_I);
+    if (pidLuxFloatState.antiWindupProtection) {
+        pidStateAxis->ITerm = constrainf(pidStateAxis->ITerm, -pidStateAxis->ITermLimit, pidStateAxis->ITermLimit);
+    } else {
+        pidStateAxis->ITermLimit = ABS(pidStateAxis->ITerm);
+    }
 
     // -----calculate D component
     if (pidProfile->D8[axis] != 0) {
@@ -129,10 +135,10 @@ STATIC_UNIT_TESTED void pidUpdateGyroStateAxis(flight_dynamics_index_t axis, con
     }
 }
 
-void pidUpdateGyroState(const pidProfile_t *pidProfile)
+void pidLuxFloatUpdateGyroState(void)
 {
     for (int axis = 0; axis < 3; axis++) {
-        pidUpdateGyroStateAxis(axis, pidProfile, &pidLuxFloatState.stateAxis[axis]);
+        pidUpdateGyroStateAxis(axis, pidProfile(), &pidLuxFloatState.stateAxis[axis]);
     }
 }
 
@@ -157,7 +163,7 @@ static void pidUpdateRcStateAxis(int axis, const pidProfile_t *pidProfile, pidLu
         const controlRateConfig_t *controlRateConfig, uint16_t max_angle_inclination, const rollAndPitchTrims_t *angleTrim)
 {
     pidStateAxis->kP = luxPTermScale * pidProfile->P8[axis] * pidStateAxis->PIDweight / 100;
-    pidStateAxis->kI = luxITermScale * pidProfile->I8[axis];
+    pidStateAxis->kI = luxITermScale * pidProfile->I8[axis] * dT;
     pidStateAxis->kD = luxDTermScale * pidProfile->D8[axis] * pidStateAxis->PIDweight / 100;
 
     const uint8_t rate = controlRateConfig->rates[axis];
@@ -190,16 +196,14 @@ static void pidUpdateRcStateAxis(int axis, const pidProfile_t *pidProfile, pidLu
             }
         }
     }
-
 }
 
-void pidUpdateRcState(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig,
-        uint16_t max_angle_inclination, const rollAndPitchTrims_t *angleTrim, const rxConfig_t *rxConfig)
+void pidLuxFloatUpdateRcState(const controlRateConfig_t *controlRateConfig)
 {
-    const float horizonLevelStrength = FLIGHT_MODE(HORIZON_MODE) ? calcHorizonLevelStrength(pidProfile, rxConfig) : 1;
+    const float horizonLevelStrength = FLIGHT_MODE(HORIZON_MODE) ? calcHorizonLevelStrength(pidProfile(), rxConfig()) : 1;
     for (int axis = 0; axis < 3; axis++) {
-        pidUpdateRcStateAxis(axis, pidProfile, &pidLuxFloatState.stateAxis[axis], horizonLevelStrength,
-                controlRateConfig, max_angle_inclination, angleTrim);
+        pidUpdateRcStateAxis(axis, pidProfile(), &pidLuxFloatState.stateAxis[axis], horizonLevelStrength,
+                controlRateConfig, imuConfig()->max_angle_inclination, &accelerometerConfig()->accelerometerTrims);
     }
 }
 
@@ -214,18 +218,6 @@ static int16_t pidCalculateAxis(int axis, const pidProfile_t *pidProfile, pidLux
         pidStateAxis->PTerm = constrainf(pidStateAxis->PTerm, -pidProfile->yaw_p_limit, pidProfile->yaw_p_limit);
     }
 
-    // -----calculate I component
-    // limit maximum integrator value to prevent WindUp - accumulating extreme values when system is saturated.
-    // I coefficient (I8) moved before integration to make limiting independent from PID settings
-    pidStateAxis->ITerm = constrainf(pidStateAxis->ITerm, -PID_MAX_I, PID_MAX_I);
-    // Anti windup protection
-    if (IS_RC_MODE_ACTIVE(BOXAIRMODE)) {
-        if (STATE(ANTI_WINDUP) || motorLimitReached) {
-            pidStateAxis->ITerm = constrainf(pidStateAxis->ITerm, -pidStateAxis->ITermLimit, pidStateAxis->ITermLimit);
-        } else {
-            pidStateAxis->ITermLimit = ABS(pidStateAxis->ITerm);
-        }
-    }
     // -----calculate D component
     if (pidProfile->dterm_average_count) {
         // Apply moving average
@@ -244,36 +236,42 @@ static int16_t pidCalculateAxis(int axis, const pidProfile_t *pidProfile, pidLux
         calculate_Gtune(axis);
     }
 #endif
-    GET_PID_LUX_FLOAT_CALCULATE_AXIS_LOCALS(axis);
     // -----calculate total PID output
     return lrintf(pidStateAxis->PTerm + pidStateAxis->ITerm + pidStateAxis->DTerm);
 }
 
-void pidLuxFloatCalculate(const pidProfile_t *pidProfile)
+void pidLuxFloatCalculate(void)
 {
     for (int axis = 0; axis < 3; axis++) {
-        axisPID[axis] = pidCalculateAxis(axis, pidProfile, &pidLuxFloatState.stateAxis[axis]);
+        axisPID[axis] = pidCalculateAxis(axis, pidProfile(), &pidLuxFloatState.stateAxis[axis]);
     }
 }
 
-void pidLuxFloatInit(const pidProfile_t *pidProfile)
+void pidLuxFloatInit(void)
 {
-    const float *coeffs = nrd[pidProfile->dterm_differentiator];
+    //memset(&pidLuxFloatState, 0, sizeof(pidLuxFloatState));
+    pidLuxFloatState.kGyro = luxGyroScale * gyro.scale;
+    const float *coeffs = nrd[pidProfile()->dterm_differentiator];
     for (int axis = 0; axis < 3; ++ axis) {
         pidLuxFloatStateAxis_t* pidStateAxis = &pidLuxFloatState.stateAxis[axis];
         pidStateAxis->ITerm = 0.0f;
         pidStateAxis->ITermLimit = 0.0f;
-        firFilterInit(&pidStateAxis->DTermFirFilterState, pidStateAxis->DTermFirFilterBuf, pidProfile->dterm_differentiator + 2, coeffs);
-        averageFilterInit(&pidStateAxis->DTermAverageFilterState, pidStateAxis->DTermAverageFilterBuf, pidProfile->dterm_average_count);
+        firFilterInit(&pidStateAxis->DTermFirFilterState, pidStateAxis->DTermFirFilterBuf, pidProfile()->dterm_differentiator + 2, coeffs);
+        averageFilterInit(&pidStateAxis->DTermAverageFilterState, pidStateAxis->DTermAverageFilterBuf, pidProfile()->dterm_average_count);
     }
 }
 
 void pidLuxFloat(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig,
         uint16_t max_angle_inclination, const rollAndPitchTrims_t *angleTrim, const rxConfig_t *rxConfig)
 {
-    pidUpdateRcState(pidProfile, controlRateConfig, max_angle_inclination, angleTrim, rxConfig);
-    pidUpdateGyroState(pidProfile);
-    pidLuxFloatCalculate(pidProfile);
+    UNUSED(pidProfile);
+    UNUSED(max_angle_inclination);
+    UNUSED(angleTrim);
+    UNUSED(rxConfig);
+    // note, must update RC state before updating gyro state
+    pidLuxFloatUpdateRcState(controlRateConfig);
+    pidLuxFloatUpdateGyroState();
+    pidLuxFloatCalculate();
 }
 
 #endif

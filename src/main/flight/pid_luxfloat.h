@@ -48,8 +48,15 @@ typedef struct pidLuxFloatStateAxis_s {
 
 typedef struct pidLuxFloatState_s {
     pidLuxFloatStateAxis_t stateAxis[FD_INDEX_COUNT];
+    float kGyro;
+    bool antiWindupProtection;
 } pidLuxFloatState_t;
 
+void pidLuxFloatUpdateGyroState(void);
+void pidLuxFloatUpdateRcState(const controlRateConfig_t *controlRateConfig);
+void pidLuxFloatCalculate(void);
+
+// following to be deprecated
 void pidLuxFloat(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig,
         uint16_t max_angle_inclination, const rollAndPitchTrims_t *angleTrim, const rxConfig_t *rxConfig);
 

@@ -227,7 +227,7 @@ void pidMultiWiiRewrite(const pidProfile_t *pidProfile, const controlRateConfig_
 
         // --------low-level gyro-based PID. ----------
         const int32_t gyroRate = gyroADC[axis] / 4;
-        axisPID[axis] = pidMultiWiiRewriteCore(axis, pidProfile, gyroRate, angleRate);
+        axisPID[axis] = pidMultiWiiRewriteCore(axis, pidProfile, gyroRate, desiredRate);
 
 #ifdef GTUNE
         if (FLIGHT_MODE(GTUNE_MODE) && ARMING_FLAG(ARMED)) {

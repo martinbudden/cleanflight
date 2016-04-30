@@ -180,7 +180,7 @@ bool isCalibrating(void)
 }
 
 #if defined(BARO) || defined(SONAR)
-    static haveProcessedAnnexCodeOnce = false;
+static bool haveProcessedAnnexCodeOnce = false;
 #endif
 
 void annexCode(void)

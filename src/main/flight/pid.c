@@ -60,6 +60,10 @@ uint8_t PIDweight[3];
 int32_t lastITerm[3], ITermLimit[3];
 float lastITermf[3], ITermLimitf[3];
 
+void pidLuxFloatInit(const pidProfile_t *pidProfile);
+void pidMultiWiiRewriteInit(const pidProfile_t *pidProfile);
+
+
 void pidLuxFloat(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig,
         uint16_t max_angle_inclination, const rollAndPitchTrims_t *angleTrim, const rxConfig_t *rxConfig);
 void pidMultiWiiRewrite(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig,
@@ -120,23 +124,18 @@ void pidResetITerm(void)
 }
 
 filterStatePt1_t DTermPt1FilterState[3];
-float DTermFirFilterState[3][PID_DTERM_FIR_MAX_LENGTH];
-int32_t DTermFirFilterStateInt32[3][PID_DTERM_FIR_MAX_LENGTH];
-
-STATIC_UNIT_TESTED void pidFilterInit(void)
-{
-}
 
 void pidSetController(pidControllerType_e type)
 {
-    pidFilterInit();
     switch (type) {
     default:
     case PID_CONTROLLER_MWREWRITE:
+        pidMultiWiiRewriteInit(pidProfile());
         pid_controller = pidMultiWiiRewrite;
         break;
 #ifndef SKIP_PID_LUXFLOAT
     case PID_CONTROLLER_LUX_FLOAT:
+        pidLuxFloatInit(pidProfile());
         pid_controller = pidLuxFloat;
         break;
 #endif

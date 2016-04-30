@@ -52,9 +52,9 @@ typedef struct pidLuxFloatState_s {
     bool antiWindupProtection;
 } pidLuxFloatState_t;
 
-void pidLuxFloatUpdateGyroState(void);
-void pidLuxFloatUpdateRcState(const controlRateConfig_t *controlRateConfig);
-void pidLuxFloatCalculate(void);
+void pidLuxFloatUpdateGyroState(const pidProfile_t *pidProfile);
+void pidLuxFloatUpdateRcState(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig);
+void pidLuxFloatCalculate(const pidProfile_t *pidProfile);
 
 // following to be deprecated
 void pidLuxFloat(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig,

@@ -54,13 +54,17 @@ extern "C" {
 
 extern "C" {
     void pidSetController(pidControllerType_e type);
+    //int16_t pidLuxFloatCore(int axis, const pidProfile_t *pidProfile, float gyroRate, float AngleRate);
+    void pidLuxFloatInit(const pidProfile_t *pidProfile);
+    void pidLuxFloat(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig,
+            uint16_t max_angle_inclination, const rollAndPitchTrims_t *angleTrim, const rxConfig_t *rxConfig);
+    int16_t pidMultiWiiRewriteCore(int axis, const pidProfile_t *pidProfile, int32_t gyroRate, int32_t AngleRate);
+    void pidMultiWiiRewriteInit(const pidProfile_t *pidProfile);
+    void pidMultiWiiRewrite(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig,
+            uint16_t max_angle_inclination, const rollAndPitchTrims_t *angleTrim, const rxConfig_t *rxConfig);
+    void pidResetITerm(void);
     typedef void (*pidControllerFuncPtr)(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig,
             uint16_t max_angle_inclination, const rollAndPitchTrims_t *angleTrim, const rxConfig_t *rxConfig);            // pid controller function prototype
-    //int16_t pidLuxFloatCore(int axis, const pidProfile_t *pidProfile, float gyroRate, float AngleRate);
-    int16_t pidMultiWiiRewriteCore(int axis, const pidProfile_t *pidProfile, int32_t gyroRate, int32_t AngleRate);
-    void pidResetITerm(void);
-    void pidLuxFloatInit(const pidProfile_t *pidProfile);
-    void pidMultiWiiRewriteInit(const pidProfile_t *pidProfile);
     extern pidControllerFuncPtr pid_controller;
     extern pidLuxFloatState_t pidLuxFloatState;
     extern uint8_t PIDweight[3];
@@ -80,6 +84,7 @@ extern "C" {
     PG_REGISTER(rxConfig_t, rxConfig, PG_RX_CONFIG, 0);
     PG_REGISTER_PROFILE(accelerometerConfig_t, accelerometerConfig, PG_ACCELEROMETER_CONFIG, 0);
 }
+
 
 static const int mwrGyroScale = 4;
 #define TARGET_LOOPTIME 2048
@@ -150,6 +155,7 @@ void pidControllerInitLuxFloatCore(void)
 {
     resetPidProfile(pidProfile());
     pidSetController(PID_CONTROLLER_LUX_FLOAT);
+    pid_controller = pidLuxFloat;
     pidResetITermAngle();
     pidResetITerm();
     pidLuxFloatInit(testPidProfile());
@@ -662,6 +668,7 @@ TEST(PIDUnittest, TestPidLuxFloatDTermConstrain)
 void pidControllerInitMultiWiiRewriteCore(void)
 {
     pidSetController(PID_CONTROLLER_MWREWRITE);
+    pid_controller = pidMultiWiiRewrite;
     resetPidProfile(testPidProfile());
     targetLooptime = TARGET_LOOPTIME; // normalised targetLooptime for pidMultiWiiRewrite
     dT = TARGET_LOOPTIME * 0.000001f;

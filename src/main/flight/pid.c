@@ -60,30 +60,26 @@ uint8_t PIDweight[3];
 int32_t lastITerm[3], ITermLimit[3];
 float lastITermf[3], ITermLimitf[3];
 
-void pidLuxFloatInit(void);
-void pidMultiWiiRewriteInit(void);
+void pidLuxFloatInit(const pidProfile_t *pidProfile);
+void pidMultiWiiRewriteInit(const pidProfile_t *pidProfile);
 
 
-void pidLuxFloat(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig,
-        uint16_t max_angle_inclination, const rollAndPitchTrims_t *angleTrim, const rxConfig_t *rxConfig);
-void pidMultiWiiRewrite(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig,
-        uint16_t max_angle_inclination, const rollAndPitchTrims_t *angleTrim, const rxConfig_t *rxConfig);
-void pidMultiWii23(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig,
-        uint16_t max_angle_inclination, const rollAndPitchTrims_t *angleTrim, const rxConfig_t *rxConfig);
+void pidLuxFloatShim(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig);
+void pidMultiWiiRewriteShim(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig);
+void pidMultiWii23Shim(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig);
 
-typedef void (*pidControllerFuncPtr)(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig,
-        uint16_t max_angle_inclination, const rollAndPitchTrims_t *angleTrim, const rxConfig_t *rxConfig);            // pid controller function prototype
+typedef void (*pidControllerFuncPtr)(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig); // pid controller function prototype
 
-pidControllerFuncPtr pid_controller = pidMultiWiiRewrite;
+pidControllerFuncPtr pid_controller = pidMultiWiiRewriteShim;
 
 
-void pidLuxFloatUpdateGyroState(void);
-void pidLuxFloatUpdateRcState(const controlRateConfig_t *controlRateConfig);
-void pidLuxFloatCalculate(void);
+void pidLuxFloatUpdateGyroState(const pidProfile_t *pidProfile);
+void pidLuxFloatUpdateRcState(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig);
+void pidLuxFloatCalculate(const pidProfile_t *pidProfile);
 
-typedef void (*pidUpdateGyroFunctionPtr)(void);
-typedef void (*pidUpdateRcFunctionPtr)(const controlRateConfig_t *controlRateConfig);
-typedef void (*pidCalculateFunctionPtr)(void);
+typedef void (*pidUpdateGyroFunctionPtr)(const pidProfile_t *pidProfile);
+typedef void (*pidUpdateRcFunctionPtr)(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig);
+typedef void (*pidCalculateFunctionPtr)(const pidProfile_t *pidProfile);
 
 typedef struct pidFunctionPointers_s {
     pidUpdateGyroFunctionPtr updateGyro;
@@ -132,6 +128,11 @@ PG_RESET_TEMPLATE(pidProfile_t, pidProfile,
     .yaw_p_limit = YAW_P_LIMIT_MAX,
 );
 
+void pidNOP(const pidProfile_t *pidProfile)
+{
+    UNUSED(pidProfile);
+}
+
 void pidResetITerm(void)
 {
     for (int axis = 0; axis < 3; axis++) {
@@ -147,24 +148,24 @@ void pidSetController(pidControllerType_e type)
     switch (type) {
     default:
     case PID_CONTROLLER_MWREWRITE:
-        pidMultiWiiRewriteInit();
-        pid_controller = pidMultiWiiRewrite;
-        //pidController.updateGyro = pidMultiWiiRewriteUpdateGyroState;
-        //pidController.updateRc = pidMultiWiiRewriteUpdateRcState;
-        //pidController.calculate = pidMultiWiiRewriteCalculate;
+        pidMultiWiiRewriteInit(pidProfile());
+        pidController.updateGyro = pidNOP;
+        pidController.updateRc = pidMultiWiiRewriteShim;
+        pidController.calculate = pidNOP;
+        pid_controller = pidMultiWiiRewriteShim;
         break;
 #ifndef SKIP_PID_LUXFLOAT
     case PID_CONTROLLER_LUX_FLOAT:
-        pidLuxFloatInit();
+        pidLuxFloatInit(pidProfile());
         pidController.updateGyro = pidLuxFloatUpdateGyroState;
         pidController.updateRc = pidLuxFloatUpdateRcState;
         pidController.calculate = pidLuxFloatCalculate;
-        pid_controller = pidLuxFloat;
+        pid_controller = pidLuxFloatShim;
         break;
 #endif
 #ifndef SKIP_PID_MW23
     case PID_CONTROLLER_MW23:
-        pid_controller = pidMultiWii23;
+        pid_controller = pidMultiWii23Shim;
         break;
 #endif
     }

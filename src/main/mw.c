@@ -118,14 +118,13 @@ static bool isRXDataNew;
 static filterStatePt1_t filteredCycleTimeState;
 uint16_t filteredCycleTime;
 
-typedef void (*pidControllerFuncPtr)(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig,
-        uint16_t max_angle_inclination, const rollAndPitchTrims_t *angleTrim, const rxConfig_t *rxConfig);            // pid controller function prototype
+typedef void (*pidControllerFuncPtr)(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig);    // pid controller function prototype
 
 extern pidControllerFuncPtr pid_controller;
 
-typedef void (*pidUpdateGyroFunctionPtr)(void);
-typedef void (*pidUpdateRcFunctionPtr)(const controlRateConfig_t *controlRateConfig);
-typedef void (*pidCalculateFunctionPtr)(void);
+typedef void (*pidUpdateGyroFunctionPtr)(const pidProfile_t *pidProfile);
+typedef void (*pidUpdateRcFunctionPtr)(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig);
+typedef void (*pidCalculateFunctionPtr)(const pidProfile_t *pidProfile);
 
 typedef struct pidFunctionPointers_s {
     pidUpdateGyroFunctionPtr updateGyro;
@@ -713,17 +712,11 @@ void taskMainPidLoop(void)
     }
 #endif
 
-    pidController.updateGyro();
-    pidController.updateRc(currentControlRateProfile);
-    pidController.calculate();
+    pidController.updateGyro(pidProfile());
+    pidController.updateRc(pidProfile(), currentControlRateProfile);
+    pidController.calculate(pidProfile());
     // PID - note this is function pointer set by setPIDController()
-    pid_controller(
-        pidProfile(),
-        currentControlRateProfile,
-        imuConfig()->max_angle_inclination,
-        &accelerometerConfig()->accelerometerTrims,
-        rxConfig()
-    );
+    //pid_controller(pidProfile(), currentControlRateProfile);
 
     mixTable();
 

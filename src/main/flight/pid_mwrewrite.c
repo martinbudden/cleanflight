@@ -248,3 +248,9 @@ void pidMultiWiiRewrite(const pidProfile_t *pidProfile, const controlRateConfig_
     }
 }
 
+void pidMultiWiiRewriteShim(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig)
+{
+    pidMultiWiiRewrite(pidProfile, controlRateConfig, imuConfig()->max_angle_inclination,
+            &accelerometerConfig()->accelerometerTrims, rxConfig());
+}
+

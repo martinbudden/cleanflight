@@ -135,10 +135,10 @@ STATIC_UNIT_TESTED void pidUpdateGyroStateAxis(flight_dynamics_index_t axis, con
     }
 }
 
-void pidLuxFloatUpdateGyroState(void)
+void pidLuxFloatUpdateGyroState(const pidProfile_t *pidProfile)
 {
     for (int axis = 0; axis < 3; axis++) {
-        pidUpdateGyroStateAxis(axis, pidProfile(), &pidLuxFloatState.stateAxis[axis]);
+        pidUpdateGyroStateAxis(axis, pidProfile, &pidLuxFloatState.stateAxis[axis]);
     }
 }
 
@@ -198,11 +198,11 @@ static void pidUpdateRcStateAxis(int axis, const pidProfile_t *pidProfile, pidLu
     }
 }
 
-void pidLuxFloatUpdateRcState(const controlRateConfig_t *controlRateConfig)
+void pidLuxFloatUpdateRcState(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig)
 {
-    const float horizonLevelStrength = FLIGHT_MODE(HORIZON_MODE) ? calcHorizonLevelStrength(pidProfile(), rxConfig()) : 1;
+    const float horizonLevelStrength = FLIGHT_MODE(HORIZON_MODE) ? calcHorizonLevelStrength(pidProfile, rxConfig()) : 1;
     for (int axis = 0; axis < 3; axis++) {
-        pidUpdateRcStateAxis(axis, pidProfile(), &pidLuxFloatState.stateAxis[axis], horizonLevelStrength,
+        pidUpdateRcStateAxis(axis, pidProfile, &pidLuxFloatState.stateAxis[axis], horizonLevelStrength,
                 controlRateConfig, imuConfig()->max_angle_inclination, &accelerometerConfig()->accelerometerTrims);
     }
 }
@@ -240,39 +240,42 @@ static int16_t pidCalculateAxis(int axis, const pidProfile_t *pidProfile, pidLux
     return lrintf(pidStateAxis->PTerm + pidStateAxis->ITerm + pidStateAxis->DTerm);
 }
 
-void pidLuxFloatCalculate(void)
+void pidLuxFloatCalculate(const pidProfile_t *pidProfile)
 {
     for (int axis = 0; axis < 3; axis++) {
-        axisPID[axis] = pidCalculateAxis(axis, pidProfile(), &pidLuxFloatState.stateAxis[axis]);
+        axisPID[axis] = pidCalculateAxis(axis, pidProfile, &pidLuxFloatState.stateAxis[axis]);
     }
 }
 
-void pidLuxFloatInit(void)
+void pidLuxFloatInit(const pidProfile_t *pidProfile)
 {
     //memset(&pidLuxFloatState, 0, sizeof(pidLuxFloatState));
     pidLuxFloatState.kGyro = luxGyroScale * gyro.scale;
-    const float *coeffs = nrd[pidProfile()->dterm_differentiator];
+    const float *coeffs = nrd[pidProfile->dterm_differentiator];
     for (int axis = 0; axis < 3; ++ axis) {
         pidLuxFloatStateAxis_t* pidStateAxis = &pidLuxFloatState.stateAxis[axis];
         pidStateAxis->ITerm = 0.0f;
         pidStateAxis->ITermLimit = 0.0f;
-        firFilterInit(&pidStateAxis->DTermFirFilterState, pidStateAxis->DTermFirFilterBuf, pidProfile()->dterm_differentiator + 2, coeffs);
-        averageFilterInit(&pidStateAxis->DTermAverageFilterState, pidStateAxis->DTermAverageFilterBuf, pidProfile()->dterm_average_count);
+        firFilterInit(&pidStateAxis->DTermFirFilterState, pidStateAxis->DTermFirFilterBuf, pidProfile->dterm_differentiator + 2, coeffs);
+        averageFilterInit(&pidStateAxis->DTermAverageFilterState, pidStateAxis->DTermAverageFilterBuf, pidProfile->dterm_average_count);
     }
+}
+
+void pidLuxFloatShim(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig)
+{
+    // note, for test code must update RC state before updating gyro state
+    pidLuxFloatUpdateRcState(pidProfile, controlRateConfig);
+    pidLuxFloatUpdateGyroState(pidProfile);
+    pidLuxFloatCalculate(pidProfile);
 }
 
 void pidLuxFloat(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig,
         uint16_t max_angle_inclination, const rollAndPitchTrims_t *angleTrim, const rxConfig_t *rxConfig)
 {
-    UNUSED(pidProfile);
     UNUSED(max_angle_inclination);
     UNUSED(angleTrim);
     UNUSED(rxConfig);
-    // note, must update RC state before updating gyro state
-    pidLuxFloatUpdateRcState(controlRateConfig);
-    pidLuxFloatUpdateGyroState();
-    pidLuxFloatCalculate();
+    pidLuxFloatShim(pidProfile, controlRateConfig);
 }
-
 #endif
 

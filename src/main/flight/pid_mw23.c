@@ -208,5 +208,11 @@ void pidMultiWii23(const pidProfile_t *pidProfile, const controlRateConfig_t *co
 #endif
 }
 
+void pidMultiWii23Shim(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig)
+{
+    pidMultiWii23(pidProfile, controlRateConfig, imuConfig()->max_angle_inclination,
+            &accelerometerConfig()->accelerometerTrims, rxConfig());
+}
+
 #endif
 

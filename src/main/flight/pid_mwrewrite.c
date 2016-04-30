@@ -59,7 +59,12 @@ extern uint8_t PIDweight[3];
 extern int32_t lastITerm[3], ITermLimit[3];
 
 extern filterStatePt1_t DTermPt1FilterState[3];
-extern int32_t DTermFirFilterStateInt32[3][PID_DTERM_FIR_MAX_LENGTH];
+//extern int32_t DTermFirFilterStateInt32[3][PID_DTERM_FIR_MAX_LENGTH];
+firFilterInt32_t DTermFirFilterInt32State;
+float DTermFirFilterInt32Buf[3][PID_DTERM_FIR_MAX_LENGTH];
+
+averageFilterInt32_t DTermAverageFilterInt32State;
+float DTermAverageFilterInt32Buf[3][PID_DTERM_AVERAGE_FILTER_MAX_LENGTH];
 
 extern uint8_t motorCount;
 
@@ -143,10 +148,9 @@ STATIC_UNIT_TESTED int16_t pidMultiWiiRewriteCore(int axis, const pidProfile_t *
         DTerm = 0;
     } else {
         // delta calculated from measurement
-        int32_t delta;
         // Calculate derivative using FIR filter
-        const int8_t *coeffs = nrd[pidProfile->dterm_differentiator];
-        delta = -firFilterInt32Apply(gyroRate, DTermFirFilterStateInt32[axis], pidProfile->dterm_differentiator + 2, coeffs);
+        firFilterInt32Update(&DTermFirFilterInt32State, gyroRate);
+        int32_t delta = -firFilterInt32Apply(&DTermFirFilterInt32State);
 
         // Divide delta by targetLooptime to get differential (ie dr/dt)
         delta = (delta * ((uint16_t)0xFFFF / ((uint16_t)targetLooptime >> 4))) >> 5;
@@ -156,7 +160,8 @@ STATIC_UNIT_TESTED int16_t pidMultiWiiRewriteCore(int axis, const pidProfile_t *
         }
         if (pidProfile->dterm_average_count) {
             // Apply moving average
-            delta = averageFilterInt32Apply(delta, DTermAverageFilterState[axis], pidProfile->dterm_average_count);
+            averageFilterInt32Update(&DTermAverageFilterState[axis], delta);
+            delta = averageFilterInt32Apply(&DTermAverageFilterState[axis]);
         }
         DTerm = (delta * pidProfile->D8[axis] * PIDweight[axis] / 100) >> 8;
         DTerm = constrain(DTerm, -PID_MAX_D, PID_MAX_D);

@@ -97,60 +97,96 @@ float applyBiQuadFilter(float sample, biquad_t *state)
     return result;
 }
 
-float averageFilterApply(float input, float filterState[], uint8_t filterLength)
+void averageFilterInit(averageFilter_t *state, float *buf, uint8_t length)
 {
-    float sum = 0;
-    for (int ii = filterLength - 1; ii > 0; --ii) {
-        filterState[ii] = filterState[ii-1];
-        sum += filterState[ii];
-    }
-    filterState[0] = input;
-    sum += input;
-    return sum / filterLength;
+    state->buf = buf;
+    state->length = length;
+    memset(state->buf, 0, sizeof(float) * state->length);
 }
 
-int32_t averageFilterInt32Apply(int32_t input, int32_t filterState[], uint8_t filterLength)
+void averageFilterUpdate(averageFilter_t *state, float input)
 {
-    int32_t sum = 0;
-    for (int ii = filterLength - 1; ii > 0; --ii) {
-        filterState[ii] = filterState[ii-1];
-        sum += filterState[ii];
-    }
-    filterState[0] = input;
-    sum += input;
-    return sum / filterLength;
+    memmove(&state->buf[1], &state->buf[0], (state->length-1) * sizeof(float));
+    state->buf[0] = input;
 }
 
-void firFilterInit(float filterState[], uint8_t filterLength)
+float averageFilterApply(averageFilter_t *state)
 {
-    memset(filterState, 0, sizeof(float) * filterLength);
-}
-
-float firFilterApply(float input, float filterState[], uint8_t filterLength, const float coeffs[])
-{
-    memmove(&filterState[1], &filterState[0], (filterLength-1) * sizeof(float));
-    filterState[0] = input;
     float ret = 0.0f;
-    for (int ii = 0; ii < filterLength; ++ii) {
-        ret += coeffs[ii] * filterState[ii];
+    for (int ii = 0; ii < state->length; ++ii) {
+        ret += state->buf[ii];
+    }
+    return ret / state->length;
+}
+
+void averageFilterInt32Init(averageFilterInt32_t *state, int32_t *buf, uint8_t length)
+{
+    state->buf = buf;
+    state->length = length;
+    memset(state->buf, 0, sizeof(float) * state->length);
+}
+
+void averageFilterInt32Update(averageFilterInt32_t *state, int32_t input)
+{
+    memmove(&state->buf[1], &state->buf[0], (state->length-1) * sizeof(float));
+    state->buf[0] = input;
+}
+
+int32_t averageFilterInt32Apply(averageFilterInt32_t *state)
+{
+    float ret = 0.0f;
+    for (int ii = 0; ii < state->length; ++ii) {
+        ret += state->buf[ii];
+    }
+    return ret / state->length;
+}
+
+
+void firFilterInit(firFilter_t *state, float *buf, uint8_t length, const float *coefficients)
+{
+    state->buf = buf;
+    state->length = length;
+    state->coefficients = coefficients;
+    memset(state->buf, 0, sizeof(float) * state->length);
+}
+
+void firFilterUpdate(firFilter_t *state, float input)
+{
+    memmove(&state->buf[1], &state->buf[0], (state->length-1) * sizeof(float));
+    state->buf[0] = input;
+}
+
+float firFilterApply(firFilter_t *state)
+{
+    float ret = 0.0f;
+    for (int ii = 0; ii < state->length; ++ii) {
+        ret += state->coefficients[ii] * state->buf[ii];
     }
     return ret;
 }
 
-void firFilterInt32Init(int32_t filterState[], uint8_t filterLength)
-{
-    memset(filterState, 0, sizeof(float) * filterLength);
-}
-
 // integer based FIR filter
 // coefficients are multiples of 1/64
-int32_t firFilterInt32Apply(int32_t input, int32_t filterState[], uint8_t filterLength, const int8_t coeffs[])
+void firFilterInt32Init(firFilterInt32_t *state, int32_t *buf, uint8_t length, const int8_t *coefficients)
 {
-    memmove(&filterState[1], &filterState[0], (filterLength-1) * sizeof(float));
-    filterState[0] = input;
+    state->buf = buf;
+    state->length = length;
+    state->coefficients = coefficients;
+    memset(state->buf, 0, sizeof(float) * state->length);
+}
+
+void firFilterInt32Update(firFilterInt32_t *state, float input)
+{
+    memmove(&state->buf[1], &state->buf[0], (state->length-1) * sizeof(int32_t));
+    state->buf[0] = input;
+}
+
+float firFilterInt32Apply(firFilterInt32_t *state)
+{
     int32_t ret = 0;
-    for (int ii = 0; ii < filterLength; ++ii) {
-        ret += coeffs[ii] * filterState[ii];
+    for (int ii = 0; ii < state->length; ++ii) {
+        ret += state->coefficients[ii] * state->buf[ii];
     }
     return ret / 64;
 }
+

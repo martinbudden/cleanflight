@@ -56,11 +56,6 @@
 #include "flight/mixer.h"
 
 extern float dT;
-extern uint8_t PIDweight[3];
-extern float lastITermf[3], ITermLimitf[3];
-
-extern filterStatePt1_t DTermPt1FilterState[3];
-extern float DTermFirFilterState[3][PID_DTERM_FIR_MAX_LENGTH];
 
 extern uint8_t motorCount;
 
@@ -108,132 +103,212 @@ static const float nrdCoeffs8[] = { 1.0f/8, 13.0f/32, 1.0f/4,-15.0f/32,-5.0f/8, 
 #endif
 static const float *nrd[] = {nrdCoeffs2, nrdCoeffs3, nrdCoeffs4, nrdCoeffs5, nrdCoeffs6, nrdCoeffs7, nrdCoeffs8};
 
+typedef struct pidStateAxis_s {
+    float kP;
+    float kI;
+    float kD;
+    float kT;
 
-STATIC_UNIT_TESTED int16_t pidLuxFloatCore(int axis, const pidProfile_t *pidProfile, float gyroRate, float desiredRate)
+    float gyroRate;
+    float desiredRate;
+
+
+    uint8_t PIDweight;
+    float PTerm;
+    float ITerm;
+    float ITermLimitf;
+    float DTerm;
+
+    filterStatePt1_t DTermPt1FilterState;
+    firFilter_t DTermFirFilterState;
+    float DTermFirFilterBuf[PID_DTERM_FIR_MAX_LENGTH];
+    averageFilter_t DTermAverageFilterState;
+    float DTermAverageFilterBuf[PID_DTERM_AVERAGE_FILTER_MAX_LENGTH];
+} pidStateAxis_t;
+
+typedef struct pidState_s {
+    pidStateAxis_t stateAxis[FD_INDEX_COUNT];
+} pidState_t;
+
+static pidState_t pidState;
+
+STATIC_UNIT_TESTED void pidUpdateGyroStateAxis(flight_dynamics_index_t axis, const pidProfile_t *pidProfile, pidStateAxis_t* pidStateAxis)
 {
-    static float DTermAverageFilterState[3][PID_DTERM_AVERAGE_FILTER_MAX_LENGTH];
-
     SET_PID_LUX_FLOAT_CORE_LOCALS(axis);
 
-    const float rateError = desiredRate - gyroRate;
+    pidStateAxis->gyroRate = luxGyroScale * gyroADC[axis] * gyro.scale;
+    const float rateError = pidStateAxis->desiredRate - pidStateAxis->gyroRate;
 
-    // -----calculate P component
-    float PTerm = luxPTermScale * rateError * pidProfile->P8[axis] * PIDweight[axis] / 100;
-    // Constrain YAW by yaw_p_limit value if not servo driven, in that case servolimits apply
-    if (axis == YAW && pidProfile->yaw_p_limit && motorCount >= 4) {
-        PTerm = constrainf(PTerm, -pidProfile->yaw_p_limit, pidProfile->yaw_p_limit);
-    }
 
     // -----calculate I component
-    float ITerm = lastITermf[axis] + luxITermScale * rateError * dT * pidProfile->I8[axis];
-    // limit maximum integrator value to prevent WindUp - accumulating extreme values when system is saturated.
-    // I coefficient (I8) moved before integration to make limiting independent from PID settings
-    ITerm = constrainf(ITerm, -PID_MAX_I, PID_MAX_I);
-    // Anti windup protection
-    if (IS_RC_MODE_ACTIVE(BOXAIRMODE)) {
-        if (STATE(ANTI_WINDUP) || motorLimitReached) {
-            ITerm = constrainf(ITerm, -ITermLimitf[axis], ITermLimitf[axis]);
-        } else {
-            ITermLimitf[axis] = ABS(ITerm);
-        }
-    }
-    lastITermf[axis] = ITerm;
+    pidStateAxis->ITerm += rateError * pidStateAxis->kI * dT;
 
     // -----calculate D component
-    float DTerm;
-    if (pidProfile->D8[axis] == 0) {
+    if (pidProfile->D8[axis] != 0) {
         // optimisation for when D8 is zero, often used by YAW axis
-        DTerm = 0;
-    } else {
         // Calculate derivative using FIR filter
-        const float *coeffs = nrd[pidProfile->dterm_differentiator];
-        DTerm = firFilterApply(gyroRate, DTermFirFilterState[axis], pidProfile->dterm_differentiator + 2, coeffs);
-        DTerm = -DTerm / dT;
+        firFilterUpdate(&pidStateAxis->DTermFirFilterState, pidStateAxis->gyroRate);
+        pidStateAxis->DTerm = -firFilterApply(&pidStateAxis->DTermFirFilterState) / dT;
+
         if (pidProfile->dterm_lpf_hz) {
             // DTerm delta low pass filter
-            DTerm = pt1FilterApply(DTerm, &DTermPt1FilterState[axis], pidProfile->dterm_lpf_hz, dT);
+            pidStateAxis->DTerm = pt1FilterApply(pidStateAxis->DTerm, &pidStateAxis->DTermPt1FilterState, pidProfile->dterm_lpf_hz, dT);
         }
         if (pidProfile->dterm_average_count) {
             // Apply moving average
-            DTerm = averageFilterApply(DTerm, DTermAverageFilterState[axis], pidProfile->dterm_average_count);
+            averageFilterUpdate(&pidStateAxis->DTermAverageFilterState, pidStateAxis->DTerm);
         }
-        DTerm = DTerm * luxDTermScale * pidProfile->D8[axis] * PIDweight[axis] / 100;
-        DTerm = constrainf(DTerm, -PID_MAX_D, PID_MAX_D);
+    }
+}
+
+void pidUpdateGyroState(const pidProfile_t *pidProfile)
+{
+    for (int axis = 0; axis < 3; axis++) {
+        pidUpdateGyroStateAxis(axis, pidProfile, &pidState.stateAxis[axis]);
+    }
+}
+
+static float calcHorizonLevelStrength(const pidProfile_t *pidProfile, const rxConfig_t *rxConfig)
+{
+    // Figure out the most deflected stick position
+    const int32_t stickPosAil = ABS(getRcStickDeflection(FD_ROLL, rxConfig->midrc));
+    const int32_t stickPosEle = ABS(getRcStickDeflection(FD_PITCH, rxConfig->midrc));
+    const int32_t mostDeflectedPos = MAX(stickPosAil, stickPosEle);
+
+    // Progressively turn off the horizon self level strength as the stick is banged over
+    float horizonLevelStrength = (float)(500 - mostDeflectedPos) / 500;  // 1 at centre stick, 0 = max stick deflection
+    if (pidProfile->D8[PIDLEVEL] == 0){
+        horizonLevelStrength = 0;
+    } else {
+        horizonLevelStrength = constrainf(((horizonLevelStrength - 1) * (100.0f / pidProfile->D8[PIDLEVEL])) + 1, 0, 1);
+    }
+    return horizonLevelStrength;
+}
+
+static void pidUpdateRcStateAxis(int axis, const pidProfile_t *pidProfile, pidStateAxis_t* pidStateAxis, float horizonLevelStrength,
+        const controlRateConfig_t *controlRateConfig, uint16_t max_angle_inclination, const rollAndPitchTrims_t *angleTrim)
+{
+    pidStateAxis->kP = luxPTermScale * pidProfile->P8[axis] * pidStateAxis->PIDweight / 100;
+    pidStateAxis->kI = luxITermScale * pidProfile->I8[axis];
+    pidStateAxis->kD = luxDTermScale * pidProfile->D8[axis] * pidStateAxis->PIDweight / 100;
+
+    const uint8_t rate = controlRateConfig->rates[axis];
+
+    // -----Get the desired angle rate depending on flight mode
+    if (axis == FD_YAW) {
+        // YAW is always gyro-controlled (MAG correction is applied to rcCommand) 100dps to 1100dps max yaw rate
+        pidStateAxis->desiredRate = (float)((rate + 27) * rcCommand[YAW]) / 32.0f;
+    } else {
+        // control is GYRO based for ACRO and HORIZON - direct sticks control is applied to rate PID
+        pidStateAxis->desiredRate = (float)((rate + 27) * rcCommand[axis]) / 16.0f; // 200dps to 1200dps max roll/pitch rate
+        if (FLIGHT_MODE(ANGLE_MODE) || FLIGHT_MODE(HORIZON_MODE)) {
+            // calculate error angle and limit the angle to the max inclination
+            // multiplication of rcCommand corresponds to changing the sticks scaling here
+#ifdef GPS
+            const float errorAngle = constrain(2 * rcCommand[axis] + GPS_angle[axis], -((int)max_angle_inclination), max_angle_inclination)
+                    - attitude.raw[axis] + angleTrim->raw[axis];
+#else
+            const float errorAngle = constrain(2 * rcCommand[axis], -((int)max_angle_inclination), max_angle_inclination)
+                    - attitude.raw[axis] + angleTrim->raw[axis];
+#endif
+            if (FLIGHT_MODE(ANGLE_MODE)) {
+                // ANGLE mode
+                pidStateAxis->desiredRate = errorAngle * pidProfile->P8[PIDLEVEL] / 16.0f;
+            } else {
+                // HORIZON mode
+                // mix in errorAngle to desiredRate to add a little auto-level feel.
+                // horizonLevelStrength has been scaled to the stick input
+                pidStateAxis->desiredRate += errorAngle * pidProfile->I8[PIDLEVEL] * horizonLevelStrength / 16.0f;
+            }
+        }
     }
 
+}
+
+void pidUpdateRcState(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig,
+        uint16_t max_angle_inclination, const rollAndPitchTrims_t *angleTrim, const rxConfig_t *rxConfig)
+{
+    const float horizonLevelStrength = FLIGHT_MODE(HORIZON_MODE) ? calcHorizonLevelStrength(pidProfile, rxConfig) : 1;
+    for (int axis = 0; axis < 3; axis++) {
+        pidUpdateRcStateAxis(axis, pidProfile, &pidState.stateAxis[axis], horizonLevelStrength,
+                controlRateConfig, max_angle_inclination, angleTrim);
+    }
+}
+
+static int16_t pidCalculateAxis(int axis, const pidProfile_t *pidProfile, pidStateAxis_t* pidStateAxis)
+{
+    const float rateError = pidStateAxis->desiredRate - pidStateAxis->gyroRate;
+
+    // -----calculate P component
+    pidStateAxis->PTerm = rateError * pidStateAxis->kP;
+    // Constrain YAW by yaw_p_limit value if not servo driven, in that case servolimits apply
+    if (axis == YAW && pidProfile->yaw_p_limit && motorCount >= 4) {
+        pidStateAxis->PTerm = constrainf(pidStateAxis->PTerm, -pidProfile->yaw_p_limit, pidProfile->yaw_p_limit);
+    }
+
+    // -----calculate I component
+    // limit maximum integrator value to prevent WindUp - accumulating extreme values when system is saturated.
+    // I coefficient (I8) moved before integration to make limiting independent from PID settings
+    pidStateAxis->ITerm = constrainf(pidStateAxis->ITerm, -PID_MAX_I, PID_MAX_I);
+    // Anti windup protection
+    if (IS_RC_MODE_ACTIVE(BOXAIRMODE)) {
+        if (STATE(ANTI_WINDUP) || motorLimitReached) {
+            pidStateAxis->ITerm = constrainf(pidStateAxis->ITerm, -pidStateAxis->ITermLimitf, pidStateAxis->ITermLimitf);
+        } else {
+            pidStateAxis->ITermLimitf = ABS(pidStateAxis->ITerm);
+        }
+    }
+    // -----calculate D component
+    if (pidProfile->dterm_average_count) {
+        // Apply moving average
+        pidStateAxis->DTerm = averageFilterApply(&pidStateAxis->DTermAverageFilterState);
+    }
+    pidStateAxis->DTerm *= pidStateAxis->kD;
+    pidStateAxis->DTerm = constrainf(pidStateAxis->DTerm, -PID_MAX_D, PID_MAX_D);
+
 #ifdef BLACKBOX
-    axisPID_P[axis] = PTerm;
-    axisPID_I[axis] = ITerm;
-    axisPID_D[axis] = DTerm;
+    axisPID_P[axis] = pidStateAxis->PTerm;
+    axisPID_I[axis] = pidStateAxis->ITerm;
+    axisPID_D[axis] = pidStateAxis->DTerm;
+#endif
+#ifdef GTUNE
+    if (FLIGHT_MODE(GTUNE_MODE) && ARMING_FLAG(ARMED)) {
+        calculate_Gtune(axis);
+    }
 #endif
     GET_PID_LUX_FLOAT_CORE_LOCALS(axis);
     // -----calculate total PID output
-    return lrintf(PTerm + ITerm + DTerm);
+    return lrintf(pidStateAxis->PTerm + pidStateAxis->ITerm + pidStateAxis->DTerm);
+}
+
+void pidCalculate(const pidProfile_t *pidProfile)
+{
+    for (int axis = 0; axis < 3; axis++) {
+        axisPID[axis] = pidCalculateAxis(axis, pidProfile, &pidState.stateAxis[axis]);
+    }
+}
+
+static void pidInitAxis(const pidProfile_t *pidProfile, pidStateAxis_t* pidStateAxis)
+{
+    const float *coeffs = nrd[pidProfile->dterm_differentiator];
+    firFilterInit(&pidStateAxis->DTermFirFilterState, pidStateAxis->DTermFirFilterBuf, pidProfile->dterm_differentiator + 2, coeffs);
+
+    averageFilterInit(&pidStateAxis->DTermAverageFilterState, pidStateAxis->DTermAverageFilterBuf, pidProfile->dterm_average_count);
+}
+
+void pidInit(const pidProfile_t *pidProfile)
+{
+    for (int axis = 0; axis < 3; axis++) {
+        pidInitAxis(pidProfile, &pidState.stateAxis[axis]);
+    }
 }
 
 void pidLuxFloat(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig,
         uint16_t max_angle_inclination, const rollAndPitchTrims_t *angleTrim, const rxConfig_t *rxConfig)
 {
-    float horizonLevelStrength;
-    if (FLIGHT_MODE(HORIZON_MODE)) {
-        // Figure out the most deflected stick position
-        const int32_t stickPosAil = ABS(getRcStickDeflection(ROLL, rxConfig->midrc));
-        const int32_t stickPosEle = ABS(getRcStickDeflection(PITCH, rxConfig->midrc));
-        const int32_t mostDeflectedPos =  MAX(stickPosAil, stickPosEle);
-
-        // Progressively turn off the horizon self level strength as the stick is banged over
-        horizonLevelStrength = (float)(500 - mostDeflectedPos) / 500;  // 1 at centre stick, 0 = max stick deflection
-        if(pidProfile->D8[PIDLEVEL] == 0){
-            horizonLevelStrength = 0;
-        } else {
-            horizonLevelStrength = constrainf(((horizonLevelStrength - 1) * (100 / pidProfile->D8[PIDLEVEL])) + 1, 0, 1);
-        }
-    }
-
-    // ----------PID controller----------
-    for (int axis = 0; axis < 3; axis++) {
-        const uint8_t rate = controlRateConfig->rates[axis];
-
-        // -----Get the desired angle rate depending on flight mode
-        float desiredRate;
-        if (axis == FD_YAW) {
-            // YAW is always gyro-controlled (MAG correction is applied to rcCommand) 100dps to 1100dps max yaw rate
-            desiredRate = (float)((rate + 27) * rcCommand[YAW]) / 32.0f;
-        } else {
-            // control is GYRO based for ACRO and HORIZON - direct sticks control is applied to rate PID
-            desiredRate = (float)((rate + 27) * rcCommand[axis]) / 16.0f; // 200dps to 1200dps max roll/pitch rate
-            if (FLIGHT_MODE(ANGLE_MODE) || FLIGHT_MODE(HORIZON_MODE)) {
-                // calculate error angle and limit the angle to the max inclination
-                // multiplication of rcCommand corresponds to changing the sticks scaling here
-#ifdef GPS
-                const float errorAngle = constrain(2 * rcCommand[axis] + GPS_angle[axis], -((int)max_angle_inclination), max_angle_inclination)
-                        - attitude.raw[axis] + angleTrim->raw[axis];
-#else
-                const float errorAngle = constrain(2 * rcCommand[axis], -((int)max_angle_inclination), max_angle_inclination)
-                        - attitude.raw[axis] + angleTrim->raw[axis];
-#endif
-                if (FLIGHT_MODE(ANGLE_MODE)) {
-                    // ANGLE mode
-                    desiredRate = errorAngle * pidProfile->P8[PIDLEVEL] / 16.0f;
-                } else {
-                    // HORIZON mode
-                    // mix in errorAngle to desiredRate to add a little auto-level feel.
-                    // horizonLevelStrength has been scaled to the stick input
-                    desiredRate += errorAngle * pidProfile->I8[PIDLEVEL] * horizonLevelStrength / 16.0f;
-                }
-            }
-        }
-
-        // --------low-level gyro-based PID. ----------
-        const float gyroRate = luxGyroScale * gyroADC[axis] * gyro.scale;
-        axisPID[axis] = pidLuxFloatCore(axis, pidProfile, gyroRate, desiredRate);
-        //axisPID[axis] = constrain(axisPID[axis], -PID_LUX_FLOAT_MAX_PID, PID_LUX_FLOAT_MAX_PID);
-#ifdef GTUNE
-        if (FLIGHT_MODE(GTUNE_MODE) && ARMING_FLAG(ARMED)) {
-            calculate_Gtune(axis);
-        }
-#endif
-    }
+    pidUpdateRcState(pidProfile, controlRateConfig, max_angle_inclination, angleTrim, rxConfig);
+    pidUpdateGyroState(pidProfile);
+    pidCalculate(pidProfile);
 }
 
 #endif

@@ -125,10 +125,6 @@ int32_t DTermFirFilterStateInt32[3][PID_DTERM_FIR_MAX_LENGTH];
 
 STATIC_UNIT_TESTED void pidFilterInit(void)
 {
-    for (int axis = 0; axis < 3; axis++) {
-        firFilterInit(DTermFirFilterState[axis], PID_DTERM_FIR_MAX_LENGTH);
-        firFilterInt32Init(DTermFirFilterStateInt32[axis], PID_DTERM_FIR_MAX_LENGTH);
-    }
 }
 
 void pidSetController(pidControllerType_e type)

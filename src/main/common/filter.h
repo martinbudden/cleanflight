@@ -29,16 +29,47 @@ typedef struct biquad_s {
     float x1, x2, y1, y2;
 } biquad_t;
 
+
+typedef struct averageFilter_s {
+    float *buf;
+    uint8_t length;
+} averageFilter_t;
+
+typedef struct averageFilterInt32_s {
+    int32_t *buf;
+    uint8_t length;
+} averageFilterInt32_t;
+
+typedef struct firFilter_s {
+    float *buf;
+    const float *coefficients;
+    uint8_t length;
+} firFilter_t;
+
+typedef struct firFilterInt32_s {
+    int32_t *buf;
+    const int8_t *coefficients;
+    uint8_t length;
+} firFilterInt32_t;
+
 float pt1FilterApply(float input, filterStatePt1_t *filter, uint8_t f_cut, float dt);
 
 void BiQuadNewLpf(float filterCutFreq, biquad_t *newState, uint32_t refreshRate);
 float applyBiQuadFilter(float sample, biquad_t *state);
 
-int32_t averageFilterInt32Apply(int32_t input, int32_t filterState[], uint8_t filterLength);
-float averageFilterApply(float input, float filterState[], uint8_t filterLength);
+void averageFilterInit(averageFilter_t *state, float *buf, uint8_t length);
+void averageFilterUpdate(averageFilter_t *state, float input);
+float averageFilterApply(averageFilter_t *state);
 
-void firFilterInit(float filterState[], uint8_t filterLength);
-float firFilterApply(float input, float filterState[], uint8_t filterLength, const float coeffs[]);
+void averageFilterInt32Init(averageFilterInt32_t *state, int32_t *buf, uint8_t length);
+void averageFilterInt32Update(averageFilterInt32_t *state, int32_t input);
+int32_t averageFilterInt32Apply(averageFilterInt32_t *state);
 
-void firFilterInt32Init(int32_t filterState[], uint8_t filterLength);
-int32_t firFilterInt32Apply(int32_t input, int32_t filterState[], uint8_t filterLength, const int8_t coeffs[]);
+void firFilterInit(firFilter_t *state, float *buf, uint8_t length, const float *coefficients);
+void firFilterUpdate(firFilter_t *state, float input);
+float firFilterApply(firFilter_t *state);
+
+void firFilterInt32Init(firFilterInt32_t *state, int32_t *buf, uint8_t length, const int8_t *coefficients);
+void firFilterInt32Update(firFilterInt32_t *state, float input);
+float firFilterInt32Apply(firFilterInt32_t *state);
+

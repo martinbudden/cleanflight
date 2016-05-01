@@ -740,7 +740,10 @@ void taskMainPidLoopChecker(void)
         }
     }
     imuUpdateGyro();
+    //pidController.updateGyro(pidProfile());
     subTaskMainSubprocesses();
+    //pidController.updateRc(pidProfile(), currentControlRateProfile);
+    //pidController.calculate(pidProfile());
     subTaskPidController();
     subTaskUpdateMotors();
 }

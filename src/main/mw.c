@@ -179,18 +179,10 @@ bool isCalibrating(void)
     return (!isAccelerationCalibrationComplete() && sensors(SENSOR_ACC)) || (!isGyroCalibrationComplete());
 }
 
-#if defined(BARO) || defined(SONAR)
-static bool haveProcessedAnnexCodeOnce = false;
-#endif
-
 void annexCode(void)
 {
     int32_t tmp, tmp2;
     int32_t axis, prop1 = 0, prop2;
-
-#if defined(BARO) || defined(SONAR)
-    haveProcessedAnnexCodeOnce = true;
-#endif
 
     // PITCH & ROLL only dynamic PID adjustment,  depending on throttle value
     if (rcData[THROTTLE] < currentControlRateProfile->tpa_breakpoint) {
@@ -644,7 +636,7 @@ void filterRc(void){
     }
 }
 
-void taskMainPidLoop(void)
+void subTaskMainSubprocesses(void)
 {
     cycleTime = getTaskDeltaTime(TASK_SELF);
     dT = (float)cycleTime * 0.000001f;
@@ -654,9 +646,7 @@ void taskMainPidLoop(void)
     debug[0] = cycleTime;
     debug[1] = cycleTime - filteredCycleTime;
 
-    imuUpdateGyroAndAttitude();
-
-    annexCode();
+    imuUpdateAttitude();
 
     if (rxConfig()->rcSmoothing) {
         filterRc();
@@ -704,9 +694,25 @@ void taskMainPidLoop(void)
     }
 #endif
 
+#ifdef USE_SDCARD
+        afatfs_poll();
+#endif
+
+#ifdef BLACKBOX
+    if (!cliMode && feature(FEATURE_BLACKBOX)) {
+        handleBlackbox();
+    }
+#endif
+}
+
+void subTaskPidController(void)
+{
     // PID - note this is function pointer set by setPIDController()
     pid_controller(pidProfile(), currentControlRateProfile);
+}
 
+void subTaskUpdateMotors(void)
+{
     mixTable();
 
 #ifdef USE_SERVOS
@@ -717,16 +723,6 @@ void taskMainPidLoop(void)
     if (motorControlEnable) {
         writeMotors();
     }
-
-#ifdef USE_SDCARD
-        afatfs_poll();
-#endif
-
-#ifdef BLACKBOX
-    if (!cliMode && feature(FEATURE_BLACKBOX)) {
-        handleBlackbox();
-    }
-#endif
 }
 
 // Function for loop trigger
@@ -743,8 +739,10 @@ void taskMainPidLoopChecker(void)
             }
         }
     }
-
-    taskMainPidLoop();
+    imuUpdateGyro();
+    subTaskMainSubprocesses();
+    subTaskPidController();
+    subTaskUpdateMotors();
 }
 
 void taskUpdateAccelerometer(void)
@@ -803,21 +801,17 @@ void taskUpdateRxMain(void)
 
     isRXDataNew = true;
 
+    // the 'annexCode' initialses rcCommand, which is needed by updateAltHoldState and updateSonarAltHoldState
+    annexCode();
 #ifdef BARO
-    // the 'annexCode' initialses rcCommand, updateAltHoldState depends on valid rcCommand data.
-    if (haveProcessedAnnexCodeOnce) {
-        if (sensors(SENSOR_BARO)) {
-            updateAltHoldState();
-        }
+    if (sensors(SENSOR_BARO)) {
+        updateAltHoldState();
     }
 #endif
 
 #ifdef SONAR
-    // the 'annexCode' initialses rcCommand, updateAltHoldState depends on valid rcCommand data.
-    if (haveProcessedAnnexCodeOnce) {
-        if (sensors(SENSOR_SONAR)) {
-            updateSonarAltHoldState();
-        }
+    if (sensors(SENSOR_SONAR)) {
+        updateSonarAltHoldState();
     }
 #endif
 }

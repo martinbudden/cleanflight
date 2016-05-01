@@ -261,7 +261,6 @@ void pidMwrCalculate(const pidProfile_t *pidProfile)
 void pidMultiWiiRewriteInit(const pidProfile_t *pidProfile)
 {
     memset(&pidMwrState, 0, sizeof(pidMwrState));
-    pidMwrState.kGyro = luxGyroScale * gyro.scale;
     const int8_t *coeffs = nrd[pidProfile->dterm_differentiator];
     for (int axis = 0; axis < 3; ++ axis) {
         pidMwrStateAxis_t *pidStateAxis = &pidMwrState.stateAxis[axis];

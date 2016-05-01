@@ -47,6 +47,8 @@
 #include "io/rate_profile.h"
 
 #include "flight/pid.h"
+#include "flight/pid_mwrewrite.h"
+#include "flight/pid_luxfloat.h"
 
 int16_t axisPID[3];
 
@@ -149,9 +151,9 @@ void pidSetController(pidControllerType_e type)
     default:
     case PID_CONTROLLER_MWREWRITE:
         pidMultiWiiRewriteInit(pidProfile());
-        pidController.updateGyro = pidNOP;
-        pidController.updateRc = pidMultiWiiRewriteShim;
-        pidController.calculate = pidNOP;
+        pidController.updateGyro = pidMwrUpdateGyroState;
+        pidController.updateRc = pidMwrUpdateRcState;
+        pidController.calculate = pidMwrCalculate;
         pid_controller = pidMultiWiiRewriteShim;
         break;
 #ifndef SKIP_PID_LUXFLOAT

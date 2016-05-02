@@ -421,7 +421,7 @@ static void imuCalculateEstimatedAttitude(void)
     // Smooth and use only valid accelerometer readings
     for (axis = 0; axis < 3; axis++) {
         if (imuRuntimeConfig->acc_cut_hz > 0) {
-            accSmooth[axis] = pt1FilterApply(accADC[axis], &accLPFState[axis], imuRuntimeConfig->acc_cut_hz, deltaT * 1e-6f);
+            accSmooth[axis] = pt1FilterApply(&accLPFState[axis], accADC[axis], imuRuntimeConfig->acc_cut_hz, deltaT * 1e-6f);
         } else {
             accSmooth[axis] = accADC[axis];
         }

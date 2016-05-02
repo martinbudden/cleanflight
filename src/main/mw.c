@@ -603,7 +603,8 @@ void processRx(void)
 
 }
 
-void filterRc(void){
+void filterRc(void)
+{
     static int16_t lastCommand[4] = { 0, 0, 0, 0 };
     static int16_t deltaRC[4] = { 0, 0, 0, 0 };
     static int16_t factor, rcInterpolationFactor;
@@ -642,7 +643,8 @@ void subTaskMainSubprocesses(void)
     dT = (float)cycleTime * 0.000001f;
 
     // Calculate average cycle time and average jitter
-    filteredCycleTime = pt1FilterApply(cycleTime, &filteredCycleTimeState, 1, dT);
+    filteredCycleTime = pt1FilterApply(&filteredCycleTimeState, cycleTime, 1, dT);
+
     debug[0] = cycleTime;
     debug[1] = cycleTime - filteredCycleTime;
 
@@ -653,17 +655,17 @@ void subTaskMainSubprocesses(void)
     }
 
 #ifdef MAG
-        if (sensors(SENSOR_MAG)) {
-            updateMagHold();
-        }
+    if (sensors(SENSOR_MAG)) {
+        updateMagHold();
+    }
 #endif
 
 #if defined(BARO) || defined(SONAR)
-        if (sensors(SENSOR_BARO) || sensors(SENSOR_SONAR)) {
-            if (FLIGHT_MODE(BARO_MODE) || FLIGHT_MODE(SONAR_MODE)) {
-                applyAltHold();
-            }
+    if (sensors(SENSOR_BARO) || sensors(SENSOR_SONAR)) {
+        if (FLIGHT_MODE(BARO_MODE) || FLIGHT_MODE(SONAR_MODE)) {
+            applyAltHold();
         }
+    }
 #endif
 
     // If we're armed, at minimum throttle, and we do arming via the
@@ -695,7 +697,7 @@ void subTaskMainSubprocesses(void)
 #endif
 
 #ifdef USE_SDCARD
-        afatfs_poll();
+    afatfs_poll();
 #endif
 
 #ifdef BLACKBOX

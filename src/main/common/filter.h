@@ -29,7 +29,6 @@ typedef struct biquad_s {
     float x1, x2, y1, y2;
 } biquad_t;
 
-
 typedef struct averageFilter_s {
     float *buf;
     uint8_t length;
@@ -42,34 +41,45 @@ typedef struct averageFilterInt32_s {
 
 typedef struct firFilter_s {
     float *buf;
-    const float *coefficients;
-    uint8_t length;
+    const float *coeffs;
+    uint8_t bufLength;
+    uint8_t coeffsLength;
 } firFilter_t;
 
 typedef struct firFilterInt32_s {
     int32_t *buf;
-    const int8_t *coefficients;
-    uint8_t length;
+    const int8_t *coeffs;
+    uint8_t bufLength;
+    uint8_t coeffsLength;
 } firFilterInt32_t;
 
-float pt1FilterApply(float input, filterStatePt1_t *filter, uint8_t f_cut, float dt);
+void biQuadFilterInit(biquad_t *filter, float filterCutFreq, uint32_t refreshRate);
+float biQuadFilterApply(biquad_t *filter, float input);
 
-void BiQuadNewLpf(float filterCutFreq, biquad_t *newState, uint32_t refreshRate);
-float applyBiQuadFilter(float sample, biquad_t *state);
+void pt1FilterInit(filterStatePt1_t *filter, uint8_t f_cut);
+float pt1FilterApply(filterStatePt1_t *filter, float input, uint8_t f_cut, float dT);
 
-void averageFilterInit(averageFilter_t *state, float *buf, uint8_t length);
-void averageFilterUpdate(averageFilter_t *state, float input);
-float averageFilterApply(averageFilter_t *state);
 
-void averageFilterInt32Init(averageFilterInt32_t *state, int32_t *buf, uint8_t length);
-void averageFilterInt32Update(averageFilterInt32_t *state, int32_t input);
-int32_t averageFilterInt32Apply(averageFilterInt32_t *state);
+void averageFilterInit(averageFilter_t *filter, float *buf, uint8_t length);
+void averageFilterUpdate(averageFilter_t *filter, float input);
+float averageFilterApply(averageFilter_t *filter);
 
-void firFilterInit(firFilter_t *state, float *buf, uint8_t length, const float *coefficients);
-void firFilterUpdate(firFilter_t *state, float input);
-float firFilterApply(firFilter_t *state);
+void averageFilterInt32Init(averageFilterInt32_t *filter, int32_t *buf, uint8_t length);
+void averageFilterInt32Update(averageFilterInt32_t *filter, int32_t input);
+int32_t averageFilterInt32Apply(averageFilterInt32_t *filter);
 
-void firFilterInt32Init(firFilterInt32_t *state, int32_t *buf, uint8_t length, const int8_t *coefficients);
-void firFilterInt32Update(firFilterInt32_t *state, float input);
-float firFilterInt32Apply(firFilterInt32_t *state);
+void firFilterInit(firFilter_t *filter, float *buf, uint8_t bufLength, const float *coeffs);
+void firFilterInit2(firFilter_t *filter, float *buf, uint8_t bufLength, const float *coeffs, uint8_t coeffsLength);
+void firFilterUpdate(firFilter_t *filter, float input);
+float firFilterApply(firFilter_t *filter);
+float firFilterCalcPartialAverage(firFilter_t *filter, uint8_t count);
+float firFilterCalcAverage(firFilter_t *filter);
+float firFilterLastItem(firFilter_t *filter);
 
+void firFilterInt32Init(firFilterInt32_t *filter, int32_t *buf, uint8_t bufLength, const int8_t *coeffs);
+void firFilterInt32Init2(firFilterInt32_t *filter, int32_t *buf, uint8_t bufLength, const int8_t *coeffs, uint8_t coeffsLength);
+void firFilterInt32Update(firFilterInt32_t *filter, float input);
+int32_t firFilterInt32Apply(firFilterInt32_t *filter);
+int32_t firFilterInt32CalcPartialAverage(firFilterInt32_t *filter, uint8_t count);
+int32_t firFilterInt32CalcAverage(firFilterInt32_t *filter);
+int32_t firFilterInt32LastItem(firFilterInt32_t *filter);

@@ -68,7 +68,6 @@ float unittest_pidLuxFloatCore_DTerm[3];
 #ifdef SRC_MAIN_FLIGHT_PID_MWREWRITE_C_
 #ifdef UNIT_TEST
 
-int32_t unittest_pidMultiWiiRewriteCore_DTermAverageFilterState[3][PID_DTERM_AVERAGE_FILTER_MAX_LENGTH];
 int32_t unittest_pidMultiWiiRewriteCore_PTerm[3];
 int32_t unittest_pidMultiWiiRewriteCore_ITerm[3];
 int32_t unittest_pidMultiWiiRewriteCore_DTerm[3];

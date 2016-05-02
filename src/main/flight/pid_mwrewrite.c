@@ -59,8 +59,6 @@ extern float dT;
 extern uint8_t PIDweight[3];
 extern int32_t lastITerm[3], ITermLimit[3];
 
-extern filterStatePt1_t DTermPt1FilterState[3];
-
 extern uint8_t motorCount;
 
 #ifdef BLACKBOX
@@ -104,6 +102,19 @@ static const int8_t nrdCoeffs8[] = {  8, 26, 16,-30,-40, -2, 16,  6 };
 static const int8_t *nrd[] = {nrdCoeffs2, nrdCoeffs3, nrdCoeffs4, nrdCoeffs5, nrdCoeffs6, nrdCoeffs7, nrdCoeffs8};
 
 
+void pidMultiWiiRewriteInit(const pidProfile_t *pidProfile)
+{
+    memset(&pidMwrState, 0, sizeof(pidMwrState));
+    const int8_t *coeffs = nrd[pidProfile->dterm_differentiator];
+    for (int axis = 0; axis < 3; ++ axis) {
+        pidMwrStateAxis_t *pidStateAxis = &pidMwrState.stateAxis[axis];
+        pidStateAxis->ITerm = 0;
+        pidStateAxis->ITermLimit = 0;
+        firFilterInt32Init(&pidStateAxis->DTermFirFilterState, pidStateAxis->DTermFirFilterBuf, pidProfile->dterm_differentiator + 2, coeffs);
+        averageFilterInt32Init(&pidStateAxis->DTermAverageFilterState, pidStateAxis->DTermAverageFilterBuf, pidProfile->dterm_average_count);
+    }
+}
+
 STATIC_UNIT_TESTED void pidUpdateGyroStateAxis(flight_dynamics_index_t axis, const pidProfile_t *pidProfile, pidMwrStateAxis_t* pidStateAxis)
 {
     pidStateAxis->gyroRate = gyroADC[axis] / 4;
@@ -137,7 +148,7 @@ STATIC_UNIT_TESTED void pidUpdateGyroStateAxis(flight_dynamics_index_t axis, con
         pidStateAxis->DTerm = (delta * ((uint16_t)0xFFFF / ((uint16_t)targetLooptime >> 4))) >> 5;
         if (pidProfile->dterm_lpf_hz) {
             // DTerm low pass filter
-            pidStateAxis->DTerm = pt1FilterApply((float)pidStateAxis->DTerm, &DTermPt1FilterState[axis], pidProfile->dterm_lpf_hz, dT);
+            pidStateAxis->DTerm = pt1FilterApply(&pidStateAxis->DTermPt1FilterState, (float)pidStateAxis->DTerm, pidProfile->dterm_lpf_hz, dT);
         }
         if (pidProfile->dterm_average_count) {
             // Apply moving average
@@ -251,23 +262,11 @@ static int16_t pidCalculateAxis(int axis, const pidProfile_t *pidProfile, pidMwr
     // -----calculate total PID output
     return PTerm + ITerm + pidStateAxis->DTerm;
 }
+
 void pidMwrCalculate(const pidProfile_t *pidProfile)
 {
     for (int axis = 0; axis < 3; axis++) {
         axisPID[axis] = pidCalculateAxis(axis, pidProfile, &pidMwrState.stateAxis[axis]);
-    }
-}
-
-void pidMultiWiiRewriteInit(const pidProfile_t *pidProfile)
-{
-    memset(&pidMwrState, 0, sizeof(pidMwrState));
-    const int8_t *coeffs = nrd[pidProfile->dterm_differentiator];
-    for (int axis = 0; axis < 3; ++ axis) {
-        pidMwrStateAxis_t *pidStateAxis = &pidMwrState.stateAxis[axis];
-        pidStateAxis->ITerm = 0;
-        pidStateAxis->ITermLimit = 0;
-        firFilterInt32Init(&pidStateAxis->DTermFirFilterState, pidStateAxis->DTermFirFilterBuf, pidProfile->dterm_differentiator + 2, coeffs);
-        averageFilterInt32Init(&pidStateAxis->DTermAverageFilterState, pidStateAxis->DTermAverageFilterBuf, pidProfile->dterm_average_count);
     }
 }
 

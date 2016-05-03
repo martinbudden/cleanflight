@@ -633,7 +633,7 @@ void filterRc(void){
 static bool haveProcessedAnnexCodeOnce = false;
 #endif
 
-void taskMainPidLoop(void)
+void subTaskMainSubprocesses(void)
 {
     cycleTime = getTaskDeltaTime(TASK_SELF);
     dT = (float)cycleTime * 0.000001f;
@@ -644,7 +644,7 @@ void taskMainPidLoop(void)
     debug[0] = cycleTime;
     debug[1] = cycleTime - filteredCycleTime;
 
-    imuUpdateGyroAndAttitude();
+    imuUpdateAttitude();
 
     annexCode();
 
@@ -702,15 +702,19 @@ void taskMainPidLoop(void)
     }
 #endif
 
-    // PID - note this is function pointer set by setPIDController()
-    pid_controller(
-        pidProfile(),
-        currentControlRateProfile,
-        imuConfig()->max_angle_inclination,
-        &accelerometerConfig()->accelerometerTrims,
-        rxConfig()
-    );
+#ifdef USE_SDCARD
+    afatfs_poll();
+#endif
 
+#ifdef BLACKBOX
+    if (!cliMode && feature(FEATURE_BLACKBOX)) {
+        handleBlackbox();
+    }
+#endif
+}
+
+void subTaskUpdateMotors(void)
+{
     mixTable();
 
 #ifdef USE_SERVOS
@@ -721,33 +725,37 @@ void taskMainPidLoop(void)
     if (motorControlEnable) {
         writeMotors();
     }
+}
 
-#ifdef USE_SDCARD
-        afatfs_poll();
-#endif
-
-#ifdef BLACKBOX
-    if (!cliMode && feature(FEATURE_BLACKBOX)) {
-        handleBlackbox();
-    }
-#endif
+void subTaskPidController(void)
+{
+    // PID - note this is function pointer set by setPIDController()
+    pid_controller(
+        pidProfile(),
+        currentControlRateProfile,
+        imuConfig()->max_angle_inclination,
+        &accelerometerConfig()->accelerometerTrims,
+        rxConfig()
+    );
 }
 
 // Function for loop trigger
 void taskMainPidLoopChecker(void) {
     // getTaskDeltaTime() returns delta time freezed at the moment of entering the scheduler. currentTime is freezed at the very same point.
     // To make busy-waiting timeout work we need to account for time spent within busy-waiting loop
-    uint32_t currentDeltaTime = getTaskDeltaTime(TASK_SELF);
+    const uint32_t currentDeltaTime = getTaskDeltaTime(TASK_SELF);
 
     if (imuConfig()->gyroSync) {
-        while (1) {
+        while (true) {
             if (gyroSyncCheckUpdate() || ((currentDeltaTime + (micros() - currentTime)) >= (targetLooptime + GYRO_WATCHDOG_DELAY))) {
                 break;
             }
         }
     }
-
-    taskMainPidLoop();
+    gyroUpdate();
+    subTaskMainSubprocesses();
+    subTaskPidController();
+    subTaskUpdateMotors();
 }
 
 void taskUpdateAccelerometer(void)

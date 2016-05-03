@@ -100,7 +100,6 @@ static const float nrdCoeffs8[] = { 1.0f/8, 13.0f/32, 1.0f/4,-15.0f/32,-5.0f/8, 
 #endif
 static const float *nrd[] = {nrdCoeffs2, nrdCoeffs3, nrdCoeffs4, nrdCoeffs5, nrdCoeffs6, nrdCoeffs7, nrdCoeffs8};
 
-
 void pidLuxFloatInit(const pidProfile_t *pidProfile)
 {
     memset(&pidLuxFloatState, 0, sizeof(pidLuxFloatState));
@@ -111,7 +110,15 @@ void pidLuxFloatInit(const pidProfile_t *pidProfile)
         pidStateAxis->ITerm = 0.0f;
         pidStateAxis->ITermLimit = 0.0f;
         firFilterInit2(&pidStateAxis->gyroRateFirFilter, pidStateAxis->gyroRateBuf, PID_GYRORATE_BUF_LENGTH, coeffs, pidProfile->dterm_differentiator + 2);
-        averageFilterInit(&pidStateAxis->DTermAverageFilter, pidStateAxis->DTermAverageFilterBuf, pidProfile->dterm_average_count);
+        firFilterInit(&pidStateAxis->DTermAverageFilter, pidStateAxis->DTermAverageFilterBuf, pidProfile->dterm_average_count, NULL);
+    }
+}
+
+void pidLuxFloatResetITerm(void)
+{
+    for (int axis = 0; axis < 3; ++ axis) {
+        pidLuxFloatState.stateAxis[axis].ITerm = 0.0f;
+        pidLuxFloatState.stateAxis[axis].ITermLimit = 0.0f;
     }
 }
 
@@ -125,7 +132,7 @@ STATIC_UNIT_TESTED void pidLuxFloatUpdateGyroRateAxis(flight_dynamics_index_t ax
     pidStateAxis->ITerm += rateError * pidStateAxis->kI;
     // limit maximum integrator value to prevent WindUp - accumulating extreme values when system is saturated.
     pidStateAxis->ITerm = constrainf(pidStateAxis->ITerm, -PID_MAX_I, PID_MAX_I);
-    if (pidLuxFloatState.antiWindupProtection) {
+    if (STATE(ANTI_WINDUP) || motorLimitReached) {
         pidStateAxis->ITerm = constrainf(pidStateAxis->ITerm, -pidStateAxis->ITermLimit, pidStateAxis->ITermLimit);
     } else {
         pidStateAxis->ITermLimit = ABS(pidStateAxis->ITerm);
@@ -145,8 +152,8 @@ STATIC_UNIT_TESTED void pidLuxFloatUpdateGyroRateAxis(flight_dynamics_index_t ax
             }
             if (pidProfile->dterm_average_count) {
                 // Apply moving average
-                averageFilterUpdate(&pidStateAxis->DTermAverageFilter, pidStateAxis->DTerm);
-                pidStateAxis->DTerm = averageFilterApply(&pidStateAxis->DTermAverageFilter);
+                firFilterUpdate(&pidStateAxis->DTermAverageFilter, pidStateAxis->DTerm);
+                pidStateAxis->DTerm = firFilterCalcAverage(&pidStateAxis->DTermAverageFilter);
             }
         }
     }
@@ -220,12 +227,6 @@ static void pidLuxFloatUpdateDesiredRateAxis(int axis, const pidProfile_t *pidPr
 
 void pidLuxFloatUpdateDesiredRate(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig)
 {
-    pidLuxFloatState.antiWindupProtection = false;
-    if (IS_RC_MODE_ACTIVE(BOXAIRMODE)) {
-        if (STATE(ANTI_WINDUP) || motorLimitReached) {
-           pidLuxFloatState.antiWindupProtection = true;
-        }
-    }
     for (int axis = 0; axis < 3; axis++) {
         pidLuxFloatUpdateDesiredRateAxis(axis, pidProfile, &pidLuxFloatState.stateAxis[axis], controlRateConfig);
     }

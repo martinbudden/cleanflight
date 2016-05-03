@@ -111,13 +111,21 @@ void pidMultiWiiRewriteInit(const pidProfile_t *pidProfile)
         pidStateAxis->ITerm = 0;
         pidStateAxis->ITermLimit = 0;
         firFilterInt32Init(&pidStateAxis->gyroRateFirFilter, pidStateAxis->gyroRateFirFilterBuf, pidProfile->dterm_differentiator + 2, coeffs);
-        averageFilterInt32Init(&pidStateAxis->DTermAverageFilter, pidStateAxis->DTermAverageFilterBuf, pidProfile->dterm_average_count);
+        firFilterInt32Init(&pidStateAxis->DTermAverageFilter, pidStateAxis->DTermAverageFilterBuf, pidProfile->dterm_average_count, NULL);
+    }
+}
+
+void pidMwrResetITerm(void)
+{
+    for (int axis = 0; axis < 3; ++ axis) {
+        pidMwrState.stateAxis[axis].ITerm = 0;
+        pidMwrState.stateAxis[axis].ITermLimit = 0;
     }
 }
 
 STATIC_UNIT_TESTED void pidMwrUpdateGyroRateAxis(flight_dynamics_index_t axis, const pidProfile_t *pidProfile, pidMwrStateAxis_t* pidStateAxis)
 {
-    const int32_t gyroRate = gyroADC[axis] / 4;
+    const int32_t gyroRate = gyroADC[axis] * 10 / 41;
     const int32_t rateError = pidStateAxis->desiredRate - gyroRate;
     firFilterInt32Update(&pidStateAxis->gyroRateFirFilter, gyroRate);
 
@@ -131,7 +139,7 @@ STATIC_UNIT_TESTED void pidMwrUpdateGyroRateAxis(flight_dynamics_index_t axis, c
     // I coefficient (I8) moved before integration to make limiting independent from PID settings
     pidStateAxis->ITerm = constrain(pidStateAxis->ITerm, (int32_t)(-PID_MAX_I << 13), (int32_t)(PID_MAX_I << 13));
     // Anti windup protection
-    if (pidMwrState.antiWindupProtection) {
+    if (STATE(ANTI_WINDUP) || motorLimitReached) {
         pidStateAxis->ITerm = constrain(pidStateAxis->ITerm, -pidStateAxis->ITermLimit, pidStateAxis->ITermLimit);
     } else {
         pidStateAxis->ITermLimit = ABS(pidStateAxis->ITerm);
@@ -152,8 +160,8 @@ STATIC_UNIT_TESTED void pidMwrUpdateGyroRateAxis(flight_dynamics_index_t axis, c
             }
             if (pidProfile->dterm_average_count) {
                 // Apply moving average
-                averageFilterInt32Update(&pidStateAxis->DTermAverageFilter, pidStateAxis->DTerm);
-                pidStateAxis->DTerm = averageFilterInt32Apply(&pidStateAxis->DTermAverageFilter);
+                firFilterInt32Update(&pidStateAxis->DTermAverageFilter, pidStateAxis->DTerm);
+                pidStateAxis->DTerm = firFilterInt32CalcAverage(&pidStateAxis->DTermAverageFilter);
             }
         }
     }
@@ -224,12 +232,6 @@ static void pidMwrUpdateDesiredRateAxis(int axis, const pidProfile_t *pidProfile
 
 void pidMwrUpdateDesiredRate(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig)
 {
-    pidMwrState.antiWindupProtection = false;
-    if (IS_RC_MODE_ACTIVE(BOXAIRMODE)) {
-        if (STATE(ANTI_WINDUP) || motorLimitReached) {
-           pidMwrState.antiWindupProtection = true;
-        }
-    }
     for (int axis = 0; axis < 3; axis++) {
         pidMwrUpdateDesiredRateAxis(axis, pidProfile, &pidMwrState.stateAxis[axis], controlRateConfig);
     }

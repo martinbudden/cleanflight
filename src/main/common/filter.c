@@ -99,50 +99,6 @@ float biQuadFilterApply(biquad_t *filter, float input)
     return result;
 }
 
-void averageFilterInit(averageFilter_t *filter, float *buf, uint8_t length)
-{
-    filter->buf = buf;
-    filter->length = length;
-    memset(filter->buf, 0, sizeof(float) * filter->length);
-}
-
-void averageFilterUpdate(averageFilter_t *filter, float input)
-{
-    memmove(&filter->buf[1], &filter->buf[0], (filter->length-1) * sizeof(float));
-    filter->buf[0] = input;
-}
-
-float averageFilterApply(averageFilter_t *filter)
-{
-    float ret = 0.0f;
-    for (int ii = 0; ii < filter->length; ++ii) {
-        ret += filter->buf[ii];
-    }
-    return ret / filter->length;
-}
-
-void averageFilterInt32Init(averageFilterInt32_t *filter, int32_t *buf, uint8_t length)
-{
-    filter->buf = buf;
-    filter->length = length;
-    memset(filter->buf, 0, sizeof(int32_t) * filter->length);
-}
-
-void averageFilterInt32Update(averageFilterInt32_t *filter, int32_t input)
-{
-    memmove(&filter->buf[1], &filter->buf[0], (filter->length-1) * sizeof(float));
-    filter->buf[0] = input;
-}
-
-int32_t averageFilterInt32Apply(averageFilterInt32_t *filter)
-{
-    float ret = 0.0f;
-    for (int ii = 0; ii < filter->length; ++ii) {
-        ret += filter->buf[ii];
-    }
-    return ret / filter->length;
-}
-
 
 void firFilterInit2(firFilter_t *filter, float *buf, uint8_t bufLength, const float *coeffs, uint8_t coeffsLength)
 {

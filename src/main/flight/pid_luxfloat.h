@@ -19,7 +19,7 @@
 static const float luxPTermScale = 1.0f / 128;
 static const float luxITermScale = 1000000.0f / 0x1000000;
 static const float luxDTermScale = (0.000001f * (float)0xFFFF) / 512;
-static const float luxGyroScale = 16.4f / 4; // the 16.4 is needed because mwrewrite does not scale according to the gyro model gyro.scale
+static const float luxGyroScale = 4.0f;
 
 
 typedef struct pidLuxFloatStateAxis_s {
@@ -39,14 +39,13 @@ typedef struct pidLuxFloatStateAxis_s {
     float               gyroRateBuf[PID_GYRORATE_BUF_LENGTH];
 
     filterStatePt1_t    DTermPt1Filter;
-    averageFilter_t     DTermAverageFilter;
+    firFilter_t         DTermAverageFilter;
     float               DTermAverageFilterBuf[PID_DTERM_AVERAGE_FILTER_BUF_LENGTH];
 } pidLuxFloatStateAxis_t;
 
 typedef struct pidLuxFloatState_s {
     pidLuxFloatStateAxis_t stateAxis[FD_INDEX_COUNT];
     float kGyro;
-    bool antiWindupProtection;
 } pidLuxFloatState_t;
 
 void pidLuxFloatInit(const pidProfile_t *pidProfile);

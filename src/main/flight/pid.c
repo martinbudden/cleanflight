@@ -72,6 +72,10 @@ void pidMultiWii23Shim(const pidProfile_t *pidProfile, const controlRateConfig_t
 void pidMultiWiiRewriteInit(const pidProfile_t *pidProfile);
 void pidLuxFloatInit(const pidProfile_t *pidProfile);
 
+void pidLuxFloatResetITerm(void);
+void pidMwrResetITerm(void);
+void pidMW23ResetITerm(void);
+
 typedef void (*pidControllerFuncPtr)(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig); // pid controller function prototype
 pidControllerFuncPtr pid_controller = pidMultiWiiRewriteShim;
 
@@ -134,10 +138,13 @@ void pidNOP(const pidProfile_t *pidProfile)
 
 void pidResetITerm(void)
 {
-    for (int axis = 0; axis < 3; axis++) {
-        lastITerm[axis] = 0;
-        lastITermf[axis] = 0.0f;
-    }
+    pidMwrResetITerm();
+#ifndef SKIP_PID_LUXFLOAT
+    pidLuxFloatResetITerm();
+#endif
+#ifndef SKIP_PID_MW23
+    pidMW23ResetITerm();
+#endif
 }
 
 void pidSetController(pidControllerType_e type)

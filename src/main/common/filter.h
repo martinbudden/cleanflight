@@ -29,16 +29,6 @@ typedef struct biquad_s {
     float x1, x2, y1, y2;
 } biquad_t;
 
-typedef struct averageFilter_s {
-    float *buf;
-    uint8_t length;
-} averageFilter_t;
-
-typedef struct averageFilterInt32_s {
-    int32_t *buf;
-    uint8_t length;
-} averageFilterInt32_t;
-
 typedef struct firFilter_s {
     float *buf;
     const float *coeffs;
@@ -58,15 +48,6 @@ float biQuadFilterApply(biquad_t *filter, float input);
 
 void pt1FilterInit(filterStatePt1_t *filter, uint8_t f_cut);
 float pt1FilterApply(filterStatePt1_t *filter, float input, uint8_t f_cut, float dT);
-
-
-void averageFilterInit(averageFilter_t *filter, float *buf, uint8_t length);
-void averageFilterUpdate(averageFilter_t *filter, float input);
-float averageFilterApply(averageFilter_t *filter);
-
-void averageFilterInt32Init(averageFilterInt32_t *filter, int32_t *buf, uint8_t length);
-void averageFilterInt32Update(averageFilterInt32_t *filter, int32_t input);
-int32_t averageFilterInt32Apply(averageFilterInt32_t *filter);
 
 void firFilterInit(firFilter_t *filter, float *buf, uint8_t bufLength, const float *coeffs);
 void firFilterInit2(firFilter_t *filter, float *buf, uint8_t bufLength, const float *coeffs, uint8_t coeffsLength);

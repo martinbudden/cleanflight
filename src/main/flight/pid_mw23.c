@@ -64,10 +64,17 @@ extern int32_t axisPID_P[], axisPID_I[], axisPID_D[];
 #endif
 
 extern float dT;
-extern int32_t lastITerm[], ITermLimit[];
+int32_t lastITerm[3], ITermLimit[3];
 
 filterStatePt1_t DTermFilter[3];
 
+void pidMW23ResetITerm(void)
+{
+    for (int axis = 0; axis < 3; axis++) {
+        lastITerm[axis] = 0;
+        ITermLimit[axis] = 0;
+    }
+}
 
 void pidResetITermAngle(void)
 {

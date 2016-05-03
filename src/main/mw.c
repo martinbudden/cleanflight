@@ -707,12 +707,6 @@ void subTaskMainSubprocesses(void)
 #endif
 }
 
-void subTaskPidController(void)
-{
-    // PID - note this is function pointer set by setPIDController()
-    pid_controller(pidProfile(), currentControlRateProfile);
-}
-
 void subTaskUpdateMotors(void)
 {
     mixTable();
@@ -732,7 +726,7 @@ void taskMainPidLoopChecker(void)
 {
     // getTaskDeltaTime() returns delta time freezed at the moment of entering the scheduler. currentTime is freezed at the very same point. 
     // To make busy-waiting timeout work we need to account for time spent within busy-waiting loop
-    uint32_t currentDeltaTime = getTaskDeltaTime(TASK_SELF);
+    const uint32_t currentDeltaTime = getTaskDeltaTime(TASK_SELF);
 
     if (imuConfig()->gyroSync) {
         while (true) {
@@ -742,11 +736,13 @@ void taskMainPidLoopChecker(void)
         }
     }
     imuUpdateGyro();
-    pidController.updateGyroRate(pidProfile());
+//    pidController.updateGyroRate(pidProfile());
+
     subTaskMainSubprocesses();
-    pidController.updateDesiredRate(pidProfile(), currentControlRateProfile);
-    pidController.calculate(pidProfile());
-    subTaskPidController();
+//    pidController.updateDesiredRate(pidProfile(), currentControlRateProfile);
+
+//    pidController.calculate(pidProfile());
+    pid_controller(pidProfile(), currentControlRateProfile);
     subTaskUpdateMotors();
 }
 

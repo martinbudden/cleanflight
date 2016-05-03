@@ -28,7 +28,6 @@ typedef struct pidLuxFloatStateAxis_s {
     float kD;
     float kT;
 
-    float gyroRate;
     float desiredRate;
 
     float PTerm;
@@ -36,13 +35,12 @@ typedef struct pidLuxFloatStateAxis_s {
     float ITermLimit;
     float DTerm;
 
-    filterStatePt1_t DTermPt1Filter;
+    firFilter_t         gyroRateFirFilter;
+    float               gyroRateBuf[PID_GYRORATE_BUF_LENGTH];
 
-    firFilter_t     gyroRateFirFilter;
-    float           gyroRateBuf[PID_GYRORATE_BUF_LENGTH];
-
-    averageFilter_t DTermAverageFilter;
-    float           DTermAverageFilterBuf[PID_DTERM_AVERAGE_FILTER_MAX_LENGTH];
+    filterStatePt1_t    DTermPt1Filter;
+    averageFilter_t     DTermAverageFilter;
+    float               DTermAverageFilterBuf[PID_DTERM_AVERAGE_FILTER_BUF_LENGTH];
 } pidLuxFloatStateAxis_t;
 
 typedef struct pidLuxFloatState_s {
@@ -52,11 +50,13 @@ typedef struct pidLuxFloatState_s {
 } pidLuxFloatState_t;
 
 void pidLuxFloatInit(const pidProfile_t *pidProfile);
-void pidLuxFloatUpdateGyroState(const pidProfile_t *pidProfile);
-void pidLuxFloatUpdateRcState(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig);
+void pidLuxFloatUpdateGyroRate(const pidProfile_t *pidProfile);
+void pidLuxFloatUpdateDesiredRate(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig);
 void pidLuxFloatCalculate(const pidProfile_t *pidProfile);
 
 // following to be deprecated
 void pidLuxFloat(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig,
         uint16_t max_angle_inclination, const rollAndPitchTrims_t *angleTrim, const rxConfig_t *rxConfig);
+void pidLuxFloatShim(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig);
+
 

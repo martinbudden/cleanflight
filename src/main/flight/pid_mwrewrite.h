@@ -22,7 +22,6 @@ typedef struct pidMwrStateAxis_s {
     int32_t kD;
     int32_t kT;
 
-    int32_t gyroRate;
     int32_t desiredRate;
 
     int32_t PTerm;
@@ -30,13 +29,13 @@ typedef struct pidMwrStateAxis_s {
     int32_t ITermLimit;
     int32_t DTerm;
 
-    filterStatePt1_t DTermPt1FilterState;
 
-    firFilterInt32_t  DTermFirFilterState;
-    int32_t           DTermFirFilterBuf[PID_DTERM_FIR_MAX_LENGTH];
+    firFilterInt32_t    gyroRateFirFilter;
+    int32_t             gyroRateFirFilterBuf[PID_GYRORATE_BUF_LENGTH];
 
-    averageFilterInt32_t DTermAverageFilterState;
-    int32_t           DTermAverageFilterBuf[PID_DTERM_AVERAGE_FILTER_MAX_LENGTH];
+    filterStatePt1_t    DTermPt1Filter;
+    averageFilterInt32_t DTermAverageFilter;
+    int32_t             DTermAverageFilterBuf[PID_DTERM_AVERAGE_FILTER_BUF_LENGTH];
 } pidMwrStateAxis_t;
 
 typedef struct pidMwrState_s {
@@ -45,11 +44,11 @@ typedef struct pidMwrState_s {
 } pidMwrState_t;
 
 void pidMwrInit(const pidProfile_t *pidProfile);
-void pidMwrUpdateGyroState(const pidProfile_t *pidProfile);
-void pidMwrUpdateRcState(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig);
+void pidMwrUpdateGyroRate(const pidProfile_t *pidProfile);
+void pidMwrUpdateDesiredRate(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig);
 void pidMwrCalculate(const pidProfile_t *pidProfile);
 
 // following to be deprecated
 void pidMultiWiiRewrite(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig,
         uint16_t max_angle_inclination, const rollAndPitchTrims_t *angleTrim, const rxConfig_t *rxConfig);
-
+void pidMultiWiiRewriteShim(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig);

@@ -62,36 +62,26 @@ uint8_t PIDweight[3];
 int32_t lastITerm[3], ITermLimit[3];
 float lastITermf[3], ITermLimitf[3];
 
-biquad_t DTermFilterState[3]; // shared buffer between biquad and pt1 filter
 // shared float/int buffers
-int32_t DTermAverageFilterBuf[3][PID_DTERM_AVERAGE_FILTER_MAX_LENGTH];
-int32_t DTermFirFilterBuf[3][PID_DTERM_FIR_MAX_LENGTH];
+//int32_t DTermAverageFilterBuf[3][PID_DTERM_AVERAGE_FILTER_MAX_LENGTH];
+//int32_t DTermFirFilterBuf[3][PID_GYRORATE_BUF_LENGTH];
 
-void pidLuxFloatInit(const pidProfile_t *pidProfile);
-void pidMultiWiiRewriteInit(const pidProfile_t *pidProfile);
 void pidMultiWii23Init(const pidProfile_t *pidProfile);
-
-
-void pidLuxFloatShim(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig);
-void pidMultiWiiRewriteShim(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig);
 void pidMultiWii23Shim(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig);
 
-typedef void (*pidControllerFuncPtr)(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig); // pid controller function prototype
+void pidMultiWiiRewriteInit(const pidProfile_t *pidProfile);
+void pidLuxFloatInit(const pidProfile_t *pidProfile);
 
+typedef void (*pidControllerFuncPtr)(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig); // pid controller function prototype
 pidControllerFuncPtr pid_controller = pidMultiWiiRewriteShim;
 
-
-void pidLuxFloatUpdateGyroState(const pidProfile_t *pidProfile);
-void pidLuxFloatUpdateRcState(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig);
-void pidLuxFloatCalculate(const pidProfile_t *pidProfile);
-
-typedef void (*pidUpdateGyroFunctionPtr)(const pidProfile_t *pidProfile);
-typedef void (*pidUpdateRcFunctionPtr)(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig);
+typedef void (*pidUpdateGyroRateFunctionPtr)(const pidProfile_t *pidProfile);
+typedef void (*pidUpdateDesiredRateFunctionPtr)(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig);
 typedef void (*pidCalculateFunctionPtr)(const pidProfile_t *pidProfile);
 
 typedef struct pidFunctionPointers_s {
-    pidUpdateGyroFunctionPtr updateGyro;
-    pidUpdateRcFunctionPtr updateRc;
+    pidUpdateGyroRateFunctionPtr updateGyroRate;
+    pidUpdateDesiredRateFunctionPtr updateDesiredRate;
     pidCalculateFunctionPtr calculate;
 } pidFunctionPointers_t;
 
@@ -156,24 +146,24 @@ void pidSetController(pidControllerType_e type)
     default:
     case PID_CONTROLLER_MWREWRITE:
         pidMultiWiiRewriteInit(pidProfile());
-        pidController.updateGyro = pidMwrUpdateGyroState;
-        pidController.updateRc = pidMwrUpdateRcState;
+        pidController.updateGyroRate = pidMwrUpdateGyroRate;
+        pidController.updateDesiredRate = pidMwrUpdateDesiredRate;
         pidController.calculate = pidMwrCalculate;
         pid_controller = pidMultiWiiRewriteShim;
         break;
 #ifndef SKIP_PID_LUXFLOAT
     case PID_CONTROLLER_LUX_FLOAT:
         pidLuxFloatInit(pidProfile());
-        pidController.updateGyro = pidLuxFloatUpdateGyroState;
-        pidController.updateRc = pidLuxFloatUpdateRcState;
+        pidController.updateGyroRate = pidLuxFloatUpdateGyroRate;
+        pidController.updateDesiredRate = pidLuxFloatUpdateDesiredRate;
         pidController.calculate = pidLuxFloatCalculate;
         pid_controller = pidLuxFloatShim;
         break;
 #endif
 #ifndef SKIP_PID_MW23
     case PID_CONTROLLER_MW23:
-        pidController.updateGyro = pidNOP;
-        pidController.updateRc = pidMultiWii23Shim;
+        pidController.updateGyroRate = pidNOP;
+        pidController.updateDesiredRate = pidMultiWii23Shim;
         pidController.calculate = pidNOP;
         pid_controller = pidMultiWii23Shim;
         break;

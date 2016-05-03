@@ -119,18 +119,18 @@ static filterStatePt1_t filteredCycleTimeState;
 uint16_t filteredCycleTime;
 
 typedef void (*pidControllerFuncPtr)(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig);    // pid controller function prototype
-
 extern pidControllerFuncPtr pid_controller;
 
-typedef void (*pidUpdateGyroFunctionPtr)(const pidProfile_t *pidProfile);
-typedef void (*pidUpdateRcFunctionPtr)(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig);
+typedef void (*pidUpdateGyroRateFunctionPtr)(const pidProfile_t *pidProfile);
+typedef void (*pidUpdateDesiredRateFunctionPtr)(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig);
 typedef void (*pidCalculateFunctionPtr)(const pidProfile_t *pidProfile);
 
 typedef struct pidFunctionPointers_s {
-    pidUpdateGyroFunctionPtr updateGyro;
-    pidUpdateRcFunctionPtr updateRc;
+    pidUpdateGyroRateFunctionPtr updateGyroRate;
+    pidUpdateDesiredRateFunctionPtr updateDesiredRate;
     pidCalculateFunctionPtr calculate;
 } pidFunctionPointers_t;
+
 extern pidFunctionPointers_t pidController;
 
 
@@ -742,10 +742,10 @@ void taskMainPidLoopChecker(void)
         }
     }
     imuUpdateGyro();
-    //pidController.updateGyro(pidProfile());
+    pidController.updateGyroRate(pidProfile());
     subTaskMainSubprocesses();
-    //pidController.updateRc(pidProfile(), currentControlRateProfile);
-    //pidController.calculate(pidProfile());
+    pidController.updateDesiredRate(pidProfile(), currentControlRateProfile);
+    pidController.calculate(pidProfile());
     subTaskPidController();
     subTaskUpdateMotors();
 }

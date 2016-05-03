@@ -43,6 +43,7 @@ extern "C" {
 
     #include "flight/pid.h"
     #include "flight/pid_luxfloat.h"
+    #include "flight/pid_mwrewrite.h"
     #include "config/config_unittest.h"
     #include "flight/imu.h"
 }
@@ -67,19 +68,20 @@ extern "C" {
             uint16_t max_angle_inclination, const rollAndPitchTrims_t *angleTrim, const rxConfig_t *rxConfig);            // pid controller function prototype
     extern pidControllerFuncPtr pid_controller;
     extern pidLuxFloatState_t pidLuxFloatState;
+    extern pidMwrState_t pidMwrState;
     extern uint8_t PIDweight[3];
     extern bool motorLimitReached;
     extern uint32_t rcModeActivationMask;
     extern int32_t axisPID_P[3], axisPID_I[3], axisPID_D[3];
     float dT; // dT for pidLuxFloat
     int32_t targetLooptime; // targetLooptime for pidMultiWiiRewrite
-    float DTermFirFilterState[3][PID_DTERM_FIR_MAX_LENGTH];
+    //float DTermFirFilterState[3][PID_DTERM_FIR_MAX_LENGTH];
     //float unittest_pidLuxFloatCore_PTerm[3];
     //float unittest_pidLuxFloatCore_ITerm[3];
     //float unittest_pidLuxFloatCore_DTerm[3];
-    int32_t unittest_pidMultiWiiRewriteCore_PTerm[3];
-    int32_t unittest_pidMultiWiiRewriteCore_ITerm[3];
-    int32_t unittest_pidMultiWiiRewriteCore_DTerm[3];
+    //int32_t unittest_pidMultiWiiRewriteCore_PTerm[3];
+    //int32_t unittest_pidMultiWiiRewriteCore_ITerm[3];
+    //int32_t unittest_pidMultiWiiRewriteCore_DTerm[3];
     PG_REGISTER(imuConfig_t, imuConfig, PG_IMU_CONFIG, 0);
     PG_REGISTER(rxConfig_t, rxConfig, PG_RX_CONFIG, 0);
     PG_REGISTER_PROFILE(accelerometerConfig_t, accelerometerConfig, PG_ACCELEROMETER_CONFIG, 0);
@@ -267,7 +269,7 @@ TEST(PIDUnittest, TestPidLuxFloat)
 
     // run the PID controller. Check expected PID values
     pidControllerInitLuxFloat(&controlRate, max_angle_inclination, rollAndPitchTrims, rxConfig());
-    EXPECT_EQ(2, pidLuxFloatState.stateAxis[FD_ROLL].DTermFirFilterState.length);
+    EXPECT_EQ(pidProfile->dterm_differentiator + 2, pidLuxFloatState.stateAxis[FD_ROLL].gyroRateFirFilter.coeffsLength);
 
     gyroADC[FD_ROLL] = -rateErrorRoll;
     gyroADC[FD_PITCH] = -rateErrorPitch;
@@ -278,9 +280,12 @@ TEST(PIDUnittest, TestPidLuxFloat)
     float ITermYaw = calcLuxITermDelta(pidProfile, FD_YAW, rateErrorYaw);
 
     pidLuxFloat(pidProfile, &controlRate, max_angle_inclination, rollAndPitchTrims, rxConfig());
-    EXPECT_FLOAT_EQ(-rateErrorRoll, pidLuxFloatState.stateAxis[FD_ROLL].gyroRate);
-    EXPECT_FLOAT_EQ(-rateErrorPitch, pidLuxFloatState.stateAxis[FD_PITCH].gyroRate);
-    EXPECT_FLOAT_EQ(-rateErrorYaw, pidLuxFloatState.stateAxis[FD_YAW].gyroRate);
+    float gyroRate = firFilterLastItem(&pidLuxFloatState.stateAxis[FD_ROLL].gyroRateFirFilter);
+    EXPECT_FLOAT_EQ(-rateErrorRoll, gyroRate);
+    gyroRate = firFilterLastItem(&pidLuxFloatState.stateAxis[FD_PITCH].gyroRateFirFilter);
+    EXPECT_FLOAT_EQ(-rateErrorPitch, gyroRate);
+    gyroRate = firFilterLastItem(&pidLuxFloatState.stateAxis[FD_YAW].gyroRateFirFilter);
+    EXPECT_FLOAT_EQ(-rateErrorYaw, gyroRate);
     EXPECT_FLOAT_EQ(0, pidLuxFloatState.stateAxis[FD_ROLL].desiredRate);
     EXPECT_FLOAT_EQ(0, pidLuxFloatState.stateAxis[FD_PITCH].desiredRate);
     EXPECT_FLOAT_EQ(0, pidLuxFloatState.stateAxis[FD_YAW].desiredRate);
@@ -753,6 +758,7 @@ int32_t calcMwrDTerm(pidProfile_t *pidProfile, pidIndex_e axis, int rateError) {
     ret = constrain(ret, -PID_MAX_D, PID_MAX_D);
     return ret;
 }
+#ifdef XXX
 
 TEST(PIDUnittest, TestPidMultiWiiRewrite)
 {
@@ -770,15 +776,15 @@ TEST(PIDUnittest, TestPidMultiWiiRewrite)
     resetRcCommands();
     resetGyroADC();
     pid_controller(pidProfile, &controlRate, max_angle_inclination, &rollAndPitchTrims, &rxConfig);
-    EXPECT_EQ(0, unittest_pidMultiWiiRewriteCore_PTerm[FD_ROLL]);
-    EXPECT_EQ(0, unittest_pidMultiWiiRewriteCore_ITerm[FD_ROLL]);
-    EXPECT_EQ(0, unittest_pidMultiWiiRewriteCore_DTerm[FD_ROLL]);
-    EXPECT_EQ(0, unittest_pidMultiWiiRewriteCore_PTerm[FD_PITCH]);
-    EXPECT_EQ(0, unittest_pidMultiWiiRewriteCore_ITerm[FD_PITCH]);
-    EXPECT_EQ(0, unittest_pidMultiWiiRewriteCore_DTerm[FD_PITCH]);
-    EXPECT_EQ(0, unittest_pidMultiWiiRewriteCore_PTerm[FD_YAW]);
-    EXPECT_EQ(0, unittest_pidMultiWiiRewriteCore_ITerm[FD_YAW]);
-    EXPECT_EQ(0, unittest_pidMultiWiiRewriteCore_DTerm[FD_YAW]);
+    EXPECT_EQ(0, pidMwrState.stateAxis[FD_ROLL].PTerm);
+    EXPECT_EQ(0, pidMwrState.stateAxis[FD_ROLL].ITerm);
+    EXPECT_EQ(0, pidMwrState.stateAxis[FD_ROLL].DTerm);
+    EXPECT_EQ(0, pidMwrState.stateAxis[FD_PITCH].PTerm);
+    EXPECT_EQ(0, pidMwrState.stateAxis[FD_PITCH].ITerm);
+    EXPECT_EQ(0, pidMwrState.stateAxis[FD_PITCH].DTerm);
+    EXPECT_EQ(0, pidMwrState.stateAxis[FD_YAW].PTerm);
+    EXPECT_EQ(0, pidMwrState.stateAxis[FD_YAW].ITerm);
+    EXPECT_EQ(0, pidMwrState.stateAxis[FD_YAW].DTerm);
 
     // set up a rateError of 100 on the roll axis
     const int32_t rateErrorRoll = 100;
@@ -795,7 +801,11 @@ TEST(PIDUnittest, TestPidMultiWiiRewrite)
     resetRcCommands();
 
     pid_controller(pidProfile, &controlRate, max_angle_inclination, &rollAndPitchTrims, &rxConfig);
-    EXPECT_EQ(calcMwrPTerm(pidProfile, PIDROLL, rateErrorRoll), unittest_pidMultiWiiRewriteCore_PTerm[FD_ROLL]);
+    EXPECT_FLOAT_EQ(calcMwrPTerm(pidProfile, PIDROLL, rateErrorRoll), pidMwrState.stateAxis[FD_ROLL].PTerm);
+    EXPECT_FLOAT_EQ(calcMwrITermDelta(pidProfile, PIDROLL, rateErrorRoll), pidMwrState.stateAxis[FD_ROLL].ITerm);
+    EXPECT_FLOAT_EQ(calcMwrDTerm(pidProfile, PIDROLL, rateErrorRoll), pidMwrState.stateAxis[FD_ROLL].DTerm);
+
+    /*EXPECT_EQ(calcMwrPTerm(pidProfile, PIDROLL, rateErrorRoll), unittest_pidMultiWiiRewriteCore_PTerm[FD_ROLL]);
     EXPECT_EQ(calcMwrITermDelta(pidProfile, PIDROLL, rateErrorRoll), unittest_pidMultiWiiRewriteCore_ITerm[FD_ROLL]);
     EXPECT_EQ(calcMwrDTerm(pidProfile, PIDROLL, rateErrorRoll), unittest_pidMultiWiiRewriteCore_DTerm[FD_ROLL]);
     EXPECT_EQ(calcMwrPTerm(pidProfile, PIDPITCH, rateErrorPitch), unittest_pidMultiWiiRewriteCore_PTerm[FD_PITCH]);
@@ -803,7 +813,7 @@ TEST(PIDUnittest, TestPidMultiWiiRewrite)
     EXPECT_EQ(calcMwrDTerm(pidProfile, PIDPITCH, rateErrorPitch), unittest_pidMultiWiiRewriteCore_DTerm[FD_PITCH]);
     EXPECT_EQ(calcMwrPTerm(pidProfile, PIDYAW, rateErrorYaw), unittest_pidMultiWiiRewriteCore_PTerm[FD_YAW]);
     EXPECT_EQ(calcMwrITermDelta(pidProfile, PIDYAW, rateErrorYaw), unittest_pidMultiWiiRewriteCore_ITerm[FD_YAW]);
-    EXPECT_EQ(calcMwrDTerm(pidProfile, PIDYAW, rateErrorYaw) , unittest_pidMultiWiiRewriteCore_DTerm[FD_YAW]);
+    EXPECT_EQ(calcMwrDTerm(pidProfile, PIDYAW, rateErrorYaw) , unittest_pidMultiWiiRewriteCore_DTerm[FD_YAW]);*/
 }
 
 TEST(PIDUnittest, TestPidMultiWiiRewriteITermConstrain)
@@ -821,7 +831,7 @@ TEST(PIDUnittest, TestPidMultiWiiRewriteITermConstrain)
     int16_t rateErrorRoll = calcMwrAngleRateRoll(&controlRate);
     EXPECT_EQ(0, rateErrorRoll);// cross check
     pid_controller(pidProfile, &controlRate, max_angle_inclination, &rollAndPitchTrims, &rxConfig);
-    EXPECT_EQ(0, unittest_pidMultiWiiRewriteCore_ITerm[FD_ROLL]);
+    EXPECT_EQ(0, pidMwrState.stateAxis[FD_ROLL].ITerm);
 
     // set rateError to 100, ITerm should not be constrained
     pidControllerInitMultiWiiRewrite(&controlRate, max_angle_inclination, &rollAndPitchTrims, &rxConfig);
@@ -829,7 +839,7 @@ TEST(PIDUnittest, TestPidMultiWiiRewriteITermConstrain)
     rateErrorRoll = calcMwrAngleRateRoll(&controlRate);
     EXPECT_EQ(100, rateErrorRoll);// cross check
     pid_controller(pidProfile, &controlRate, max_angle_inclination, &rollAndPitchTrims, &rxConfig);
-    EXPECT_EQ(calcMwrITermDelta(pidProfile, PIDROLL, rateErrorRoll), unittest_pidMultiWiiRewriteCore_ITerm[FD_ROLL]);
+    EXPECT_EQ(calcMwrITermDelta(pidProfile, PIDROLL, rateErrorRoll), pidMwrState.stateAxis[FD_ROLL].ITerm);
 
     // set up a very large rateError and a large targetLooptime to force ITerm to be constrained
     pidControllerInitMultiWiiRewrite(&controlRate, max_angle_inclination, &rollAndPitchTrims, &rxConfig);
@@ -838,10 +848,9 @@ TEST(PIDUnittest, TestPidMultiWiiRewriteITermConstrain)
     rateErrorRoll = calcMwrAngleRateRoll(&controlRate);
     EXPECT_EQ(32750, rateErrorRoll);// cross check
     pid_controller(pidProfile, &controlRate, max_angle_inclination, &rollAndPitchTrims, &rxConfig);
-    EXPECT_EQ(GYRO_I_MAX, unittest_pidMultiWiiRewriteCore_ITerm[FD_ROLL]);
+    EXPECT_EQ(GYRO_I_MAX, pidMwrState.stateAxis[FD_ROLL].ITerm);
 }
 
-#ifdef XXX
 TEST(PIDUnittest, TestPidMultiWiiRewritePidLuxFloatCoreEquivalence)
 {
     pidProfile_t *pidProfile = testPidProfile();

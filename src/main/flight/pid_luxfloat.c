@@ -115,7 +115,7 @@ void pidLuxFloatInit(const pidProfile_t *pidProfile)
     }
 }
 
-STATIC_UNIT_TESTED void pidUpdateGyroStateAxis(flight_dynamics_index_t axis, const pidProfile_t *pidProfile, pidLuxFloatStateAxis_t* pidStateAxis)
+STATIC_UNIT_TESTED void pidLuxFloatUpdateGyroRateAxis(flight_dynamics_index_t axis, const pidProfile_t *pidProfile, pidLuxFloatStateAxis_t* pidStateAxis)
 {
     const float gyroRate = pidLuxFloatState.kGyro * gyroADC[axis];
     firFilterUpdate(&pidStateAxis->gyroRateFirFilter, gyroRate);
@@ -132,26 +132,30 @@ STATIC_UNIT_TESTED void pidUpdateGyroStateAxis(flight_dynamics_index_t axis, con
     }
 
     // -----calculate D component
-    if (pidProfile->D8[axis] != 0) {
-        // optimisation for when D8 is zero, often used by YAW axis
+    if (pidProfile->D8[axis] != 0) { // optimisation for when D8 is zero, often used by YAW axis
         // Calculate derivative using FIR filter
-        pidStateAxis->DTerm = -firFilterApply(&pidStateAxis->gyroRateFirFilter) / dT;
+        if (pidProfile->dterm_lpf_hz !=0  || pidProfile->dterm_average_count != 0) {
+            // only need to do the differentiation now if either of the lpf or average filters is active
+            // otherwise it can be deferred to the calculation phase
+            pidStateAxis->DTerm = -firFilterApply(&pidStateAxis->gyroRateFirFilter) / dT;
 
-        if (pidProfile->dterm_lpf_hz) {
-            // DTerm delta low pass filter
-            pidStateAxis->DTerm = pt1FilterApply(&pidStateAxis->DTermPt1Filter, pidStateAxis->DTerm, pidProfile->dterm_lpf_hz, dT);
-        }
-        if (pidProfile->dterm_average_count) {
-            // Apply moving average
-            averageFilterUpdate(&pidStateAxis->DTermAverageFilter, pidStateAxis->DTerm);
+            if (pidProfile->dterm_lpf_hz) {
+                // DTerm low pass filter
+                pidStateAxis->DTerm = pt1FilterApply(&pidStateAxis->DTermPt1Filter, pidStateAxis->DTerm, pidProfile->dterm_lpf_hz, dT);
+            }
+            if (pidProfile->dterm_average_count) {
+                // Apply moving average
+                averageFilterUpdate(&pidStateAxis->DTermAverageFilter, pidStateAxis->DTerm);
+                pidStateAxis->DTerm = averageFilterApply(&pidStateAxis->DTermAverageFilter);
+            }
         }
     }
 }
 
-void pidLuxFloatUpdateGyroState(const pidProfile_t *pidProfile)
+void pidLuxFloatUpdateGyroRate(const pidProfile_t *pidProfile)
 {
     for (int axis = 0; axis < 3; axis++) {
-        pidUpdateGyroStateAxis(axis, pidProfile, &pidLuxFloatState.stateAxis[axis]);
+        pidLuxFloatUpdateGyroRateAxis(axis, pidProfile, &pidLuxFloatState.stateAxis[axis]);
     }
 }
 
@@ -172,16 +176,16 @@ static float calcHorizonLevelStrength(const pidProfile_t *pidProfile)
     return horizonLevelStrength;
 }
 
-static void pidUpdateRcStateAxis(int axis, const pidProfile_t *pidProfile, pidLuxFloatStateAxis_t* pidStateAxis,
+static void pidLuxFloatUpdateDesiredRateAxis(int axis, const pidProfile_t *pidProfile, pidLuxFloatStateAxis_t* pidStateAxis,
         const controlRateConfig_t *controlRateConfig)
 {
     pidStateAxis->kP = luxPTermScale * pidProfile->P8[axis] * PIDweight[axis] / 100;
     pidStateAxis->kI = luxITermScale * pidProfile->I8[axis] * dT;
     pidStateAxis->kD = luxDTermScale * pidProfile->D8[axis] * PIDweight[axis] / 100;
 
-    const uint8_t rate = controlRateConfig->rates[axis];
 
     // -----Get the desired angle rate depending on flight mode
+    const uint8_t rate = controlRateConfig->rates[axis];
     if (axis == FD_YAW) {
         // YAW is always gyro-controlled (MAG correction is applied to rcCommand) 100dps to 1100dps max yaw rate
         pidStateAxis->desiredRate = (float)((rate + 27) * rcCommand[YAW]) / 32.0f;
@@ -214,7 +218,7 @@ static void pidUpdateRcStateAxis(int axis, const pidProfile_t *pidProfile, pidLu
     }
 }
 
-void pidLuxFloatUpdateRcState(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig)
+void pidLuxFloatUpdateDesiredRate(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig)
 {
     pidLuxFloatState.antiWindupProtection = false;
     if (IS_RC_MODE_ACTIVE(BOXAIRMODE)) {
@@ -223,13 +227,14 @@ void pidLuxFloatUpdateRcState(const pidProfile_t *pidProfile, const controlRateC
         }
     }
     for (int axis = 0; axis < 3; axis++) {
-        pidUpdateRcStateAxis(axis, pidProfile, &pidLuxFloatState.stateAxis[axis], controlRateConfig);
+        pidLuxFloatUpdateDesiredRateAxis(axis, pidProfile, &pidLuxFloatState.stateAxis[axis], controlRateConfig);
     }
 }
 
-static int16_t pidCalculateAxis(int axis, const pidProfile_t *pidProfile, pidLuxFloatStateAxis_t* pidStateAxis)
+static int16_t pidLuxFloatCalculateAxis(int axis, const pidProfile_t *pidProfile, pidLuxFloatStateAxis_t* pidStateAxis)
 {
     const float gyroRate = firFilterLastItem(&pidStateAxis->gyroRateFirFilter);
+    //const float gyroRate = firFilterCalcPartialAverage(&pidStateAxis->gyroRateFirFilter, 1);
     const float rateError = pidStateAxis->desiredRate - gyroRate;
 
     // -----calculate P component
@@ -243,9 +248,9 @@ static int16_t pidCalculateAxis(int axis, const pidProfile_t *pidProfile, pidLux
     if (pidProfile->D8[axis] == 0) {
         pidStateAxis->DTerm = 0;
     } else {
-        if (pidProfile->dterm_average_count) {
-            // Apply moving average
-            pidStateAxis->DTerm = averageFilterApply(&pidStateAxis->DTermAverageFilter);
+        if (pidProfile->dterm_lpf_hz == 0 && pidProfile->dterm_average_count == 0) {
+            // do the deferred differentiation
+            pidStateAxis->DTerm = -firFilterApply(&pidStateAxis->gyroRateFirFilter) / dT;
         }
         pidStateAxis->DTerm *= pidStateAxis->kD;
         pidStateAxis->DTerm = constrainf(pidStateAxis->DTerm, -PID_MAX_D, PID_MAX_D);
@@ -268,15 +273,15 @@ static int16_t pidCalculateAxis(int axis, const pidProfile_t *pidProfile, pidLux
 void pidLuxFloatCalculate(const pidProfile_t *pidProfile)
 {
     for (int axis = 0; axis < 3; axis++) {
-        axisPID[axis] = pidCalculateAxis(axis, pidProfile, &pidLuxFloatState.stateAxis[axis]);
+        axisPID[axis] = pidLuxFloatCalculateAxis(axis, pidProfile, &pidLuxFloatState.stateAxis[axis]);
     }
 }
 
 void pidLuxFloatShim(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig)
 {
-    // note, for test code must update RC state before updating gyro state
-    pidLuxFloatUpdateRcState(pidProfile, controlRateConfig);
-    pidLuxFloatUpdateGyroState(pidProfile);
+    // note, for test code must update desired rate before updating gyro rate
+    pidLuxFloatUpdateDesiredRate(pidProfile, controlRateConfig);
+    pidLuxFloatUpdateGyroRate(pidProfile);
     pidLuxFloatCalculate(pidProfile);
 }
 

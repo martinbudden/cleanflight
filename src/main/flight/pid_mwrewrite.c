@@ -110,15 +110,16 @@ void pidMultiWiiRewriteInit(const pidProfile_t *pidProfile)
         pidMwrStateAxis_t *pidStateAxis = &pidMwrState.stateAxis[axis];
         pidStateAxis->ITerm = 0;
         pidStateAxis->ITermLimit = 0;
-        firFilterInt32Init(&pidStateAxis->DTermFirFilterState, pidStateAxis->DTermFirFilterBuf, pidProfile->dterm_differentiator + 2, coeffs);
-        averageFilterInt32Init(&pidStateAxis->DTermAverageFilterState, pidStateAxis->DTermAverageFilterBuf, pidProfile->dterm_average_count);
+        firFilterInt32Init(&pidStateAxis->gyroRateFirFilter, pidStateAxis->gyroRateFirFilterBuf, pidProfile->dterm_differentiator + 2, coeffs);
+        averageFilterInt32Init(&pidStateAxis->DTermAverageFilter, pidStateAxis->DTermAverageFilterBuf, pidProfile->dterm_average_count);
     }
 }
 
-STATIC_UNIT_TESTED void pidUpdateGyroStateAxis(flight_dynamics_index_t axis, const pidProfile_t *pidProfile, pidMwrStateAxis_t* pidStateAxis)
+STATIC_UNIT_TESTED void pidMwrUpdateGyroRateAxis(flight_dynamics_index_t axis, const pidProfile_t *pidProfile, pidMwrStateAxis_t* pidStateAxis)
 {
-    pidStateAxis->gyroRate = gyroADC[axis] / 4;
-    const int32_t rateError = pidStateAxis->desiredRate - pidStateAxis->gyroRate;
+    const int32_t gyroRate = gyroADC[axis] / 4;
+    const int32_t rateError = pidStateAxis->desiredRate - gyroRate;
+    firFilterInt32Update(&pidStateAxis->gyroRateFirFilter, gyroRate);
 
     // -----calculate I component
     // There should be no division before accumulating the error to integrator, because the precision would be reduced.
@@ -137,31 +138,27 @@ STATIC_UNIT_TESTED void pidUpdateGyroStateAxis(flight_dynamics_index_t axis, con
     }
 
     // -----calculate D component
-    if (pidProfile->D8[axis] != 0) {
-        // optimisation for when D8 is zero, often used by YAW axis
-        // delta calculated from measurement
+    if (pidProfile->D8[axis] != 0) { // optimisation for when D8 is zero, often used by YAW axis
         // Calculate derivative using FIR filter
-        firFilterInt32Update(&pidStateAxis->DTermFirFilterState, pidStateAxis->gyroRate);
-        int32_t delta = -firFilterInt32Apply(&pidStateAxis->DTermFirFilterState);
-
+        const int32_t delta = -firFilterInt32Apply(&pidStateAxis->gyroRateFirFilter);
         // Divide delta by targetLooptime to get differential (ie dr/dt)
         pidStateAxis->DTerm = (delta * ((uint16_t)0xFFFF / ((uint16_t)targetLooptime >> 4))) >> 5;
         if (pidProfile->dterm_lpf_hz) {
             // DTerm low pass filter
-            pidStateAxis->DTerm = pt1FilterApply(&pidStateAxis->DTermPt1FilterState, (float)pidStateAxis->DTerm, pidProfile->dterm_lpf_hz, dT);
+            pidStateAxis->DTerm = pt1FilterApply(&pidStateAxis->DTermPt1Filter, (float)pidStateAxis->DTerm, pidProfile->dterm_lpf_hz, dT);
         }
         if (pidProfile->dterm_average_count) {
             // Apply moving average
-            averageFilterInt32Update(&pidStateAxis->DTermAverageFilterState, pidStateAxis->DTerm);
+            averageFilterInt32Update(&pidStateAxis->DTermAverageFilter, pidStateAxis->DTerm);
         }
     }
 
 }
 
-void pidMwrUpdateGyroState(const pidProfile_t *pidProfile)
+void pidMwrUpdateGyroRate(const pidProfile_t *pidProfile)
 {
     for (int axis = 0; axis < 3; axis++) {
-        pidUpdateGyroStateAxis(axis, pidProfile, &pidMwrState.stateAxis[axis]);
+        pidMwrUpdateGyroRateAxis(axis, pidProfile, &pidMwrState.stateAxis[axis]);
     }
 }
 
@@ -183,17 +180,17 @@ static int8_t calcHorizonLevelStrength(const pidProfile_t *pidProfile)
     return horizonLevelStrength;
 }
 
-static void pidUpdateRcStateAxis(int axis, const pidProfile_t *pidProfile, pidMwrStateAxis_t* pidStateAxis, const controlRateConfig_t *controlRateConfig)
+static void pidMwrUpdateDesiredRateAxis(int axis, const pidProfile_t *pidProfile, pidMwrStateAxis_t* pidStateAxis, const controlRateConfig_t *controlRateConfig)
 {
-    const uint8_t rate = controlRateConfig->rates[axis];
+    const int32_t rate = controlRateConfig->rates[axis] + 27;
 
     // -----Get the desired angle rate depending on flight mode
     if (axis == FD_YAW) {
         // YAW is always gyro-controlled (MAG correction is applied to rcCommand)
-        pidStateAxis->desiredRate = (((int32_t)(rate + 27) * rcCommand[YAW]) >> 5);
+        pidStateAxis->desiredRate = (rate * rcCommand[YAW]) >> 5;
     } else {
         // control is GYRO based for ACRO and HORIZON - direct sticks control is applied to rate PID
-        pidStateAxis->desiredRate = ((int32_t)(rate + 27) * rcCommand[axis]) >> 4;
+        pidStateAxis->desiredRate = (rate * rcCommand[axis]) >> 4;
         if (FLIGHT_MODE(ANGLE_MODE) || FLIGHT_MODE(HORIZON_MODE)) {
             // calculate error angle and limit the angle to the max inclination
             // multiplication of rcCommand corresponds to changing the sticks scaling here
@@ -220,7 +217,7 @@ static void pidUpdateRcStateAxis(int axis, const pidProfile_t *pidProfile, pidMw
     }
 }
 
-void pidMwrUpdateRcState(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig)
+void pidMwrUpdateDesiredRate(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig)
 {
     pidMwrState.antiWindupProtection = false;
     if (IS_RC_MODE_ACTIVE(BOXAIRMODE)) {
@@ -229,13 +226,15 @@ void pidMwrUpdateRcState(const pidProfile_t *pidProfile, const controlRateConfig
         }
     }
     for (int axis = 0; axis < 3; axis++) {
-        pidUpdateRcStateAxis(axis, pidProfile, &pidMwrState.stateAxis[axis], controlRateConfig);
+        pidMwrUpdateDesiredRateAxis(axis, pidProfile, &pidMwrState.stateAxis[axis], controlRateConfig);
     }
 }
 
-static int16_t pidCalculateAxis(int axis, const pidProfile_t *pidProfile, pidMwrStateAxis_t* pidStateAxis)
+static int16_t pidMwrCalculateAxis(int axis, const pidProfile_t *pidProfile, pidMwrStateAxis_t* pidStateAxis)
 {
-    const int32_t rateError = pidStateAxis->desiredRate - pidStateAxis->gyroRate;
+    const float gyroRate = firFilterInt32LastItem(&pidStateAxis->gyroRateFirFilter);
+    //const float gyroRate = firFilterInt32CalcPartialAverage(&pidStateAxis->gyroRateFirFilter, 4);
+    const int32_t rateError = pidStateAxis->desiredRate - gyroRate;
 
     // -----calculate P component
     int32_t PTerm = (rateError * pidProfile->P8[axis] * PIDweight[axis] / 100) >> 7;
@@ -266,15 +265,15 @@ static int16_t pidCalculateAxis(int axis, const pidProfile_t *pidProfile, pidMwr
 void pidMwrCalculate(const pidProfile_t *pidProfile)
 {
     for (int axis = 0; axis < 3; axis++) {
-        axisPID[axis] = pidCalculateAxis(axis, pidProfile, &pidMwrState.stateAxis[axis]);
+        axisPID[axis] = pidMwrCalculateAxis(axis, pidProfile, &pidMwrState.stateAxis[axis]);
     }
 }
 
 void pidMultiWiiRewriteShim(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig)
 {
-    // note, for test code must update RC state before updating gyro state
-    pidMwrUpdateRcState(pidProfile, controlRateConfig);
-    pidMwrUpdateGyroState(pidProfile);
+    // note, for test code must update desired rate before updating gyro rate
+    pidMwrUpdateDesiredRate(pidProfile, controlRateConfig);
+    pidMwrUpdateGyroRate(pidProfile);
     pidMwrCalculate(pidProfile);
 }
 

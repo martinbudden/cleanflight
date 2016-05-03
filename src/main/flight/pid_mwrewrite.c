@@ -139,17 +139,22 @@ STATIC_UNIT_TESTED void pidMwrUpdateGyroRateAxis(flight_dynamics_index_t axis, c
 
     // -----calculate D component
     if (pidProfile->D8[axis] != 0) { // optimisation for when D8 is zero, often used by YAW axis
-        // Calculate derivative using FIR filter
-        const int32_t delta = -firFilterInt32Apply(&pidStateAxis->gyroRateFirFilter);
-        // Divide delta by targetLooptime to get differential (ie dr/dt)
-        pidStateAxis->DTerm = (delta * ((uint16_t)0xFFFF / ((uint16_t)targetLooptime >> 4))) >> 5;
-        if (pidProfile->dterm_lpf_hz) {
-            // DTerm low pass filter
-            pidStateAxis->DTerm = pt1FilterApply(&pidStateAxis->DTermPt1Filter, (float)pidStateAxis->DTerm, pidProfile->dterm_lpf_hz, dT);
-        }
-        if (pidProfile->dterm_average_count) {
-            // Apply moving average
-            averageFilterInt32Update(&pidStateAxis->DTermAverageFilter, pidStateAxis->DTerm);
+        if (pidProfile->dterm_lpf_hz !=0  || pidProfile->dterm_average_count != 0) {
+            // only need to do the differentiation now if either of the lpf or average filters is active
+            // otherwise it can be deferred to the calculation phase
+            // Calculate derivative using FIR filter
+            const int32_t delta = -firFilterInt32Apply(&pidStateAxis->gyroRateFirFilter);
+            // Divide delta by targetLooptime to get differential (ie dr/dt)
+            pidStateAxis->DTerm = (delta * ((uint16_t)0xFFFF / ((uint16_t)targetLooptime >> 4))) >> 5;
+            if (pidProfile->dterm_lpf_hz) {
+                // DTerm low pass filter
+                pidStateAxis->DTerm = pt1FilterApply(&pidStateAxis->DTermPt1Filter, (float)pidStateAxis->DTerm, pidProfile->dterm_lpf_hz, dT);
+            }
+            if (pidProfile->dterm_average_count) {
+                // Apply moving average
+                averageFilterInt32Update(&pidStateAxis->DTermAverageFilter, pidStateAxis->DTerm);
+                pidStateAxis->DTerm = averageFilterInt32Apply(&pidStateAxis->DTermAverageFilter);
+            }
         }
     }
 
@@ -245,8 +250,19 @@ static int16_t pidMwrCalculateAxis(int axis, const pidProfile_t *pidProfile, pid
 
     int ITerm = pidStateAxis->ITerm >> 13; // take integer part of Q19.13 value
 
-    pidStateAxis->DTerm = (pidStateAxis->DTerm * pidProfile->D8[axis] * PIDweight[axis] / 100) >> 8;
-    pidStateAxis->DTerm = constrain(pidStateAxis->DTerm, -PID_MAX_D, PID_MAX_D);
+    // -----calculate D component
+    if (pidProfile->D8[axis] == 0) {
+        pidStateAxis->DTerm = 0;
+    } else {
+        if (pidProfile->dterm_lpf_hz == 0 && pidProfile->dterm_average_count == 0) {
+            // do the deferred differentiation usint FIR filter
+            const int32_t delta = -firFilterInt32Apply(&pidStateAxis->gyroRateFirFilter);
+            // Divide delta by targetLooptime to get differential (ie dr/dt)
+            pidStateAxis->DTerm = (delta * ((uint16_t)0xFFFF / ((uint16_t)targetLooptime >> 4))) >> 5;
+        }
+        pidStateAxis->DTerm = (pidStateAxis->DTerm * pidProfile->D8[axis] * PIDweight[axis] / 100) >> 8;
+        pidStateAxis->DTerm = constrain(pidStateAxis->DTerm, -PID_MAX_D, PID_MAX_D);
+    }
 
 #ifdef BLACKBOX
     axisPID_P[axis] = PTerm;

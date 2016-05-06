@@ -110,7 +110,6 @@ void pidLuxFloatInit(const pidProfile_t *pidProfile)
         pidStateAxis->ITerm = 0.0f;
         pidStateAxis->ITermLimit = 0.0f;
         firFilterInit2(&pidStateAxis->gyroRateFirFilter, pidStateAxis->gyroRateBuf, PID_GYRORATE_BUF_LENGTH, coeffs, pidProfile->dterm_differentiator + 2);
-        firFilterInit(&pidStateAxis->DTermAverageFilter, pidStateAxis->DTermAverageFilterBuf, pidProfile->dterm_average_count, NULL);
     }
 }
 
@@ -141,20 +140,13 @@ STATIC_UNIT_TESTED void pidLuxFloatUpdateGyroRateAxis(flight_dynamics_index_t ax
     // -----calculate D component
     if (pidProfile->D8[axis] != 0) { // optimisation for when D8 is zero, often used by YAW axis
         // Calculate derivative using FIR filter
-        if (pidProfile->dterm_lpf_hz !=0  || pidProfile->dterm_average_count != 0) {
-            // only need to do the differentiation now if either of the lpf or average filters is active
+        if (pidProfile->dterm_lpf_hz !=0) {
+            // only need to do the differentiation now if the lpf filter is active
             // otherwise it can be deferred to the calculation phase
             pidStateAxis->DTerm = -firFilterApply(&pidStateAxis->gyroRateFirFilter) / dT;
 
-            if (pidProfile->dterm_lpf_hz) {
-                // DTerm low pass filter
-                pidStateAxis->DTerm = pt1FilterApply(&pidStateAxis->DTermPt1Filter, pidStateAxis->DTerm, pidProfile->dterm_lpf_hz, dT);
-            }
-            if (pidProfile->dterm_average_count) {
-                // Apply moving average
-                firFilterUpdate(&pidStateAxis->DTermAverageFilter, pidStateAxis->DTerm);
-                pidStateAxis->DTerm = firFilterCalcAverage(&pidStateAxis->DTermAverageFilter);
-            }
+            // DTerm low pass filter
+            pidStateAxis->DTerm = pt1FilterApply(&pidStateAxis->DTermPt1Filter, pidStateAxis->DTerm, pidProfile->dterm_lpf_hz, dT);
         }
     }
 }
@@ -249,7 +241,7 @@ static int16_t pidLuxFloatCalculateAxis(int axis, const pidProfile_t *pidProfile
     if (pidProfile->D8[axis] == 0) {
         pidStateAxis->DTerm = 0;
     } else {
-        if (pidProfile->dterm_lpf_hz == 0 && pidProfile->dterm_average_count == 0) {
+        if (pidProfile->dterm_lpf_hz == 0) {
             // do the deferred differentiation
             pidStateAxis->DTerm = -firFilterApply(&pidStateAxis->gyroRateFirFilter) / dT;
         }

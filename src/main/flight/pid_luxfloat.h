@@ -39,8 +39,6 @@ typedef struct pidLuxFloatStateAxis_s {
     float               gyroRateBuf[PID_GYRORATE_BUF_LENGTH];
 
     filterStatePt1_t    DTermPt1Filter;
-    firFilter_t         DTermAverageFilter;
-    float               DTermAverageFilterBuf[PID_DTERM_AVERAGE_FILTER_BUF_LENGTH];
 } pidLuxFloatStateAxis_t;
 
 typedef struct pidLuxFloatState_s {

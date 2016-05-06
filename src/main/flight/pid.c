@@ -59,13 +59,6 @@ int32_t axisPID_P[3], axisPID_I[3], axisPID_D[3];
 // PIDweight is a scale factor for PIDs which is derived from the throttle and TPA setting, and 100 = 100% scale means no PID reduction
 uint8_t PIDweight[3];
 
-int32_t lastITerm[3], ITermLimit[3];
-float lastITermf[3], ITermLimitf[3];
-
-// shared float/int buffers
-//int32_t DTermAverageFilterBuf[3][PID_DTERM_AVERAGE_FILTER_MAX_LENGTH];
-//int32_t DTermFirFilterBuf[3][PID_GYRORATE_BUF_LENGTH];
-
 void pidMultiWii23Init(const pidProfile_t *pidProfile);
 void pidMultiWii23Shim(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig);
 
@@ -126,8 +119,6 @@ PG_RESET_TEMPLATE(pidProfile_t, pidProfile,
 
     .dterm_differentiator = 3,
     .dterm_lpf_hz = 0,
-    .dterm_lpf_biquad = 0,
-    .dterm_average_count = 0,
     .yaw_p_limit = YAW_P_LIMIT_MAX,
 );
 

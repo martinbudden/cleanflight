@@ -34,8 +34,6 @@ typedef struct pidMwrStateAxis_s {
     int32_t             gyroRateFirFilterBuf[PID_GYRORATE_BUF_LENGTH];
 
     filterStatePt1_t    DTermPt1Filter;
-    firFilterInt32_t    DTermAverageFilter;
-    int32_t             DTermAverageFilterBuf[PID_DTERM_AVERAGE_FILTER_BUF_LENGTH];
 } pidMwrStateAxis_t;
 
 typedef struct pidMwrState_s {

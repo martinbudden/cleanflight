@@ -244,10 +244,7 @@ void annexCode(void)
     tmp = (uint32_t)(tmp - rxConfig()->mincheck) * PWM_RANGE_MIN / (PWM_RANGE_MAX - rxConfig()->mincheck);       // [MINCHECK;2000] -> [0;1000]
     tmp2 = tmp / 100;
     rcCommand[THROTTLE] = lookupThrottleRC[tmp2] + (tmp - tmp2 * 100) * (lookupThrottleRC[tmp2 + 1] - lookupThrottleRC[tmp2]) / 100;    // [0;1000] -> expo -> [MINTHROTTLE;MAXTHROTTLE]
-}
 
-void annexCode(void)
-{
     if (FLIGHT_MODE(HEADFREE_MODE)) {
         float radDiff = degreesToRadians(DECIDEGREES_TO_DEGREES(attitude.values.yaw) - headFreeModeHold);
         float cosDiff = cos_approx(radDiff);
@@ -798,7 +795,6 @@ bool taskUpdateRxCheck(uint32_t currentDeltaTime)
 void taskUpdateRxMain(void)
 {
     processRx();
-    processRxDependentCoefficients();
 
     isRXDataNew = true;
 

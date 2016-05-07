@@ -75,6 +75,7 @@
 #include "flight/mixer.h"
 #include "flight/servos.h"
 #include "flight/pid.h"
+#include "flight/pid_mars.h"
 #include "flight/imu.h"
 #include "flight/altitudehold.h"
 #include "flight/failsafe.h"
@@ -119,14 +120,10 @@ static bool isRXDataNew;
 static filterStatePt1_t filteredCycleTimeState;
 uint16_t filteredCycleTime;
 
-typedef void (*pidUpdateGyroRateFuncPtr)(const pidProfile_t *pidProfile);
-typedef void (*pidUpdateDesiredRateFuncPtr)(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig);
-typedef void (*pidControllerFuncPtr)(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig,
-        uint16_t max_angle_inclination, const rollAndPitchTrims_t *angleTrim, const rxConfig_t *rxConfig);            // pid controller function prototype
-
+extern pidControllerFuncPtr pid_controller;
 extern pidUpdateGyroRateFuncPtr pid_update_giro_rate;
 extern pidUpdateDesiredRateFuncPtr pid_update_desired_rate;
-extern pidControllerFuncPtr pid_controller;
+extern pidCalculateFuncPtr pid_calculate;
 
 void applyAndSaveAccelerometerTrimsDelta(rollAndPitchTrims_t *rollAndPitchTrimsDelta)
 {
@@ -708,17 +705,22 @@ void subTaskMainSubprocesses(void)
 
 void subTaskPidController(void)
 {
-    pid_controller(
-        pidProfile(),
-        currentControlRateProfile,
-        imuConfig()->max_angle_inclination,
-        &accelerometerConfig()->accelerometerTrims,
-        rxConfig()
-    );
+    if (pid_controller) {
+        pid_controller(
+            pidProfile(),
+            currentControlRateProfile,
+            imuConfig()->max_angle_inclination,
+            &accelerometerConfig()->accelerometerTrims,
+            rxConfig()
+        );
+    }
 }
 
 void subTaskUpdateMotors(void)
 {
+    if (pid_calculate) {
+        pid_calculate(pidProfile());
+    }
     mixTable();
 
 #ifdef USE_SERVOS
@@ -744,7 +746,9 @@ void taskMainPidLoopChecker(void) {
         }
     }
     gyroUpdate();
-    if (pid_update_giro_rate) {pid_update_giro_rate(pidProfile());}
+    if (pid_update_giro_rate) {
+        pid_update_giro_rate(pidProfile());
+    }
     subTaskMainSubprocesses();
     subTaskPidController();
     subTaskUpdateMotors();
@@ -810,7 +814,9 @@ void taskUpdateRxMain(void)
     if (rxConfig()->rcSmoothing) {
         filterRc();
     }
-    if (pid_update_desired_rate) {pid_update_desired_rate(pidProfile(), currentControlRateProfile);}
+    if (pid_update_desired_rate) {
+        pid_update_desired_rate(pidProfile(), currentControlRateProfile);
+    }
 
 
 #ifdef BARO

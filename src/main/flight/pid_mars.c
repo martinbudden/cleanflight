@@ -294,13 +294,8 @@ static int16_t pidMarsCalculateAxis(int axis, const pidProfile_t *pidProfile, pi
     return lrintf(pidStateAxis->PTerm + pidStateAxis->ITerm + pidStateAxis->DTerm);
 }
 
-void pidMars(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig,
-        uint16_t max_angle_inclination, const rollAndPitchTrims_t *angleTrim, const rxConfig_t *rxConfig)
+void pidMarsCalculate(const pidProfile_t *pidProfile)
 {
-    UNUSED(controlRateConfig);
-    UNUSED(max_angle_inclination);
-    UNUSED(angleTrim);
-    UNUSED(rxConfig);
     for (int axis = 0; axis < 3; ++axis) {
         axisPID[axis] = pidMarsCalculateAxis(axis, pidProfile, &pidMarsState.stateAxis[axis]);
     }

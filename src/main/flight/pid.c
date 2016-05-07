@@ -47,6 +47,7 @@
 #include "io/rate_profile.h"
 
 #include "flight/pid.h"
+#include "flight/pid_mars.h"
 
 int16_t axisPID[3];
 
@@ -67,22 +68,11 @@ void pidMultiWiiRewrite(const pidProfile_t *pidProfile, const controlRateConfig_
 void pidMultiWii23(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig,
         uint16_t max_angle_inclination, const rollAndPitchTrims_t *angleTrim, const rxConfig_t *rxConfig);
 
-void pidMarsInit(const pidProfile_t *pidProfile);
-void pidMarsResetITerm(void);
-void pidMarsUpdateGyroRate(const pidProfile_t *pidProfile);
-void pidMarsUpdateDesiredRate(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig);
-void pidMars(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig,
-        uint16_t max_angle_inclination, const rollAndPitchTrims_t *angleTrim, const rxConfig_t *rxConfig);
-
-typedef void (*pidUpdateGyroRateFuncPtr)(const pidProfile_t *pidProfile);
-typedef void (*pidUpdateDesiredRateFuncPtr)(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig);
-
-typedef void (*pidControllerFuncPtr)(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig,
-        uint16_t max_angle_inclination, const rollAndPitchTrims_t *angleTrim, const rxConfig_t *rxConfig);            // pid controller function prototype
+pidControllerFuncPtr pid_controller = pidMultiWiiRewrite;
 
 pidUpdateGyroRateFuncPtr pid_update_giro_rate;
 pidUpdateDesiredRateFuncPtr pid_update_desired_rate;
-pidControllerFuncPtr pid_controller = pidMultiWiiRewrite;
+pidCalculateFuncPtr pid_calculate;
 
 PG_REGISTER_PROFILE_WITH_RESET_TEMPLATE(pidProfile_t, pidProfile, PG_PID_PROFILE, 0);
 
@@ -147,6 +137,7 @@ void pidSetController(pidControllerType_e type)
 {
     pid_update_giro_rate = NULL;
     pid_update_desired_rate = NULL;
+    pid_calculate = NULL;
     switch (type) {
         default:
         case PID_CONTROLLER_MWREWRITE:
@@ -161,7 +152,7 @@ void pidSetController(pidControllerType_e type)
         case PID_CONTROLLER_MARS:
             pid_update_giro_rate = pidMarsUpdateGyroRate;
             pid_update_desired_rate = pidMarsUpdateDesiredRate;
-            pid_controller = pidMars;
+            pid_calculate = pidMarsCalculateL;
             pidMarsInit(pidProfile());
             break;
 #endif

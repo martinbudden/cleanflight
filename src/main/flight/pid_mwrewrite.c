@@ -113,7 +113,7 @@ STATIC_UNIT_TESTED int16_t pidMultiWiiRewriteCore(int axis, const pidProfile_t *
         lastRateForDelta[axis] = gyroRate;
         // Divide delta by targetLooptime to get differential (ie dr/dt)
         delta = (delta * ((uint16_t)0xFFFF / ((uint16_t)targetLooptime >> 4))) >> 6;
-        if (pidProfile->dterm_cut_hz) {
+        if (pidProfile->dterm_lpf_hz) {
             // DTerm delta low pass filter
             delta = lrintf(applyBiQuadFilter((float)delta, &deltaFilterState[axis]));
         } else {

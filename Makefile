@@ -248,6 +248,7 @@ COMMON_SRC = build_config.c \
 		   flight/pid_luxfloat.c \
 		   flight/pid_mwrewrite.c \
 		   flight/pid_mw23.c \
+		   flight/pid_mars.c \
 		   flight/imu.c \
 		   flight/mixer.c \
 		   flight/servos.c \

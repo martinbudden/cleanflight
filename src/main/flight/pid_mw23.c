@@ -146,7 +146,7 @@ void pidMultiWii23(const pidProfile_t *pidProfile, const controlRateConfig_t *co
         // Delta from measurement
         delta = -(gyroError - lastErrorForDelta[axis]);
         lastErrorForDelta[axis] = gyroError;
-        if (pidProfile->dterm_cut_hz) {
+        if (pidProfile->dterm_lpf_hz) {
             // Dterm delta low pass
             DTerm = delta;
             DTerm = lrintf(applyBiQuadFilter((float) DTerm, &deltaFilterState[axis])) * 3;  // Keep same scaling as unfiltered DTerm

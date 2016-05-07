@@ -67,9 +67,21 @@ void pidMultiWiiRewrite(const pidProfile_t *pidProfile, const controlRateConfig_
 void pidMultiWii23(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig,
         uint16_t max_angle_inclination, const rollAndPitchTrims_t *angleTrim, const rxConfig_t *rxConfig);
 
+void pidMarsInit(const pidProfile_t *pidProfile);
+void pidMarsResetITerm(void);
+void pidMarsUpdateGyroRate(const pidProfile_t *pidProfile);
+void pidMarsUpdateDesiredRate(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig);
+void pidMars(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig,
+        uint16_t max_angle_inclination, const rollAndPitchTrims_t *angleTrim, const rxConfig_t *rxConfig);
+
+typedef void (*pidUpdateGyroRateFuncPtr)(const pidProfile_t *pidProfile);
+typedef void (*pidUpdateDesiredRateFuncPtr)(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig);
+
 typedef void (*pidControllerFuncPtr)(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig,
         uint16_t max_angle_inclination, const rollAndPitchTrims_t *angleTrim, const rxConfig_t *rxConfig);            // pid controller function prototype
 
+pidUpdateGyroRateFuncPtr pid_update_giro_rate;
+pidUpdateDesiredRateFuncPtr pid_update_desired_rate;
 pidControllerFuncPtr pid_controller = pidMultiWiiRewrite;
 
 PG_REGISTER_PROFILE_WITH_RESET_TEMPLATE(pidProfile_t, pidProfile, PG_PID_PROFILE, 0);
@@ -106,7 +118,7 @@ PG_RESET_TEMPLATE(pidProfile_t, pidProfile,
     .D8[PIDVEL] = 1,
 
     .yaw_p_limit = YAW_P_LIMIT_MAX,
-    .dterm_cut_hz = 0,
+    .dterm_lpf_hz = 0,
 );
 
 void pidResetITerm(void)
@@ -115,6 +127,7 @@ void pidResetITerm(void)
         lastITerm[axis] = 0;
         lastITermf[axis] = 0.0f;
     }
+    pidMarsResetITerm();
 }
 
 biquad_t deltaFilterState[3];
@@ -122,9 +135,9 @@ biquad_t deltaFilterState[3];
 void pidFilterIsSetCheck(const pidProfile_t *pidProfile)
 {
     static bool deltaStateIsSet = false;
-    if (!deltaStateIsSet && pidProfile->dterm_cut_hz) {
+    if (!deltaStateIsSet && pidProfile->dterm_lpf_hz) {
         for (int axis = 0; axis < 3; axis++) {
-            BiQuadNewLpf(pidProfile->dterm_cut_hz, &deltaFilterState[axis], targetLooptime);
+            BiQuadNewLpf(pidProfile->dterm_lpf_hz, &deltaFilterState[axis], targetLooptime);
         }
         deltaStateIsSet = true;
     }
@@ -132,6 +145,8 @@ void pidFilterIsSetCheck(const pidProfile_t *pidProfile)
 
 void pidSetController(pidControllerType_e type)
 {
+    pid_update_giro_rate = NULL;
+    pid_update_desired_rate = NULL;
     switch (type) {
         default:
         case PID_CONTROLLER_MWREWRITE:
@@ -140,6 +155,14 @@ void pidSetController(pidControllerType_e type)
 #ifndef SKIP_PID_LUXFLOAT
         case PID_CONTROLLER_LUX_FLOAT:
             pid_controller = pidLuxFloat;
+            break;
+#endif
+#ifndef SKIP_PID_MARS
+        case PID_CONTROLLER_MARS:
+            pid_update_giro_rate = pidMarsUpdateGyroRate;
+            pid_update_desired_rate = pidMarsUpdateDesiredRate;
+            pid_controller = pidMars;
+            pidMarsInit(pidProfile());
             break;
 #endif
 #ifndef SKIP_PID_MW23

@@ -119,9 +119,13 @@ static bool isRXDataNew;
 static filterStatePt1_t filteredCycleTimeState;
 uint16_t filteredCycleTime;
 
+typedef void (*pidUpdateGyroRateFuncPtr)(const pidProfile_t *pidProfile);
+typedef void (*pidUpdateDesiredRateFuncPtr)(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig);
 typedef void (*pidControllerFuncPtr)(const pidProfile_t *pidProfile, const controlRateConfig_t *controlRateConfig,
         uint16_t max_angle_inclination, const rollAndPitchTrims_t *angleTrim, const rxConfig_t *rxConfig);            // pid controller function prototype
 
+extern pidUpdateGyroRateFuncPtr pid_update_giro_rate;
+extern pidUpdateDesiredRateFuncPtr pid_update_desired_rate;
 extern pidControllerFuncPtr pid_controller;
 
 void applyAndSaveAccelerometerTrimsDelta(rollAndPitchTrims_t *rollAndPitchTrimsDelta)
@@ -629,11 +633,7 @@ void filterRc(void){
     }
 }
 
-#if defined(BARO) || defined(SONAR)
-static bool haveProcessedAnnexCodeOnce = false;
-#endif
-
-void taskMainPidLoop(void)
+void subTaskMainSubprocesses(void)
 {
     cycleTime = getTaskDeltaTime(TASK_SELF);
     dT = (float)cycleTime * 0.000001f;
@@ -644,34 +644,24 @@ void taskMainPidLoop(void)
     debug[0] = cycleTime;
     debug[1] = cycleTime - filteredCycleTime;
 
-    imuUpdateGyroAndAttitude();
-
-    annexCode();
-
-    if (rxConfig()->rcSmoothing) {
-        filterRc();
-    }
-
-#if defined(BARO) || defined(SONAR)
-    haveProcessedAnnexCodeOnce = true;
-#endif
+    imuUpdateAttitude();
 
 #ifdef MAG
-        if (sensors(SENSOR_MAG)) {
-            updateMagHold();
-        }
+    if (sensors(SENSOR_MAG)) {
+        updateMagHold();
+    }
 #endif
 
 #ifdef GTUNE
-        updateGtuneState();
+    updateGtuneState();
 #endif
 
 #if defined(BARO) || defined(SONAR)
-        if (sensors(SENSOR_BARO) || sensors(SENSOR_SONAR)) {
-            if (FLIGHT_MODE(BARO_MODE) || FLIGHT_MODE(SONAR_MODE)) {
-                applyAltHold();
-            }
+    if (sensors(SENSOR_BARO) || sensors(SENSOR_SONAR)) {
+        if (FLIGHT_MODE(BARO_MODE) || FLIGHT_MODE(SONAR_MODE)) {
+            applyAltHold();
         }
+    }
 #endif
 
     // If we're armed, at minimum throttle, and we do arming via the
@@ -703,6 +693,21 @@ void taskMainPidLoop(void)
 #endif
 
     // PID - note this is function pointer set by setPIDController()
+
+
+#ifdef USE_SDCARD
+    afatfs_poll();
+#endif
+
+#ifdef BLACKBOX
+    if (!cliMode && feature(FEATURE_BLACKBOX)) {
+        handleBlackbox();
+    }
+#endif
+}
+
+void subTaskPidController(void)
+{
     pid_controller(
         pidProfile(),
         currentControlRateProfile,
@@ -710,7 +715,10 @@ void taskMainPidLoop(void)
         &accelerometerConfig()->accelerometerTrims,
         rxConfig()
     );
+}
 
+void subTaskUpdateMotors(void)
+{
     mixTable();
 
 #ifdef USE_SERVOS
@@ -721,33 +729,25 @@ void taskMainPidLoop(void)
     if (motorControlEnable) {
         writeMotors();
     }
-
-#ifdef USE_SDCARD
-        afatfs_poll();
-#endif
-
-#ifdef BLACKBOX
-    if (!cliMode && feature(FEATURE_BLACKBOX)) {
-        handleBlackbox();
-    }
-#endif
 }
-
 // Function for loop trigger
 void taskMainPidLoopChecker(void) {
     // getTaskDeltaTime() returns delta time freezed at the moment of entering the scheduler. currentTime is freezed at the very same point.
     // To make busy-waiting timeout work we need to account for time spent within busy-waiting loop
-    uint32_t currentDeltaTime = getTaskDeltaTime(TASK_SELF);
+    const uint32_t currentDeltaTime = getTaskDeltaTime(TASK_SELF);
 
     if (imuConfig()->gyroSync) {
-        while (1) {
+        while (true) {
             if (gyroSyncCheckUpdate() || ((currentDeltaTime + (micros() - currentTime)) >= (targetLooptime + GYRO_WATCHDOG_DELAY))) {
                 break;
             }
         }
     }
-
-    taskMainPidLoop();
+    gyroUpdate();
+    if (pid_update_giro_rate) {pid_update_giro_rate(pidProfile());}
+    subTaskMainSubprocesses();
+    subTaskPidController();
+    subTaskUpdateMotors();
 }
 
 void taskUpdateAccelerometer(void)
@@ -805,22 +805,23 @@ void taskUpdateRxMain(void)
     processRxDependentCoefficients();
 
     isRXDataNew = true;
+    annexCode();
+
+    if (rxConfig()->rcSmoothing) {
+        filterRc();
+    }
+    if (pid_update_desired_rate) {pid_update_desired_rate(pidProfile(), currentControlRateProfile);}
+
 
 #ifdef BARO
-    // the 'annexCode' initialses rcCommand, updateAltHoldState depends on valid rcCommand data.
-    if (haveProcessedAnnexCodeOnce) {
-        if (sensors(SENSOR_BARO)) {
-            updateAltHoldState();
-        }
+    if (sensors(SENSOR_BARO)) {
+        updateAltHoldState();
     }
 #endif
 
 #ifdef SONAR
-    // the 'annexCode' initialses rcCommand, updateAltHoldState depends on valid rcCommand data.
-    if (haveProcessedAnnexCodeOnce) {
-        if (sensors(SENSOR_SONAR)) {
-            updateSonarAltHoldState();
-        }
+    if (sensors(SENSOR_SONAR)) {
+        updateSonarAltHoldState();
     }
 #endif
 }

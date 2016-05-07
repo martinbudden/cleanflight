@@ -115,7 +115,7 @@ STATIC_UNIT_TESTED int16_t pidLuxFloatCore(int axis, const pidProfile_t *pidProf
         lastRateForDelta[axis] = gyroRate;
         // Divide delta by dT to get differential (ie dr/dt)
         delta *= (1.0f / dT);
-        if (pidProfile->dterm_cut_hz) {
+        if (pidProfile->dterm_lpf_hz) {
             // DTerm delta low pass filter
             delta = applyBiQuadFilter(delta, &deltaFilterState[axis]);
         } else {

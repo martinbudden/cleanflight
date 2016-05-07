@@ -69,7 +69,6 @@ void pidMultiWii23(const pidProfile_t *pidProfile, const controlRateConfig_t *co
         uint16_t max_angle_inclination, const rollAndPitchTrims_t *angleTrim, const rxConfig_t *rxConfig);
 
 pidControllerFuncPtr pid_controller = pidMultiWiiRewrite;
-
 pidUpdateGyroRateFuncPtr pid_update_giro_rate;
 pidUpdateDesiredRateFuncPtr pid_update_desired_rate;
 pidCalculateFuncPtr pid_calculate;
@@ -152,7 +151,7 @@ void pidSetController(pidControllerType_e type)
         case PID_CONTROLLER_MARS:
             pid_update_giro_rate = pidMarsUpdateGyroRate;
             pid_update_desired_rate = pidMarsUpdateDesiredRate;
-            pid_calculate = pidMarsCalculateL;
+            pid_calculate = pidMarsCalculate;
             pidMarsInit(pidProfile());
             break;
 #endif

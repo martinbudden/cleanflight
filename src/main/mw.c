@@ -716,7 +716,7 @@ void subTaskPidController(void)
     }
 }
 
-void subTaskUpdateMotors(void)
+void subTaskMotorUpdate(void)
 {
     if (pid_calculate) {
         pid_calculate(pidProfile());
@@ -751,7 +751,7 @@ void taskMainPidLoopChecker(void) {
     }
     subTaskMainSubprocesses();
     subTaskPidController();
-    subTaskUpdateMotors();
+    subTaskMotorUpdate();
 }
 
 void taskUpdateAccelerometer(void)

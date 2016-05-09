@@ -53,9 +53,7 @@
 #include "flight/gtune.h"
 #include "flight/mixer.h"
 
-extern float dT;
 extern uint8_t PIDweight[3];
-
 extern uint8_t motorCount;
 
 #ifdef BLACKBOX
@@ -68,7 +66,7 @@ static const float marsITermScale = 1000000.0f / 0x1000000;
 static const float marsDTermScale = (0.000001f * (float)0xFFFF) / 512;
 static const float marsGyroScale = 4.0f;
 
-#define PID_GYRORATE_BUF_LENGTH 8
+#define PID_GYRORATE_BUF_LENGTH 12
 
 typedef struct pidMarsStateAxis_s {
     float kP;
@@ -83,7 +81,8 @@ typedef struct pidMarsStateAxis_s {
     float ITermLimit;
     float DTerm;
 
-    firFilter_t         gyroRateFirFilter;
+    firFilter_t         gyroRateFilter;
+    firFilter_t         derivativeFilter;
     float               gyroRateBuf[PID_GYRORATE_BUF_LENGTH];
 
     filterStatePt1_t    DTermPt1Filter;
@@ -128,17 +127,27 @@ static const float nrdCoeffs7[] = { 7.0f/32, 1.0f/2, -1.0f/32,-3.0f/4,-11.0f/32,
 static const float nrdCoeffs8[] = { 1.0f/8, 13.0f/32, 1.0f/4,-15.0f/32,-5.0f/8, -1.0f/32,  1.0f/4, 3.0/32 };
 #endif
 static const float *nrd[] = {nrdCoeffs2, nrdCoeffs3, nrdCoeffs4, nrdCoeffs5, nrdCoeffs6, nrdCoeffs7, nrdCoeffs8};
+// just a simple moving average filter for PTerm at the moment - !!TODO calculate better filter coefficients
+static const float PTermCoeffs[] = { 1.0f/5,  1.0f/5, 1.0f/5, 1.0f/5, 1.0f/5 };
+
+static float dT;
 
 void pidMarsInit(const pidProfile_t *pidProfile)
 {
+    dT = (float)targetPidLooptime * 0.000001f;
     memset(&pidMarsState, 0, sizeof(pidMarsState));
     pidMarsState.kGyro = marsGyroScale * gyro.scale;
-    const float *coeffs = nrd[pidProfile->dterm_differentiator];
+    // for the moment hardcode the filter length to 5
+    // the same filter length is used for the differentiation and the gyroRate filtering so that both are delayed by the same amoutn
+    //const int filterLength = pidProfile->dterm_differentiator;
+    const int filterLength = 5;
+    const float *coeffs = nrd[filterLength - 2];
     for (int axis = 0; axis < 3; ++ axis) {
         pidMarsStateAxis_t *pidStateAxis = &pidMarsState.stateAxis[axis];
         pidStateAxis->ITerm = 0.0f;
         pidStateAxis->ITermLimit = 0.0f;
-        firFilterInit2(&pidStateAxis->gyroRateFirFilter, pidStateAxis->gyroRateBuf, PID_GYRORATE_BUF_LENGTH, coeffs, pidProfile->dterm_differentiator + 2);
+        firFilterInit2(&pidStateAxis->derivativeFilter, pidStateAxis->gyroRateBuf, PID_GYRORATE_BUF_LENGTH, coeffs, filterLength);
+        firFilterInit2(&pidStateAxis->gyroRateFilter, pidStateAxis->gyroRateBuf, PID_GYRORATE_BUF_LENGTH, PTermCoeffs, filterLength);
     }
 }
 
@@ -153,7 +162,7 @@ void pidMarsResetITerm(void)
 STATIC_UNIT_TESTED void pidMarsUpdateGyroRateAxis(flight_dynamics_index_t axis, const pidProfile_t *pidProfile, pidMarsStateAxis_t* pidStateAxis)
 {
     const float gyroRate = pidMarsState.kGyro * gyroADC[axis];
-    firFilterUpdate(&pidStateAxis->gyroRateFirFilter, gyroRate);
+    firFilterUpdate(&pidStateAxis->gyroRateFilter, gyroRate);
 
     // -----calculation of P component is deferred
     // -----calculate I component
@@ -173,7 +182,7 @@ STATIC_UNIT_TESTED void pidMarsUpdateGyroRateAxis(flight_dynamics_index_t axis, 
         if (pidProfile->dterm_lpf_hz !=0) {
             // only need to do the differentiation now if the lpf filter is active
             // otherwise it can be deferred to the calculation phase
-            pidStateAxis->DTerm = -firFilterApply(&pidStateAxis->gyroRateFirFilter) / dT;
+            pidStateAxis->DTerm = -firFilterApply(&pidStateAxis->gyroRateFilter) / dT;
             // DTerm low pass filter
             pidStateAxis->DTerm = filterApplyPt1(pidStateAxis->DTerm, &pidStateAxis->DTermPt1Filter, pidProfile->dterm_lpf_hz, dT);
         }
@@ -256,8 +265,7 @@ void pidMarsUpdateDesiredRate(const pidProfile_t *pidProfile, const controlRateC
 
 static int16_t pidMarsCalculateAxis(int axis, const pidProfile_t *pidProfile, pidMarsStateAxis_t* pidStateAxis)
 {
-    const float gyroRate = firFilterLastInput(&pidStateAxis->gyroRateFirFilter);
-    //const float gyroRate = firFilterCalcPartialAverage(&pidStateAxis->gyroRateFirFilter, 1);
+    const float gyroRate = firFilterApply(&pidStateAxis->gyroRateFilter);
     const float rateError = pidStateAxis->desiredRate - gyroRate;
 
     // -----calculate P component
@@ -272,8 +280,9 @@ static int16_t pidMarsCalculateAxis(int axis, const pidProfile_t *pidProfile, pi
         pidStateAxis->DTerm = 0;
     } else {
         if (pidProfile->dterm_lpf_hz == 0) {
-            // do the deferred differentiation
-            pidStateAxis->DTerm = -firFilterApply(&pidStateAxis->gyroRateFirFilter) / dT;
+            // Calculate derivative using FIR filter
+            // differentiation was deferred because dterm lpf filter was inactive
+            pidStateAxis->DTerm = -firFilterApply(&pidStateAxis->derivativeFilter) / dT;
         }
         pidStateAxis->DTerm *= pidStateAxis->kD;
         pidStateAxis->DTerm = constrainf(pidStateAxis->DTerm, -PID_MAX_D, PID_MAX_D);

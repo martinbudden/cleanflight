@@ -29,8 +29,26 @@ typedef struct biquad_s {
     float d1, d2;
 } biquad_t;
 
+typedef struct firFilter_s {
+    float *buf;
+    const float *coeffs;
+    uint8_t bufLength;
+    uint8_t coeffsLength;
+} firFilter_t;
+
+
+void BiQuadNewLpf(float filterCutFreq, biquad_t *newState, uint32_t refreshRate);
 float applyBiQuadFilter(float sample, biquad_t *state);
+
 float filterApplyPt1(float input, filterStatePt1_t *filter, float f_cut, float dt);
+
 int32_t filterApplyAverage(int32_t input, uint8_t averageCount, int32_t averageState[DELTA_MAX_SAMPLES]);
 float filterApplyAveragef(float input, uint8_t averageCount, float averageState[DELTA_MAX_SAMPLES]);
-void BiQuadNewLpf(float filterCutFreq, biquad_t *newState, uint32_t refreshRate);
+
+void firFilterInit(firFilter_t *filter, float *buf, uint8_t bufLength, const float *coeffs);
+void firFilterInit2(firFilter_t *filter, float *buf, uint8_t bufLength, const float *coeffs, uint8_t coeffsLength);
+void firFilterUpdate(firFilter_t *filter, float input);
+float firFilterApply(firFilter_t *filter);
+float firFilterCalcPartialAverage(firFilter_t *filter, uint8_t count);
+float firFilterCalcAverage(firFilter_t *filter);
+float firFilterLastInput(firFilter_t *filter);

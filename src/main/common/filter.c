@@ -112,3 +112,51 @@ float filterApplyAveragef(float input, uint8_t averageCount, float averageState[
     return averageSum / averageCount;
 }
 
+void firFilterInit2(firFilter_t *filter, float *buf, uint8_t bufLength, const float *coeffs, uint8_t coeffsLength)
+{
+    filter->buf = buf;
+    filter->bufLength = bufLength;
+    filter->coeffs = coeffs;
+    filter->coeffsLength = coeffsLength;
+    memset(filter->buf, 0, sizeof(float) * filter->bufLength);
+}
+
+void firFilterInit(firFilter_t *filter, float *buf, uint8_t bufLength, const float *coeffs)
+{
+    firFilterInit2(filter, buf, bufLength, coeffs, bufLength);
+}
+
+void firFilterUpdate(firFilter_t *filter, float input)
+{
+    memmove(&filter->buf[1], &filter->buf[0], (filter->bufLength-1) * sizeof(float));
+    filter->buf[0] = input;
+}
+
+float firFilterApply(firFilter_t *filter)
+{
+    float ret = 0.0f;
+    for (int ii = 0; ii < filter->coeffsLength; ++ii) {
+        ret += filter->coeffs[ii] * filter->buf[ii];
+    }
+    return ret;
+}
+
+float firFilterCalcPartialAverage(firFilter_t *filter, uint8_t count)
+{
+    float ret = 0.0f;
+    for (int ii = 0; ii < count; ++ii) {
+        ret += filter->buf[ii];
+    }
+    return ret / count;
+}
+
+float firFilterCalcAverage(firFilter_t *filter)
+{
+    return firFilterCalcPartialAverage(filter, filter->coeffsLength);
+}
+
+float firFilterLastInput(firFilter_t *filter)
+{
+    return filter->buf[0];
+}
+

@@ -19,6 +19,7 @@
 #pragma once
 
 #define GYRO_I_MAX 256                      // Gyro I limiter
+#define PID_MAX_D 512
 #define YAW_P_LIMIT_MIN 100                 // Maximum value for yaw P limiter
 #define YAW_P_LIMIT_MAX 500                 // Maximum value for yaw P limiter
 
@@ -42,6 +43,7 @@ typedef enum {
 typedef enum {
     PID_CONTROLLER_MWREWRITE = 1,
     PID_CONTROLLER_LUX_FLOAT,
+    PID_CONTROLLER_MARS,
     PID_COUNT
 } pidControllerType_e;
 
@@ -80,6 +82,7 @@ typedef struct pidProfile_s {
     uint16_t yaw_p_limit;
     uint8_t dterm_average_count;            // Configurable delta count for dterm
     uint8_t dynamic_pterm;
+    uint8_t  dterm_differentiator;          // dterm noise-robust differentiator
 
 #ifdef GTUNE
     uint8_t  gtune_lolimP[3];               // [0..200] Lower limit of P during G tune
@@ -89,6 +92,13 @@ typedef struct pidProfile_s {
     uint8_t  gtune_average_cycles;          // [8..128] Number of looptime cycles used for gyro average calculation
 #endif
 } pidProfile_t;
+
+struct controlRateConfig_s;
+union rollAndPitchTrims_u;
+struct rxConfig_s;
+typedef void (*pidControllerFuncPtr)(pidProfile_t *pidProfile, struct controlRateConfig_s *controlRateConfig,
+        uint16_t max_angle_inclination, union rollAndPitchTrims_u *angleTrim, struct rxConfig_s *rxConfig);            // pid controller function prototype
+
 
 extern int16_t axisPID[XYZ_AXIS_COUNT];
 extern int32_t axisPID_P[3], axisPID_I[3], axisPID_D[3];

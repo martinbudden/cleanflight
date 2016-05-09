@@ -75,6 +75,7 @@
 
 #include "flight/mixer.h"
 #include "flight/pid.h"
+#include "flight/pid_mars.h"
 #include "flight/imu.h"
 #include "flight/altitudehold.h"
 #include "flight/failsafe.h"
@@ -119,10 +120,10 @@ uint16_t filteredCycleTime;
 static bool isRXDataNew;
 static bool armingCalibrationWasInitialised;
 
-typedef void (*pidControllerFuncPtr)(pidProfile_t *pidProfile, controlRateConfig_t *controlRateConfig,
-        uint16_t max_angle_inclination, rollAndPitchTrims_t *angleTrim, rxConfig_t *rxConfig);            // pid controller function prototype
-
 extern pidControllerFuncPtr pid_controller;
+extern pidUpdateGyroRateFuncPtr pid_update_giro_rate;
+extern pidUpdateDesiredRateFuncPtr pid_update_desired_rate;
+extern pidCalculateFuncPtr pid_calculate;
 
 void applyAndSaveAccelerometerTrimsDelta(rollAndPitchTrims_t *rollAndPitchTrimsDelta)
 {
@@ -733,6 +734,9 @@ void subTaskMainSubprocesses(void) {
 
 void subTaskMotorUpdate(void)
 {
+    if (pid_calculate) {
+        pid_calculate(&currentProfile->pidProfile);
+    }
     const uint32_t startTime = micros();
     if (debugMode == DEBUG_CYCLETIME) {
         static uint32_t previousMotorUpdateTime;
@@ -791,6 +795,9 @@ void taskMainPidLoopCheck(void)
             }
 
             gyroUpdate();
+            if (pid_update_giro_rate) {
+                pid_update_giro_rate(&currentProfile->pidProfile);
+            }
 
             if (pidUpdateCountdown) {
                 pidUpdateCountdown--;
@@ -861,6 +868,11 @@ void taskUpdateRxMain(void)
     // updateRcCommands sets rcCommand, which is needed by updateAltHoldState and updateSonarAltHoldState
     updateRcCommands();
     updateLEDs();
+
+    if (pid_update_desired_rate) {
+        pid_update_desired_rate(&currentProfile->pidProfile, currentControlRateProfile,
+                masterConfig.max_angle_inclination, &masterConfig.accelerometerTrims, &masterConfig.rxConfig);
+    }
 
 #ifdef BARO
     if (sensors(SENSOR_BARO)) {

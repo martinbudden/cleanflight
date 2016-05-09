@@ -42,12 +42,14 @@
 #include "io/gps.h"
 
 #include "flight/pid.h"
+#include "flight/pid_mars.h"
 #include "flight/imu.h"
 #include "flight/navigation.h"
 #include "flight/gtune.h"
 
 #include "config/runtime_config.h"
 
+extern pidProfile_t *currentProfile;
 extern uint8_t motorCount;
 extern bool motorLimitReached;
 uint32_t targetPidLooptime;
@@ -71,10 +73,10 @@ static bool lowThrottlePidReduction;
 static void pidMultiWiiRewrite(pidProfile_t *pidProfile, controlRateConfig_t *controlRateConfig,
         uint16_t max_angle_inclination, rollAndPitchTrims_t *angleTrim, rxConfig_t *rxConfig);
 
-typedef void (*pidControllerFuncPtr)(pidProfile_t *pidProfile, controlRateConfig_t *controlRateConfig,
-        uint16_t max_angle_inclination, rollAndPitchTrims_t *angleTrim, rxConfig_t *rxConfig);            // pid controller function prototype
-
 pidControllerFuncPtr pid_controller = pidMultiWiiRewrite; // which pid controller are we using, defaultMultiWii
+pidUpdateGyroRateFuncPtr pid_update_giro_rate;
+pidUpdateDesiredRateFuncPtr pid_update_desired_rate;
+pidCalculateFuncPtr pid_calculate;
 
 void setTargetPidLooptime(uint8_t pidProcessDenom) {
 	targetPidLooptime = targetLooptime * pidProcessDenom;
@@ -106,6 +108,9 @@ uint16_t getDynamicKp(int axis, pidProfile_t *pidProfile) {
 
 void pidResetErrorGyroState(uint8_t resetOption)
 {
+#ifndef SKIP_PID_MARS
+    pidMarsResetITerm();
+#endif
     if (resetOption >= RESET_ITERM) {
         int axis;
         for (axis = 0; axis < 3; axis++) {
@@ -417,6 +422,9 @@ static void pidMultiWiiRewrite(pidProfile_t *pidProfile, controlRateConfig_t *co
 
 void pidSetController(pidControllerType_e type)
 {
+    pid_update_giro_rate = NULL;
+    pid_update_desired_rate = NULL;
+    pid_calculate = NULL;
     switch (type) {
         default:
         case PID_CONTROLLER_MWREWRITE:
@@ -425,6 +433,15 @@ void pidSetController(pidControllerType_e type)
 #ifndef SKIP_PID_LUXFLOAT
         case PID_CONTROLLER_LUX_FLOAT:
             pid_controller = pidLuxFloat;
+            break;
+#endif
+#ifndef SKIP_PID_MARS
+        case PID_CONTROLLER_MARS:
+            pid_update_giro_rate = pidMarsUpdateGyroRate;
+            pid_update_desired_rate = pidMarsUpdateDesiredRate;
+            pid_calculate = pidMarsCalculate;
+            pidMarsInit(currentProfile);
+            break;
 #endif
     }
 }

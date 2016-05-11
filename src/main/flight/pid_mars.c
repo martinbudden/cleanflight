@@ -70,7 +70,7 @@ static const float marsITermScale = 1000000.0f / 0x1000000;
 static const float marsDTermScale = (0.000001f * (float)0xFFFF) / 512;
 static const float marsGyroScale = 4.0f;
 
-#define PID_GYRORATE_BUF_LENGTH 8
+#define PID_GYRORATE_BUF_LENGTH 16
 
 typedef struct pidMarsStateAxis_s {
     float kP;
@@ -85,7 +85,8 @@ typedef struct pidMarsStateAxis_s {
     float ITermLimit;
     float DTerm;
 
-    firFilter_t         gyroRateFirFilter;
+    firFilter_t         gyroRateFilter;
+    firFilter_t         gyroRateDifferentiationFilter;
     float               gyroRateBuf[PID_GYRORATE_BUF_LENGTH];
 
     filterStatePt1_t    DTermPt1Filter;
@@ -114,6 +115,43 @@ N=6: h[0] = 3/8, h[-1] = 1/2, h[-2] = -1/2, h[-3] = -3/4, h[-4] = 1/8, h[-5] = 1
 N=7: h[0] = 7/32, h[-1] = 1/2, h[-2] = -1/32, h[-3] = -3/4, h[-4] = -11/32, h[-5] = 1/4, h[-6] = 5/32
 N=8: h[0] = 1/8, h[-1] = 13/32, h[-2] = 1/4, h[-3] = -15/32, h[-4] = -5/8, h[-5] = -1/32, h[-6] = 1/4, h[-7] = 3/32
 */
+/*
+FIR filter designed with
+http://t-filter.appspot.com
+
+sampling frequency: 2000 Hz
+
+* 0 Hz - 90 Hz
+  gain = 1
+  desired ripple = 5 dB
+  actual ripple = 4.152652741002527 dB
+
+* 200 Hz - 1000 Hz
+  gain = 0
+  desired attenuation = -31 dB
+  actual attenuation = -31.02990308733221 dB
+
+*/
+
+#define PTERM_FILTER_TAP_COUNT 15
+
+static const float PTermCoeffs[PTERM_FILTER_TAP_COUNT] = {
+  0.028414125479851664f,
+  0.03803009580502914f,
+  0.05800087139086963f,
+  0.07955705380830308f,
+  0.10024202748222347f,
+  0.11744025476128628f,
+  0.1288291512747129f,
+  0.13283057540028348f,
+  0.1288291512747129f,
+  0.11744025476128628f,
+  0.10024202748222347f,
+  0.07955705380830308f,
+  0.05800087139086963f,
+  0.03803009580502914f,
+  0.028414125479851664f
+};
 
 static const float nrdCoeffs2[] = { 1.0f,   -1.0f };
 static const float nrdCoeffs3[] = { 1.0f/2,  0.0f,   -1.0f/2 };
@@ -133,14 +171,16 @@ static const float *nrd[] = {nrdCoeffs2, nrdCoeffs3, nrdCoeffs4, nrdCoeffs5, nrd
 
 void pidMarsInit(const pidProfile_t *pidProfile)
 {
+    BUILD_BUG_ON(PTERM_FILTER_TAP_COUNT > PID_GYRORATE_BUF_LENGTH);
     memset(&pidMarsState, 0, sizeof(pidMarsState));
     pidMarsState.kGyro = marsGyroScale * gyro.scale;
-    const float *coeffs = nrd[pidProfile->dterm_differentiator];
+    const float *nrdCoeffs = nrd[pidProfile->dterm_differentiator];
     for (int axis = 0; axis < 3; ++ axis) {
         pidMarsStateAxis_t *pidStateAxis = &pidMarsState.stateAxis[axis];
         pidStateAxis->ITerm = 0.0f;
         pidStateAxis->ITermLimit = 0.0f;
-        firFilterInit2(&pidStateAxis->gyroRateFirFilter, pidStateAxis->gyroRateBuf, PID_GYRORATE_BUF_LENGTH, coeffs, pidProfile->dterm_differentiator + 2);
+        firFilterInit2(&pidStateAxis->gyroRateDifferentiationFilter, pidStateAxis->gyroRateBuf, PID_GYRORATE_BUF_LENGTH, nrdCoeffs, pidProfile->dterm_differentiator + 2);
+        firFilterInit2(&pidStateAxis->gyroRateFilter, pidStateAxis->gyroRateBuf, PID_GYRORATE_BUF_LENGTH, PTermCoeffs, PTERM_FILTER_TAP_COUNT);
     }
 }
 
@@ -155,7 +195,7 @@ void pidMarsResetITerm(void)
 STATIC_UNIT_TESTED void pidMarsUpdateGyroRateAxis(flight_dynamics_index_t axis, const pidProfile_t *pidProfile, pidMarsStateAxis_t* pidStateAxis)
 {
     const float gyroRate = pidMarsState.kGyro * gyroADC[axis];
-    firFilterUpdate(&pidStateAxis->gyroRateFirFilter, gyroRate);
+    firFilterUpdate(&pidStateAxis->gyroRateFilter, gyroRate);
 
     // -----calculation of P component is deferred
     // -----calculate I component
@@ -175,7 +215,7 @@ STATIC_UNIT_TESTED void pidMarsUpdateGyroRateAxis(flight_dynamics_index_t axis, 
         if (pidProfile->dterm_lpf_hz !=0) {
             // only need to do the differentiation now if the lpf filter is active
             // otherwise it can be deferred to the calculation phase
-            pidStateAxis->DTerm = -firFilterApply(&pidStateAxis->gyroRateFirFilter) / dT;
+            pidStateAxis->DTerm = -firFilterApply(&pidStateAxis->gyroRateDifferentiationFilter) / dT;
             // DTerm low pass filter
             pidStateAxis->DTerm = filterApplyPt1(pidStateAxis->DTerm, &pidStateAxis->DTermPt1Filter, pidProfile->dterm_lpf_hz, dT);
         }
@@ -257,7 +297,7 @@ void pidMarsUpdateDesiredRate(const pidProfile_t *pidProfile, const controlRateC
 
 static int16_t pidMarsCalculateAxis(int axis, const pidProfile_t *pidProfile, pidMarsStateAxis_t* pidStateAxis)
 {
-    const float gyroRate = firFilterLastInput(&pidStateAxis->gyroRateFirFilter);
+    const float gyroRate = firFilterApply(&pidStateAxis->gyroRateFilter);
     //const float gyroRate = firFilterCalcPartialAverage(&pidStateAxis->gyroRateFirFilter, 1);
     const float rateError = pidStateAxis->desiredRate - gyroRate;
 
@@ -274,7 +314,7 @@ static int16_t pidMarsCalculateAxis(int axis, const pidProfile_t *pidProfile, pi
     } else {
         if (pidProfile->dterm_lpf_hz == 0) {
             // do the deferred differentiation
-            pidStateAxis->DTerm = -firFilterApply(&pidStateAxis->gyroRateFirFilter) / dT;
+            pidStateAxis->DTerm = -firFilterApply(&pidStateAxis->gyroRateDifferentiationFilter) / dT;
         }
         pidStateAxis->DTerm *= pidStateAxis->kD;
         pidStateAxis->DTerm = constrainf(pidStateAxis->DTerm, -PID_MAX_D, PID_MAX_D);

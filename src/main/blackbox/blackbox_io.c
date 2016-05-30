@@ -30,7 +30,6 @@
 #include "config/parameter_group.h"
 
 #include "drivers/serial.h"
-#include "drivers/gyro_sync.h"
 
 #include "io/rc_controls.h"
 
@@ -544,7 +543,7 @@ bool blackboxDeviceFlushForce(void)
 /**
  * Attempt to open the logging device. Returns true if successful.
  */
-bool blackboxDeviceOpen(void)
+bool blackboxDeviceOpen(uint32_t targetLooptime)
 {
     switch (blackboxConfig()->device) {
         case BLACKBOX_DEVICE_SERIAL:

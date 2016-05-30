@@ -823,7 +823,7 @@ void startBlackbox(void)
     if (blackboxState == BLACKBOX_STATE_STOPPED) {
         validateBlackboxConfig();
 
-        if (!blackboxDeviceOpen()) {
+        if (!blackboxDeviceOpen(targetLooptime)) {
             blackboxSetState(BLACKBOX_STATE_DISABLED);
             return;
         }

@@ -43,9 +43,6 @@ extern attitudeEulerAngles_t attitude;
 
 typedef struct imuConfig_s {
     // IMU configuration
-    uint16_t looptime;                      // imu loop time in us
-    uint8_t gyroSync;                       // Enable interrupt based loop
-    uint8_t gyroSyncDenominator;            // Gyro sync Denominator
     uint16_t dcm_kp;                        // DCM filter proportional gain ( x 10000)
     uint16_t dcm_ki;                        // DCM filter integral gain ( x 10000)
     uint8_t small_angle;                    // Angle used for mag hold threshold.

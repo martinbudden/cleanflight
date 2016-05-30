@@ -37,7 +37,6 @@
 
 #include "drivers/sensor.h"
 #include "drivers/accgyro.h"
-#include "drivers/gyro_sync.h"
 
 #include "sensors/sensors.h"
 #include "sensors/gyro.h"

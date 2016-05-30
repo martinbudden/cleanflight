@@ -33,7 +33,6 @@
 
 extern gyro_t gyro;
 
-uint32_t targetLooptime;
 static uint8_t mpuDividerDrops;
 
 bool gyroSyncCheckUpdate(void)
@@ -41,8 +40,9 @@ bool gyroSyncCheckUpdate(void)
     return gyro.isDataReady && gyro.isDataReady();
 }
 
-void gyroSetSampleRate(uint32_t looptime, uint8_t lpf, uint8_t gyroSync, uint8_t gyroSyncDenominator)
+uint32_t gyroSyncSetSampleRate(uint32_t looptime, uint8_t lpf, uint8_t gyroSync, uint8_t gyroSyncDenominator)
 {
+    uint32_t targetLooptime;
     if (gyroSync) {
         int gyroSamplePeriod;
         if (lpf == 0) {
@@ -56,6 +56,7 @@ void gyroSetSampleRate(uint32_t looptime, uint8_t lpf, uint8_t gyroSync, uint8_t
         mpuDividerDrops = 0;
         targetLooptime = looptime;
     }
+    return targetLooptime;
 }
 
 uint8_t gyroMPU6xxxCalculateDivider(void)

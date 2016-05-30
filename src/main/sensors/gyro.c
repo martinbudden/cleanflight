@@ -43,6 +43,7 @@
 
 #include "sensors/gyro.h"
 
+uint32_t targetLooptime;
 gyro_t gyro;                      // gyro access functions
 sensor_align_e gyroAlign = 0;
 
@@ -54,25 +55,27 @@ static int16_t gyroADCRaw[XYZ_AXIS_COUNT];
 static int32_t gyroZero[XYZ_AXIS_COUNT] = { 0, 0, 0 };
 
 static biquad_t gyroFilterState[3];
-static bool gyroFilterStateIsSet;
 
 PG_REGISTER_WITH_RESET_TEMPLATE(gyroConfig_t, gyroConfig, PG_GYRO_CONFIG, 0);
 
 PG_RESET_TEMPLATE(gyroConfig_t, gyroConfig,
     .gyro_lpf = 1,                 // supported by all gyro drivers now. In case of ST gyro, will default to 32Hz instead
     .soft_gyro_lpf_hz = 60,        // Software based lpf filter for gyro
-
+    .gyroSync = 1,
+    .gyroSyncDenominator = 1,
+    .looptime = 2000,
     .gyroMovementCalibrationThreshold = 32,
 );
 
-static void initGyroFilterCoefficients(void)
+void gyroInit(void)
 {
+    // set gyro sampling rate divider before initialization
+    targetLooptime = gyroSyncSetSampleRate(gyroConfig()->looptime, gyroConfig()->gyro_lpf, gyroConfig()->gyroSync, gyroConfig()->gyroSyncDenominator);
     if (gyroConfig()->soft_gyro_lpf_hz) {
-        // Initialisation needs to happen once sampling rate is known
+        // filter initialisation needs to happen once sampling rate is known
         for (int axis = 0; axis < 3; axis++) {
             BiQuadNewLpf(gyroConfig()->soft_gyro_lpf_hz, &gyroFilterState[axis], targetLooptime);
         }
-        gyroFilterStateIsSet = true;
     }
 }
 
@@ -156,9 +159,6 @@ void gyroUpdate(void)
     alignSensors(gyroADC, gyroADC, gyroAlign);
 
     if (gyroConfig()->soft_gyro_lpf_hz) {
-        if (!gyroFilterStateIsSet) {
-            initGyroFilterCoefficients();
-        }
         for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
             gyroADC[axis] = lrintf(applyBiQuadFilter((float)gyroADC[axis], &gyroFilterState[axis]));
         }

@@ -69,7 +69,7 @@ void blackboxWriteFloat(float value);
 
 void blackboxDeviceFlush(void);
 bool blackboxDeviceFlushForce(void);
-bool blackboxDeviceOpen(void);
+bool blackboxDeviceOpen(uint32_t targetLooptime);
 void blackboxDeviceClose(void);
 
 bool blackboxDeviceBeginLog(void);

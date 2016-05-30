@@ -45,7 +45,6 @@
 #include "drivers/bus_spi.h"
 #include "drivers/accgyro_spi_mpu6000.h"
 #include "drivers/accgyro_spi_mpu6500.h"
-#include "drivers/gyro_sync.h"
 
 #include "drivers/barometer.h"
 #include "drivers/barometer_bmp085.h"
@@ -732,6 +731,7 @@ bool sensorsAutodetect(void)
         acc.acc_1G = 256; // set default
         acc.init(&acc);
     }
+    gyroInit();
     // this is safe because either mpu6050 or mpu3050 or lg3d20 sets it, and in case of fail, we never get here.
     gyro.init(gyroConfig()->gyro_lpf);
 

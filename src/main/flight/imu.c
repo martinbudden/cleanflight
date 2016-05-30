@@ -82,9 +82,6 @@ PG_REGISTER_PROFILE_WITH_RESET_TEMPLATE(throttleCorrectionConfig_t, throttleCorr
 
 PG_RESET_TEMPLATE(imuConfig_t, imuConfig,
     .dcm_kp = 2500,                // 1.0 * 10000
-    .looptime = 2000,
-    .gyroSync = 1,
-    .gyroSyncDenominator = 1,
     .small_angle = 25,
     .max_angle_inclination = 500,    // 50 degrees
 );

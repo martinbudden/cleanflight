@@ -686,7 +686,7 @@ static int processOutCommand(mspPacket_t *cmd, mspPacket_t *reply)
             break;
 
         case MSP_LOOP_TIME:
-            sbufWriteU16(dst, imuConfig()->looptime);
+            sbufWriteU16(dst, gyroConfig()->looptime);
             break;
 
         case MSP_RC_TUNING:
@@ -1090,7 +1090,7 @@ static int processInCommand(mspPacket_t *cmd)
             break;
 
         case MSP_SET_LOOP_TIME:
-            imuConfig()->looptime = sbufReadU16(src);
+            gyroConfig()->looptime = sbufReadU16(src);
             break;
 
         case MSP_SET_PID_CONTROLLER:

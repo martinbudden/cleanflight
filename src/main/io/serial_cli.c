@@ -488,11 +488,11 @@ typedef struct {
 } __attribute__((packed)) clivalue_t;
 
 const clivalue_t valueTable[] = {
-    { "looptime",                   VAR_UINT16 | MASTER_VALUE, .config.minmax = {0, 9000} , PG_IMU_CONFIG, offsetof(imuConfig_t, looptime)},
+    { "looptime",                   VAR_UINT16 | MASTER_VALUE, .config.minmax = {0, 9000} , PG_GYRO_CONFIG, offsetof(gyroConfig_t, looptime)},
     { "emf_avoidance",              VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON } , PG_SYSTEM_CONFIG, offsetof(systemConfig_t, emf_avoidance)},
     { "i2c_highspeed",              VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON } , PG_SYSTEM_CONFIG, offsetof(systemConfig_t, i2c_highspeed)},
-    { "gyro_sync",                  VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON } , PG_IMU_CONFIG, offsetof(imuConfig_t, gyroSync)},
-    { "gyro_sync_denom",            VAR_UINT8  | MASTER_VALUE, .config.minmax = { 1,  32 } , PG_IMU_CONFIG, offsetof(imuConfig_t, gyroSyncDenominator)},
+    { "gyro_sync",                  VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON } , PG_GYRO_CONFIG, offsetof(gyroConfig_t, gyroSync)},
+    { "gyro_sync_denom",            VAR_UINT8  | MASTER_VALUE, .config.minmax = { 1,  32 } , PG_GYRO_CONFIG, offsetof(gyroConfig_t, gyroSyncDenominator)},
 
     { "mid_rc",                     VAR_UINT16 | MASTER_VALUE, .config.minmax = { 1200,  1700 } , PG_RX_CONFIG, offsetof(rxConfig_t, midrc)},
     { "min_check",                  VAR_UINT16 | MASTER_VALUE, .config.minmax = { PWM_RANGE_ZERO,  PWM_RANGE_MAX } , PG_RX_CONFIG, offsetof(rxConfig_t, mincheck)},

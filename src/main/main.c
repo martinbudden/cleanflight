@@ -499,8 +499,6 @@ void init(void)
     }
 #endif
 
-    gyroSetSampleRate(imuConfig()->looptime, gyroConfig()->gyro_lpf, imuConfig()->gyroSync, imuConfig()->gyroSyncDenominator);   // Set gyro sampling rate divider before initialization
-
     if (!sensorsAutodetect()) {
         // if gyro was not detected due to whatever reason, we give up now.
         failureMode(FAILURE_MISSING_ACC);
@@ -680,7 +678,7 @@ int main(void) {
     // Setup scheduler
     schedulerInit();
     setTaskEnabled(TASK_GYROPID, true);
-    rescheduleTask(TASK_GYROPID, imuConfig()->gyroSync ? targetLooptime - INTERRUPT_WAIT_TIME : targetLooptime);
+    rescheduleTask(TASK_GYROPID, gyroConfig()->gyroSync ? targetLooptime - INTERRUPT_WAIT_TIME : targetLooptime);
     setTaskEnabled(TASK_ACCEL, sensors(SENSOR_ACC));
     setTaskEnabled(TASK_SERIAL, true);
 #ifdef BEEPER

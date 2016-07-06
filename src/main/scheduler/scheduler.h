@@ -41,55 +41,6 @@ typedef struct {
     uint32_t     latestDeltaTime;
 } cfTaskInfo_t;
 
-typedef enum {
-    /* Actual tasks */
-    TASK_SYSTEM = 0,
-    TASK_GYROPID,
-    TASK_ACCEL,
-#ifndef SKIP_SERIAL
-    TASK_SERIAL,
-#endif
-#ifdef BEEPER
-    TASK_BEEPER,
-#endif
-    TASK_BATTERY,
-    TASK_RX,
-#ifdef GPS
-    TASK_GPS,
-#endif
-#ifdef MAG
-    TASK_COMPASS,
-#endif
-#ifdef BARO
-    TASK_BARO,
-#endif
-#ifdef SONAR
-    TASK_SONAR,
-#endif
-#if defined(BARO) || defined(SONAR)
-    TASK_ALTITUDE,
-#endif
-#ifdef DISPLAY
-    TASK_DISPLAY,
-#endif
-#ifdef TELEMETRY
-    TASK_TELEMETRY,
-#endif
-#ifdef LED_STRIP
-    TASK_LEDSTRIP,
-#endif
-#ifdef TRANSPONDER
-    TASK_TRANSPONDER,
-#endif
-
-    /* Count of real tasks */
-    TASK_COUNT,
-
-    /* Service task IDs */
-    TASK_NONE = TASK_COUNT,
-    TASK_SELF
-} cfTaskId_e;
-
 typedef struct {
     /* Configuration */
     const char * taskName;

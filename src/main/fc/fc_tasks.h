@@ -22,7 +22,9 @@ typedef enum {
     TASK_SYSTEM = 0,
     TASK_GYROPID,
     TASK_ACCEL,
+#ifndef SKIP_SERIAL
     TASK_SERIAL,
+#endif
 #ifdef BEEPER
     TASK_BEEPER,
 #endif

@@ -341,16 +341,12 @@ COMMON_SRC = \
 		   rx/spektrum.c \
 		   rx/xbus.c \
 		   rx/ibus.c \
-<<<<<<< cc736bc1e91b56ea6b588e686e200c930b87c1a5
-			 rx/srxl.c \
+		   rx/srxl.c \
 		   sensors/sensors.c \
 		   sensors/acceleration.c \
 		   sensors/battery.c \
 		   sensors/boardalignment.c \
-=======
->>>>>>> Reduced ROM and RAM build variant of CJMCU
 		   sensors/compass.c \
-<<<<<<< HEAD
 		   sensors/gyro.c \
 		   sensors/initialisation.c
 
@@ -527,32 +523,7 @@ CJMCU_SRC = \
 		   $(FC_COMMON_SRC) \
 		   $(SYSTEM_SRC)
 
-CJMCU32K_SRC = \
-		   startup_stm32f10x_md_gcc.S \
-		   drivers/adc.c \
-		   drivers/adc_stm32f10x.c \
-		   drivers/accgyro_mpu.c \
-		   drivers/accgyro_mpu6050.c \
-		   drivers/bus_spi.c \
-		   drivers/bus_i2c_stm32f10x.c \
-		   drivers/gpio_stm32f10x.c \
-		   drivers/light_led_stm32f10x.c \
-		   drivers/pwm_mapping.c \
-		   drivers/pwm_output.c \
-		   drivers/pwm_rx.c \
-		   drivers/system_stm32f10x.c \
-		   drivers/timer.c \
-		   drivers/timer_stm32f10x.c \
-		   hardware_revision.c \
-		   rx/pwm.c \
-\
-		   drivers/serial.c \
-		   drivers/serial_uart.c \
-		   drivers/serial_uart_stm32f10x.c \
-		   io/serial.c \
-		   io/serial_msp.c \
-		   common/printf.c \
-		   $(MIN_SRC)
+CJMCU32K_SRC = $(CJMCU_SRC)
 
 CC3D_SRC = \
 		   startup_stm32f10x_md_gcc.S \

@@ -269,21 +269,22 @@ SYSTEM_SRC = \
 		   $(CMSIS_SRC) \
 		   $(DEVICE_STDPERIPH_SRC)
 
+<<<<<<< e0bd892c4de466b88462dc4c8cc6c13b15f3fc31
 FC_COMMON_SRC = \
+=======
+FC_MIN_SRC = \
+>>>>>>> Fixup after rebase
 		   config/feature.c \
 		   config/profile.c \
+		   drivers/gyro_sync.c \
 		   fc/boot.c \
 		   fc/cleanflight_fc.c \
+		   fc/config.c \
 		   fc/fc_tasks.c \
 		   fc/rate_profile.c \
-		   fc/rc_adjustments.c \
 		   fc/rc_controls.c \
 		   fc/rc_curves.c \
-		   fc/fc_serial.c \
-		   fc/config.c \
 		   fc/runtime_config.c \
-		   fc/msp_server_fc.c \
-		   flight/altitudehold.c \
 		   flight/failsafe.c \
 		   flight/pid.c \
 		   flight/pid_mwrewrite.c \
@@ -291,48 +292,34 @@ FC_COMMON_SRC = \
 		   flight/mixer.c \
 		   io/beeper.c \
 		   io/motor_and_servo.c \
-		   io/rate_profile.c \
-		   io/rc_controls.c \
-		   io/rc_curves.c \
-		   io/statusindicator.c \
 		   rx/rx.c \
 		   sensors/sensors.c \
 		   sensors/acceleration.c \
 		   sensors/battery.c \
 		   sensors/boardalignment.c \
 		   sensors/gyro.c \
-		   sensors/initialisation.c \
-		   scheduler.c \
-		   scheduler_tasks.c \
-		   main.c \
-		   mw.c \
-		   $(CMSIS_SRC) \
-		   $(DEVICE_STDPERIPH_SRC)
+		   sensors/initialisation.c
 
-COMMON_SRC = \
-		   common/printf.c \
-		   common/typeconversion.c \
-		   common/encoding.c \
-		   common/streambuf.c \
-		   flight/servos.c \
+FC_COMMON_SRC = \
+		   $(FC_MIN_SRC) \
+		   fc/rc_adjustments.c \
+		   fc/fc_serial.c \
+		   fc/msp_server_fc.c \
 		   flight/altitudehold.c \
-		   flight/pid_mw23.c \
 		   flight/pid_luxfloat.c \
+		   flight/pid_mw23.c \
+		   flight/servos.c \
 		   drivers/bus_i2c_soft.c \
 		   drivers/exti.c \
 		   drivers/io.c \
 		   drivers/rcc.c \
 		   drivers/sound_beeper.c \
-		   drivers/gyro_sync.c \
-		   io/beeper.c \
 		   io/gimbal.c \
-		   io/motor_and_servo.c \
 		   io/serial_4way.c \
 		   io/serial_4way_avrootloader.c \
 		   io/serial_4way_stk500v2.c \
 		   io/serial_cli.c \
 		   io/statusindicator.c \
-		   rx/rx.c \
 		   rx/pwm.c \
 		   rx/msp.c \
 		   rx/sbus.c \
@@ -346,9 +333,7 @@ COMMON_SRC = \
 		   sensors/acceleration.c \
 		   sensors/battery.c \
 		   sensors/boardalignment.c \
-		   sensors/compass.c \
-		   sensors/gyro.c \
-		   sensors/initialisation.c
+		   sensors/compass.c
 
 OSD_COMMON_SRC = \
 		   osd/boot.c \
@@ -523,7 +508,34 @@ CJMCU_SRC = \
 		   $(FC_COMMON_SRC) \
 		   $(SYSTEM_SRC)
 
-CJMCU32K_SRC = $(CJMCU_SRC)
+CJMCU32K_SRC = \
+		   startup_stm32f10x_md_gcc.S \
+		   $(STM32F10x_COMMON_SRC) \
+		   drivers/adc.c \
+		   drivers/adc_stm32f10x.c \
+		   drivers/accgyro_mpu.c \
+		   drivers/accgyro_mpu6050.c \
+		   drivers/bus_spi.c \
+		   drivers/bus_i2c_stm32f10x.c \
+		   drivers/gpio_stm32f10x.c \
+		   drivers/light_led_stm32f10x.c \
+		   drivers/pwm_mapping.c \
+		   drivers/pwm_output.c \
+		   drivers/pwm_rx.c \
+		   drivers/system_stm32f10x.c \
+		   drivers/timer.c \
+		   drivers/timer_stm32f10x.c \
+		   hardware_revision.c \
+		   rx/pwm.c \
+\
+		   drivers/serial.c \
+		   drivers/serial_uart.c \
+		   drivers/serial_uart_stm32f10x.c \
+		   io/serial.c \
+		   io/serial_cli.c \
+		   common/printf.c \
+		   $(FC_MIN_SRC) \
+		   $(SYSTEM_SRC)
 
 CC3D_SRC = \
 		   startup_stm32f10x_md_gcc.S \

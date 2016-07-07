@@ -27,7 +27,6 @@
 
 #ifndef SKIP_RX_PWM
 
-#include "config/config.h"
 #include "config/parameter_group.h"
 #include "config/feature.h"
 

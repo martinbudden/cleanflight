@@ -12,7 +12,7 @@
 /* Specify the memory areas. */
 MEMORY
 {
-  FLASH (rx)       : ORIGIN = 0x08000000, LENGTH = 30K
+  FLASH (rx)       : ORIGIN = 0x08000000, LENGTH = 31K
   FLASH_CONFIG (r) : ORIGIN = 0x0800F800, LENGTH = 2K
   
   RAM (xrw)        : ORIGIN = 0x20000000, LENGTH = 6K /* gradually get this down to 4K */

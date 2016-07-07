@@ -921,6 +921,7 @@ pwmIOConfiguration_t *pwmInit(drv_pwm_config_t *init)
             if (init->useOneshot || isMotorBrushed(init->motorPwmRate)) {
                 ppmAvoidPWMTimerClash(timerHardwarePtr, TIM2);
             }
+#endif
             ppmInConfig(timerHardwarePtr);
             pwmIOConfiguration.ioConfigurations[pwmIOConfiguration.ioCount].flags = PWM_PF_PPM;
             pwmIOConfiguration.ppmInputCount++;
@@ -929,7 +930,6 @@ pwmIOConfiguration_t *pwmInit(drv_pwm_config_t *init)
             pwmIOConfiguration.ioConfigurations[pwmIOConfiguration.ioCount].flags = PWM_PF_PWM;
             pwmIOConfiguration.pwmInputCount++;
             channelIndex++;
-#endif
         } else if (type == MAP_TO_MOTOR_OUTPUT) {
 #ifdef CC3D
             if (init->useOneshot || isMotorBrushed(init->motorPwmRate)){

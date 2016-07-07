@@ -17,7 +17,11 @@
 
 #pragma once
 
+#if (FLASH_SIZE >= 64)
 #define MAX_PROFILE_COUNT 3 // do not use more than 3 due to some legacy code (e.g. profile selection, msp) and more recent code (config storage)
+#else
+#define MAX_PROFILE_COUNT 1
+#endif
 
 typedef struct profileSelection_s {
     uint8_t current_profile_index;

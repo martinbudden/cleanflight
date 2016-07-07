@@ -17,12 +17,6 @@
 
 #pragma once
 
-#if (FLASH_SIZE >= 64)
-#define MAX_PROFILE_COUNT 3
-#else
-#define MAX_PROFILE_COUNT 1
-#endif
-
 #define ONESHOT_FEATURE_CHANGED_DELAY_ON_BOOT_MS 1500
 
 // Keep synchronized with featureNames[] in serial_cli.c

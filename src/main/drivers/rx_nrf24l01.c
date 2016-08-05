@@ -75,7 +75,7 @@ void NRF24L01_SpiInit(nfr24l01_spi_type_e spiType)
 #ifdef USE_NRF24_SOFTSPI
         useSoftSPI = true;
 #ifndef SOFTSPI_NSS_PIN
-        IOInit(IOGetByTag(IO_TAG(NRF24_CSN_PIN)),  OWNER_SOFTSPI, RESOURCE_SOFTSPI_CS,  SOFT_SPIDEV_1 + 1);
+        IOInit(IOGetByTag(IO_TAG(NRF24_CSN_PIN)),  OWNER_SOFTSPI, RESOURCE_SPI_CS,  SOFT_SPIDEV_1 + 1);
 #endif
         softSpiInit(&softSPIDevice);
 #endif

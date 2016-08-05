@@ -20,7 +20,7 @@
 
 #include <math.h>
 
-#include <platform.h>
+#include "platform.h"
 
 #ifdef USE_MAG_AK8975
 

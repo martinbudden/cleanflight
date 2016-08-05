@@ -112,6 +112,7 @@ extern uint8_t motorControlEnable;
 serialPort_t *loopbackPort;
 #endif
 
+
 typedef enum {
     SYSTEM_STATE_INITIALISING   = 0,
     SYSTEM_STATE_CONFIG_LOADED  = (1 << 0),
@@ -561,7 +562,8 @@ void init(void)
 
     // Latch active features AGAIN since some may be modified by init().
     latchActiveFeatures();
-    motorControlEnable = true;
+//    motorControlEnable = true;
+    motorControlEnable = false;
 
     systemState |= SYSTEM_STATE_READY;
 }

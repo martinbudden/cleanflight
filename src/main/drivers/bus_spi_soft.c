@@ -31,11 +31,11 @@
 
 void softSpiInit(const softSPIDevice_t *spi)
 {
-    IOInit(IOGetByTag(spi->sckTag),  OWNER_SOFTSPI, RESOURCE_SOFTSPI_SCK,  SOFT_SPIDEV_1 + 1);
-    IOInit(IOGetByTag(spi->misoTag), OWNER_SPI, RESOURCE_SOFTSPI_MISO, SOFT_SPIDEV_1 + 1);
-    IOInit(IOGetByTag(spi->mosiTag), OWNER_SPI, RESOURCE_SOFTSPI_MOSI, SOFT_SPIDEV_1 + 1);
+    IOInit(IOGetByTag(spi->sckTag),  OWNER_SOFTSPI, RESOURCE_SPI_SCK,  SOFT_SPIDEV_1 + 1);
+    IOInit(IOGetByTag(spi->misoTag), OWNER_SPI, RESOURCE_SPI_MISO, SOFT_SPIDEV_1 + 1);
+    IOInit(IOGetByTag(spi->mosiTag), OWNER_SPI, RESOURCE_SPI_MOSI, SOFT_SPIDEV_1 + 1);
 #ifdef SOFTSPI_NSS_PIN
-    IOInit(IOGetByTag(spi->nssTag), OWNER_SPI, RESOURCE_SOFTSPI_CS, SOFT_SPIDEV_1 + 1);
+    IOInit(IOGetByTag(spi->nssTag), OWNER_SPI, RESOURCE_SPI_CS, SOFT_SPIDEV_1 + 1);
 #endif
 
 #if defined(STM32F3) || defined(STM32F4)

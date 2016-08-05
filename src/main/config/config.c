@@ -638,99 +638,20 @@ static void resetConf(void)
 #else
     masterConfig.blackbox_device = BLACKBOX_DEVICE_SERIAL;
 #endif
+
     masterConfig.blackbox_rate_num = 1;
     masterConfig.blackbox_rate_denom = 1;
+
+#endif // BLACKBOX
+
+#ifdef SERIALRX_UART
+    if (featureConfigured(FEATURE_RX_SERIAL)) {
+        masterConfig.serialConfig.portConfigs[SERIALRX_UART].functionMask = FUNCTION_RX_SERIAL;
+    }
 #endif
 
-    // alternative defaults settings for COLIBRI RACE targets
-#if defined(COLIBRI_RACE)
-    masterConfig.looptime = 1000;
-
-    masterConfig.rxConfig.rcmap[0] = 1;
-    masterConfig.rxConfig.rcmap[1] = 2;
-    masterConfig.rxConfig.rcmap[2] = 3;
-    masterConfig.rxConfig.rcmap[3] = 0;
-    masterConfig.rxConfig.rcmap[4] = 4;
-    masterConfig.rxConfig.rcmap[5] = 5;
-    masterConfig.rxConfig.rcmap[6] = 6;
-    masterConfig.rxConfig.rcmap[7] = 7;
-
-    featureSet(FEATURE_ONESHOT125);
-    featureSet(FEATURE_VBAT);
-    featureSet(FEATURE_LED_STRIP);
-    featureSet(FEATURE_FAILSAFE);
-#endif
-
-    // alternative defaults settings for ALIENFLIGHTF1 and ALIENFLIGHTF3 targets
-#ifdef ALIENFLIGHTF1
-#ifdef ALIENFLIGHTF3
-    masterConfig.serialConfig.portConfigs[2].functionMask = FUNCTION_RX_SERIAL;
-    masterConfig.batteryConfig.vbatscale = 20;
-#else
-    masterConfig.serialConfig.portConfigs[1].functionMask = FUNCTION_RX_SERIAL;
-#endif
-    masterConfig.rxConfig.serialrx_provider = 1;
-    masterConfig.rxConfig.spektrum_sat_bind = 5;
-    masterConfig.escAndServoConfig.minthrottle = 1000;
-    masterConfig.escAndServoConfig.maxthrottle = 2000;
-    masterConfig.motor_pwm_rate = 32000;
-    masterConfig.looptime = 2000;
-    currentProfile->pidProfile.P8[ROLL] = 36;
-    currentProfile->pidProfile.P8[PITCH] = 36;
-    masterConfig.failsafeConfig.failsafe_delay = 2;
-    masterConfig.failsafeConfig.failsafe_off_delay = 0;
-    currentControlRateProfile->rates[FD_PITCH] = CONTROL_RATE_CONFIG_ROLL_PITCH_RATE_DEFAULT;
-    currentControlRateProfile->rates[FD_ROLL] = CONTROL_RATE_CONFIG_ROLL_PITCH_RATE_DEFAULT;
-    currentControlRateProfile->rates[FD_YAW] = CONTROL_RATE_CONFIG_YAW_RATE_DEFAULT;
-    parseRcChannels("TAER1234", &masterConfig.rxConfig);
-
-    //  { 1.0f, -0.414178f,  1.0f, -1.0f },          // REAR_R
-    masterConfig.customMotorMixer[0].throttle = 1.0f;
-    masterConfig.customMotorMixer[0].roll = -0.414178f;
-    masterConfig.customMotorMixer[0].pitch = 1.0f;
-    masterConfig.customMotorMixer[0].yaw = -1.0f;
-
-    //  { 1.0f, -0.414178f, -1.0f,  1.0f },          // FRONT_R
-    masterConfig.customMotorMixer[1].throttle = 1.0f;
-    masterConfig.customMotorMixer[1].roll = -0.414178f;
-    masterConfig.customMotorMixer[1].pitch = -1.0f;
-    masterConfig.customMotorMixer[1].yaw = 1.0f;
-
-    //  { 1.0f,  0.414178f,  1.0f,  1.0f },          // REAR_L
-    masterConfig.customMotorMixer[2].throttle = 1.0f;
-    masterConfig.customMotorMixer[2].roll = 0.414178f;
-    masterConfig.customMotorMixer[2].pitch = 1.0f;
-    masterConfig.customMotorMixer[2].yaw = 1.0f;
-
-    //  { 1.0f,  0.414178f, -1.0f, -1.0f },          // FRONT_L
-    masterConfig.customMotorMixer[3].throttle = 1.0f;
-    masterConfig.customMotorMixer[3].roll = 0.414178f;
-    masterConfig.customMotorMixer[3].pitch = -1.0f;
-    masterConfig.customMotorMixer[3].yaw = -1.0f;
-
-    //  { 1.0f, -1.0f, -0.414178f, -1.0f },          // MIDFRONT_R
-    masterConfig.customMotorMixer[4].throttle = 1.0f;
-    masterConfig.customMotorMixer[4].roll = -1.0f;
-    masterConfig.customMotorMixer[4].pitch = -0.414178f;
-    masterConfig.customMotorMixer[4].yaw = -1.0f;
-
-    //  { 1.0f,  1.0f, -0.414178f,  1.0f },          // MIDFRONT_L
-    masterConfig.customMotorMixer[5].throttle = 1.0f;
-    masterConfig.customMotorMixer[5].roll = 1.0f;
-    masterConfig.customMotorMixer[5].pitch = -0.414178f;
-    masterConfig.customMotorMixer[5].yaw = 1.0f;
-
-    //  { 1.0f, -1.0f,  0.414178f,  1.0f },          // MIDREAR_R
-    masterConfig.customMotorMixer[6].throttle = 1.0f;
-    masterConfig.customMotorMixer[6].roll = -1.0f;
-    masterConfig.customMotorMixer[6].pitch = 0.414178f;
-    masterConfig.customMotorMixer[6].yaw = 1.0f;
-
-    //  { 1.0f,  1.0f,  0.414178f, -1.0f },          // MIDREAR_L
-    masterConfig.customMotorMixer[7].throttle = 1.0f;
-    masterConfig.customMotorMixer[7].roll = 1.0f;
-    masterConfig.customMotorMixer[7].pitch = 0.414178f;
-    masterConfig.customMotorMixer[7].yaw = -1.0f;
+#if defined(TARGET_CONFIG)
+    targetConfiguration();
 #endif
 
     // copy first profile into remaining profile
@@ -901,7 +822,7 @@ static void validateAndFixConfig(void)
         // which is only possible when using brushless motors w/o oneshot (timer tick rate is PWM_TIMER_MHZ)
 
         // On CC3D OneShot is incompatible with PWM RX
-        featureClear(FEATURE_ONESHOT125);
+        //!! FIX THIS featureClear(FEATURE_ONESHOT125);
 
         // Brushed motors on CC3D are not possible when using PWM RX
         if (masterConfig.motor_pwm_rate > BRUSHLESS_MOTORS_PWM_RATE) {
@@ -1159,17 +1080,6 @@ void changeControlRateProfile(uint8_t profileIndex)
     }
     setControlRateProfile(profileIndex);
     activateControlRateConfig();
-}
-
-void handleOneshotFeatureChangeOnRestart(void)
-{
-    // Shutdown PWM on all motors prior to soft restart
-    StopPwmAllMotors();
-    delay(50);
-    // Apply additional delay when OneShot125 feature changed from on to off state
-    if (feature(FEATURE_ONESHOT125) && !featureConfigured(FEATURE_ONESHOT125)) {
-        delay(ONESHOT_FEATURE_CHANGED_DELAY_ON_BOOT_MS);
-    }
 }
 
 void latchActiveFeatures()

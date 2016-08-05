@@ -32,15 +32,18 @@ typedef struct master_t {
     uint8_t gyroSyncDenominator;            // Gyro sync Denominator
 
     motorMixer_t customMotorMixer[MAX_SUPPORTED_MOTORS];
-#ifdef USE_SERVOS
-    servoMixer_t customServoMixer[MAX_SERVO_RULES];
-#endif
     // motor/esc/servo related stuff
     escAndServoConfig_t escAndServoConfig;
     flight3DConfig_t flight3DConfig;
 
     uint16_t motor_pwm_rate;                // The update rate of motor outputs (50-498Hz)
     uint16_t servo_pwm_rate;                // The update rate of servo outputs (50-498Hz)
+    uint8_t motor_pwm_protocol;             // Pwm Protocol
+    uint8_t use_unsyncedPwm;
+
+#ifdef USE_SERVOS
+    servoMixer_t customServoMixer[MAX_SERVO_RULES];
+#endif
 
     // global sensor-related stuff
 

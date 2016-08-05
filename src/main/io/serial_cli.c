@@ -117,6 +117,7 @@ static void cliPlaySound(char *cmdline);
 static void cliProfile(char *cmdline);
 static void cliRateProfile(char *cmdline);
 static void cliReboot(void);
+static void cliRebootEx(bool bootLoader);
 static void cliSave(char *cmdline);
 static void cliSerial(char *cmdline);
 
@@ -2408,12 +2409,21 @@ static void cliRateProfile(char *cmdline)
     }
 }
 
-static void cliReboot(void) {
+static void cliReboot(void)
+{
+    cliRebootEx(false);
+}
+
+static void cliRebootEx(bool bootLoader)
+{
     cliPrint("\r\nRebooting");
     bufWriterFlush(cliWriter);
     waitForSerialPortToFinishTransmitting(cliPort);
-    stopMotors();
-    handleOneshotFeatureChangeOnRestart();
+    stopPwmAllMotors();
+    if (bootLoader) {
+        systemResetToBootloader();
+        return;
+    }
     systemReset();
 }
 

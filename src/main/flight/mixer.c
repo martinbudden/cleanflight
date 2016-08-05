@@ -68,10 +68,10 @@ static mixerConfig_t *mixerConfig;
 static flight3DConfig_t *flight3DConfig;
 static escAndServoConfig_t *escAndServoConfig;
 static rxConfig_t *rxConfig;
+static bool syncPwmWithPidLoop = false;
 
 static mixerMode_e currentMixerMode;
 static motorMixer_t currentMixer[MAX_SUPPORTED_MOTORS];
-
 
 #ifdef USE_SERVOS
 static uint8_t servoRuleCount = 0;
@@ -475,11 +475,15 @@ void mixerInit(mixerMode_e mixerMode, motorMixer_t *initialCustomMixers)
 #endif
 
 #ifdef USE_SERVOS
-void mixerUsePWMIOConfiguration(void)
+void mixerUsePWMOutputConfiguration(pwmOutputConfiguration_t *pwmOutputConfiguration, bool use_unsyncedPwm)
 {
+    UNUSED(pwmOutputConfiguration);
     int i;
 
     motorCount = 0;
+    //servoCount = pwmOutputConfiguration->servoCount;
+
+    syncPwmWithPidLoop = !use_unsyncedPwm;
 
     if (currentMixerMode == MIXER_CUSTOM || currentMixerMode == MIXER_CUSTOM_TRI || currentMixerMode == MIXER_CUSTOM_AIRPLANE) {
         // load custom mixer into currentMixer
@@ -513,9 +517,13 @@ void mixerUsePWMIOConfiguration(void)
     mixerResetDisarmedMotors();
 }
 #else
-void mixerUsePWMIOConfiguration(void)
+void mixerUsePWMOutputConfiguration(pwmOutputConfiguration_t *pwmOutputConfiguration, bool use_unsyncedPwm)
 {
+    UNUSED(pwmOutputConfiguration);
     motorCount = 4;
+
+    syncPwmWithPidLoop = !use_unsyncedPwm;
+
     int i;
     for (i = 0; i < motorCount; i++) {
         currentMixer[i] = mixerQuadX[i];
@@ -651,20 +659,19 @@ void writeServos(void)
 
 void writeMotors(void)
 {
-    int i;
+    uint8_t i;
 
     for (i = 0; i < motorCount; i++)
         pwmWriteMotor(i, motor[i]);
 
-
-    if (feature(FEATURE_ONESHOT125)) {
+    if (syncPwmWithPidLoop) {
         pwmCompleteOneshotMotorUpdate(motorCount);
     }
 }
 
 void writeAllMotors(int16_t mc)
 {
-    int i;
+    uint8_t i;
 
     // Sends commands to all motors
     for (i = 0; i < motorCount; i++)
@@ -679,9 +686,10 @@ void stopMotors(void)
     delay(50); // give the timers and ESCs a chance to react.
 }
 
-void StopPwmAllMotors()
+void stopPwmAllMotors()
 {
     pwmShutdownPulsesForAllMotors(motorCount);
+    delayMicroseconds(1500);
 }
 
 void mixTable(void)

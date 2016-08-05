@@ -239,13 +239,14 @@ void mixerInit(mixerMode_e mixerMode, motorMixer_t *initialCustomMotorMixers, se
 #else
 void mixerInit(mixerMode_e mixerMode, motorMixer_t *initialCustomMixers);
 #endif
-void mixerUsePWMIOConfiguration(void);
+struct pwmOutputConfiguration_s;
+void mixerUsePWMOutputConfiguration(struct pwmOutputConfiguration_s *pwmOutputConfiguration, bool use_unsyncedPwm);
 void mixerResetDisarmedMotors(void);
 void mixTable(void);
 void writeMotors(void);
 void servoMixer(uint16_t flaperon_throw_offset, uint8_t flaperon_throw_inverted);
 void processServoTilt(void);
 void stopMotors(void);
-void StopPwmAllMotors(void);
+void stopPwmAllMotors(void);
 
 bool isMixerEnabled(mixerMode_e mixerMode);

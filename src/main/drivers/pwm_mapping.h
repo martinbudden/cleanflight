@@ -38,14 +38,18 @@
 #define MAX_SERVOS  8
 #endif
 
+#if (MAX_MOTORS > MAX_SERVOS)
+#define MAX_PWM_OUTPUT_PORTS MAX_MOTORS
+#else
+#define MAX_PWM_OUTPUT_PORTS MAX_SERVOS
+#endif
+
 
 #define PULSE_1MS   (1000)      // 1ms pulse width
 
 #define MAX_INPUTS  8
 
 #define PWM_TIMER_MHZ 1
-#define ONESHOT125_TIMER_MHZ 8
-#define PWM_BRUSHED_TIMER_MHZ 8
 
 
 typedef struct sonarIOConfig_s {
@@ -63,7 +67,7 @@ typedef struct drv_pwm_config_s {
     bool useUART3;
     bool useUART6;
     bool useVbat;
-    bool useOneshot;
+    bool useFastPwm;
     bool useSoftSerial;
     bool useLEDStrip;
 #ifdef SONAR
@@ -76,6 +80,7 @@ typedef struct drv_pwm_config_s {
     uint16_t servoCenterPulse;
 #endif
     bool airplane;       // fixed wing hardware config, lots of servos etc
+    uint8_t pwmProtocolType;
     uint16_t motorPwmRate;
     uint16_t idlePulse;  // PWM value to use when initializing the driver. set this to either PULSE_1MS (regular pwm),
                          // some higher value (used by 3d mode), or 0, for brushed pwm drivers.
@@ -96,9 +101,7 @@ typedef enum {
     PWM_PF_SERVO = (1 << 1),
     PWM_PF_MOTOR_MODE_BRUSHED = (1 << 2),
     PWM_PF_OUTPUT_PROTOCOL_PWM = (1 << 3),
-    PWM_PF_OUTPUT_PROTOCOL_ONESHOT = (1 << 4),
-    PWM_PF_PPM = (1 << 5),
-    PWM_PF_PWM = (1 << 6)
+    PWM_PF_OUTPUT_PROTOCOL_ONESHOT = (1 << 4)
 } pwmPortFlags_e;
 
 struct timerHardware_s;
@@ -108,14 +111,12 @@ typedef struct pwmPortConfiguration_s {
     const struct timerHardware_s *timerHardware;
 } pwmPortConfiguration_t;
 
-typedef struct pwmIOConfiguration_s {
+typedef struct pwmOutputConfiguration_s {
     uint8_t servoCount;
     uint8_t motorCount;
-    uint8_t ioCount;
-    uint8_t pwmInputCount;
-    uint8_t ppmInputCount;
-    pwmPortConfiguration_t ioConfigurations[USABLE_TIMER_CHANNEL_COUNT];
-} pwmIOConfiguration_t;
+    uint8_t outputCount;
+    pwmPortConfiguration_t portConfigurations[MAX_PWM_OUTPUT_PORTS];
+} pwmOutputConfiguration_t;
 
 // This indexes into the read-only hardware definition structure, timerHardware_t
 enum {

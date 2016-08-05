@@ -17,9 +17,6 @@
 
 #pragma once
 
-#include <stdbool.h>
-#include <stdint.h>
-
 #include "io_types.h"
 #include "rcc_types.h"
 

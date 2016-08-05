@@ -30,11 +30,6 @@
 #include "pwm_rx.h"
 #include "pwm_mapping.h"
 
-void pwmBrushedMotorConfig(const timerHardware_t *timerHardware, uint8_t motorIndex, uint16_t motorPwmRate, uint16_t idlePulse);
-void pwmBrushlessMotorConfig(const timerHardware_t *timerHardware, uint8_t motorIndex, uint16_t motorPwmRate, uint16_t idlePulse);
-void pwmOneshotMotorConfig(const timerHardware_t *timerHardware, uint8_t motorIndex);
-void pwmServoConfig(const timerHardware_t *timerHardware, uint8_t servoIndex, uint16_t servoPwmRate, uint16_t servoCenterPulse);
-
 /*
     Configuration maps
 
@@ -76,31 +71,21 @@ const uint16_t * const hardwareMaps[] = {
     airPPM,
 };
 
-static pwmIOConfiguration_t pwmIOConfiguration;
+static pwmOutputConfiguration_t pwmOutputConfiguration;
 
-pwmIOConfiguration_t *pwmGetOutputConfiguration(void)
+pwmOutputConfiguration_t *pwmGetOutputConfiguration(void)
 {
-    return &pwmIOConfiguration;
+    return &pwmOutputConfiguration;
 }
 
-bool CheckGPIOPin(ioTag_t tag, GPIO_TypeDef *gpio, uint16_t pin)
-{
-    return IO_GPIOBYTAG(tag) == gpio && IO_PINBYTAG(tag) == pin;
-}
-
-bool CheckGPIOPinSource(ioTag_t tag, GPIO_TypeDef *gpio, uint16_t pin)
-{
-    return IO_GPIOBYTAG(tag) == gpio && IO_GPIO_PinSource(IOGetByTag(tag)) == pin;
-}
-
-pwmIOConfiguration_t *pwmInit(drv_pwm_config_t *init)
+pwmOutputConfiguration_t *pwmInit(drv_pwm_config_t *init)
 {
 #ifndef SKIP_RX_PWM_PPM
     int channelIndex = 0;
 #endif
 
-    memset(&pwmIOConfiguration, 0, sizeof(pwmIOConfiguration));
-
+    memset(&pwmOutputConfiguration, 0, sizeof(pwmOutputConfiguration));
+  
     // this is pretty hacky shit, but it will do for now. array of 4 config maps, [ multiPWM multiPPM airPWM airPPM ]
     int i = 0;
     if (init->airplane)
@@ -279,9 +264,6 @@ pwmIOConfiguration_t *pwmInit(drv_pwm_config_t *init)
 #endif // USE_SERVOS
 
 #ifdef CC3D
-        // This part of code is unnecessary and can be removed - timer clash is resolved by forcing configuration with the same
-        // timer tick rate - PWM_TIMER_MHZ
-        /*
         if (init->useParallelPWM) {
             // Skip PWM inputs that conflict with timers used outputs.
             if ((type == MAP_TO_SERVO_OUTPUT || type == MAP_TO_MOTOR_OUTPUT) && (timerHardwarePtr->tim == TIM2 || timerHardwarePtr->tim == TIM3)) {
@@ -290,80 +272,61 @@ pwmIOConfiguration_t *pwmInit(drv_pwm_config_t *init)
             if (type == MAP_TO_PWM_INPUT && timerHardwarePtr->tim == TIM4) {
                 continue;
             }
-
         }
-        */
 #endif
 
         if (type == MAP_TO_PPM_INPUT) {
 #ifndef SKIP_RX_PWM_PPM
 #ifdef CC3D_PPM1
-            if (init->useOneshot || isMotorBrushed(init->motorPwmRate)) {
-                ppmAvoidPWMTimerClash(timerHardwarePtr, TIM4);
+            if (init->pwmProtocolType) {
+                ppmAvoidPWMTimerClash(timerHardwarePtr, TIM4, init->pwmProtocolType);
             }
 #endif
 #if defined(SPARKY) || defined(ALIENFLIGHTF3)
-            if (init->useOneshot || isMotorBrushed(init->motorPwmRate)) {
-                ppmAvoidPWMTimerClash(timerHardwarePtr, TIM2);
+            if (!(init->pwmProtocolType == PWM_TYPE_CONVENTIONAL || init->pwmProtocolType == PWM_TYPE_BRUSHED)) {
+                ppmAvoidPWMTimerClash(timerHardwarePtr, TIM2, init->pwmProtocolType);
             }
 #endif
             ppmInConfig(timerHardwarePtr);
-            pwmIOConfiguration.ioConfigurations[pwmIOConfiguration.ioCount].flags = PWM_PF_PPM;
-            pwmIOConfiguration.ppmInputCount++;
 #endif
         } else if (type == MAP_TO_PWM_INPUT) {
 #ifndef SKIP_RX_PWM_PPM
             pwmInConfig(timerHardwarePtr, channelIndex);
-            pwmIOConfiguration.ioConfigurations[pwmIOConfiguration.ioCount].flags = PWM_PF_PWM;
-            pwmIOConfiguration.pwmInputCount++;
             channelIndex++;
 #endif
         } else if (type == MAP_TO_MOTOR_OUTPUT) {
 
 #if defined(CC3D) && !defined(CC3D_PPM1)
-            if (init->useOneshot || isMotorBrushed(init->motorPwmRate)) {
+            if (!(init->pwmProtocolType == PWM_TYPE_CONVENTIONAL || init->pwmProtocolType == PWM_TYPE_BRUSHED)) {
                 // Skip it if it would cause PPM capture timer to be reconfigured or manually overflowed
                 if (timerHardwarePtr->tim == TIM2)
                     continue;
             }
 #endif
-            if (init->useOneshot) {
-
-                pwmOneshotMotorConfig(timerHardwarePtr, pwmIOConfiguration.motorCount);
-                pwmIOConfiguration.ioConfigurations[pwmIOConfiguration.ioCount].flags = PWM_PF_MOTOR | PWM_PF_OUTPUT_PROTOCOL_ONESHOT|PWM_PF_OUTPUT_PROTOCOL_PWM;
-
-            } else if (isMotorBrushed(init->motorPwmRate)) {
-
-                pwmBrushedMotorConfig(timerHardwarePtr, pwmIOConfiguration.motorCount, init->motorPwmRate, init->idlePulse);
-                pwmIOConfiguration.ioConfigurations[pwmIOConfiguration.ioCount].flags = PWM_PF_MOTOR | PWM_PF_MOTOR_MODE_BRUSHED | PWM_PF_OUTPUT_PROTOCOL_PWM;
-
+            if (init->useFastPwm) {
+                pwmFastPwmMotorConfig(timerHardwarePtr, pwmOutputConfiguration.motorCount, init->motorPwmRate, init->idlePulse, init->pwmProtocolType);
+                pwmOutputConfiguration.portConfigurations[pwmOutputConfiguration.outputCount].flags = PWM_PF_MOTOR | PWM_PF_OUTPUT_PROTOCOL_PWM  | PWM_PF_OUTPUT_PROTOCOL_ONESHOT;
+            } else if (init->pwmProtocolType == PWM_TYPE_BRUSHED) {
+                pwmBrushedMotorConfig(timerHardwarePtr, pwmOutputConfiguration.motorCount, init->motorPwmRate);
+                pwmOutputConfiguration.portConfigurations[pwmOutputConfiguration.outputCount].flags = PWM_PF_MOTOR | PWM_PF_OUTPUT_PROTOCOL_PWM | PWM_PF_MOTOR_MODE_BRUSHED;
             } else {
-
-                pwmBrushlessMotorConfig(timerHardwarePtr, pwmIOConfiguration.motorCount, init->motorPwmRate, init->idlePulse);
-                pwmIOConfiguration.ioConfigurations[pwmIOConfiguration.ioCount].flags = PWM_PF_MOTOR | PWM_PF_OUTPUT_PROTOCOL_PWM ;
+                pwmBrushlessMotorConfig(timerHardwarePtr, pwmOutputConfiguration.motorCount, init->motorPwmRate, init->idlePulse);
+                pwmOutputConfiguration.portConfigurations[pwmOutputConfiguration.outputCount].flags = PWM_PF_MOTOR | PWM_PF_OUTPUT_PROTOCOL_PWM;
             }
-
-            pwmIOConfiguration.ioConfigurations[pwmIOConfiguration.ioCount].index = pwmIOConfiguration.motorCount;
-            pwmIOConfiguration.ioConfigurations[pwmIOConfiguration.ioCount].timerHardware = timerHardwarePtr;
-
-            pwmIOConfiguration.motorCount++;
-
+            pwmOutputConfiguration.portConfigurations[pwmOutputConfiguration.outputCount].index = pwmOutputConfiguration.motorCount;
+            pwmOutputConfiguration.portConfigurations[pwmOutputConfiguration.outputCount].timerHardware = timerHardwarePtr;
+            pwmOutputConfiguration.motorCount++;
+            pwmOutputConfiguration.outputCount++;
         } else if (type == MAP_TO_SERVO_OUTPUT) {
 #ifdef USE_SERVOS
-            pwmServoConfig(timerHardwarePtr, pwmIOConfiguration.servoCount, init->servoPwmRate, init->servoCenterPulse);
-
-            pwmIOConfiguration.ioConfigurations[pwmIOConfiguration.ioCount].flags = PWM_PF_SERVO | PWM_PF_OUTPUT_PROTOCOL_PWM;
-            pwmIOConfiguration.ioConfigurations[pwmIOConfiguration.ioCount].index = pwmIOConfiguration.servoCount;
-            pwmIOConfiguration.ioConfigurations[pwmIOConfiguration.ioCount].timerHardware = timerHardwarePtr;
-
-            pwmIOConfiguration.servoCount++;
+            pwmOutputConfiguration.portConfigurations[pwmOutputConfiguration.outputCount].index = pwmOutputConfiguration.servoCount;
+            pwmServoConfig(timerHardwarePtr, pwmOutputConfiguration.servoCount, init->servoPwmRate, init->servoCenterPulse);
+            pwmOutputConfiguration.portConfigurations[pwmOutputConfiguration.outputCount].flags = PWM_PF_SERVO | PWM_PF_OUTPUT_PROTOCOL_PWM;
+            pwmOutputConfiguration.servoCount++;
+            pwmOutputConfiguration.outputCount++;
 #endif
-        } else {
-            continue;
         }
-
-        pwmIOConfiguration.ioCount++;
     }
 
-    return &pwmIOConfiguration;
+    return &pwmOutputConfiguration;
 }

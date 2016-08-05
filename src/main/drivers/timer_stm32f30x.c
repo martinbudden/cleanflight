@@ -10,8 +10,6 @@
 
 #include "platform.h"
 
-#include "common/utils.h"
-
 #include "stm32f30x.h"
 #include "rcc.h"
 #include "timer.h"

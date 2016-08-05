@@ -253,31 +253,34 @@ void init(void)
     pwm_params.useSerialRx = feature(FEATURE_RX_SERIAL);
 
 #ifdef USE_SERVOS
-    pwm_params.useServos = isServoOutputEnabled();
+    pwm_params.useServos = isMixerUsingServos();
     pwm_params.useChannelForwarding = feature(FEATURE_CHANNEL_FORWARDING);
     pwm_params.servoCenterPulse = masterConfig.escAndServoConfig.servoCenterPulse;
     pwm_params.servoPwmRate = masterConfig.servo_pwm_rate;
 #endif
 
-    pwm_params.useOneshot = feature(FEATURE_ONESHOT125);
-    pwm_params.motorPwmRate = masterConfig.motor_pwm_rate;
+    bool use_unsyncedPwm = masterConfig.use_unsyncedPwm || masterConfig.motor_pwm_protocol == PWM_TYPE_CONVENTIONAL || masterConfig.motor_pwm_protocol == PWM_TYPE_BRUSHED;
+
+    // Configurator feature abused for enabling Fast PWM
+    pwm_params.useFastPwm = (masterConfig.motor_pwm_protocol != PWM_TYPE_CONVENTIONAL && masterConfig.motor_pwm_protocol != PWM_TYPE_BRUSHED);
+    pwm_params.pwmProtocolType = masterConfig.motor_pwm_protocol;
+    pwm_params.motorPwmRate = use_unsyncedPwm ? masterConfig.motor_pwm_rate : 0;
     pwm_params.idlePulse = masterConfig.escAndServoConfig.mincommand;
     if (feature(FEATURE_3D))
         pwm_params.idlePulse = masterConfig.flight3DConfig.neutral3d;
-    if (pwm_params.motorPwmRate > 500)
-        pwm_params.idlePulse = 0; // brushed motors
 
+    if (masterConfig.motor_pwm_protocol == PWM_TYPE_BRUSHED) {
+        featureClear(FEATURE_3D);
+        pwm_params.idlePulse = 0; // brushed motors
+    }
 #ifndef SKIP_RX_PWM_PPM
     pwmRxInit(masterConfig.inputFilteringMode);
 #endif
 
     // pwmInit() needs to be called as soon as possible for ESC compatibility reasons
-    pwmInit(&pwm_params);
+    pwmOutputConfiguration_t *pwmOutputConfiguration = pwmInit(&pwm_params);
 
-    mixerUsePWMIOConfiguration();
-
-    if (!feature(FEATURE_ONESHOT125))
-        motorControlEnable = true;
+    mixerUsePWMOutputConfiguration(pwmOutputConfiguration, use_unsyncedPwm);
 
     systemState |= SYSTEM_STATE_MOTORS_READY;
 
@@ -309,8 +312,21 @@ void init(void)
 
 
 #ifdef USE_SPI
-    spiInit(SPI1);
-    spiInit(SPI2);
+#ifdef USE_SPI_DEVICE_1
+    spiInit(SPIDEV_1);
+#endif
+#ifdef USE_SPI_DEVICE_2
+    spiInit(SPIDEV_2);
+#endif
+#ifdef USE_SPI_DEVICE_3
+#ifdef ALIENFLIGHTF3
+    if (hardwareRevision == AFF3_REV_2) {
+        spiInit(SPIDEV_3);
+    }
+#else
+    spiInit(SPIDEV_3);
+#endif
+#endif
 #endif
 
 #ifdef USE_HARDWARE_REVISION_DETECTION
@@ -475,10 +491,10 @@ void init(void)
 #ifdef USE_FLASHFS
 #ifdef NAZE
     if (hardwareRevision == NAZE32_REV5) {
-        m25p16_init();
+        m25p16_init(IOTAG_NONE);
     }
 #elif defined(USE_FLASH_M25P16)
-    m25p16_init();
+    m25p16_init(IOTAG_NONE);
 #endif
 
     flashfsInit();

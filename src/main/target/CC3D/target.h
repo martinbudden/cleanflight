@@ -110,6 +110,7 @@
 #undef GPS
 
 #ifdef CC3D_OPBL
+#define TARGET_MOTOR_COUNT 6
 #undef LED_STRIP
 #define SKIP_CLI_COMMAND_HELP
 #define SKIP_PID_FLOAT

@@ -17,8 +17,18 @@
 
 #pragma once
 
+#if defined(USE_QUAD_MIXER_ONLY)
+#define MAX_SUPPORTED_MOTORS 4
+#define MAX_SUPPORTED_SERVOS 1
+
+#elif defined(TARGET_MOTOR_COUNT)
+#define MAX_SUPPORTED_MOTORS TARGET_MOTOR_COUNT
+#define MAX_SUPPORTED_SERVOS 8
+
+#else
 #define MAX_SUPPORTED_MOTORS 12
 #define MAX_SUPPORTED_SERVOS 8
+#endif
 
 // Note: this is called MultiType/MULTITYPE_* in baseflight.
 typedef enum mixerMode

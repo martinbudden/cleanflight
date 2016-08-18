@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include "platform.h"
+
 #include "io_types.h"
 
 
@@ -40,11 +42,14 @@
 #define MAX_SERVOS  8
 #endif
 
- // MAX_PWM_OUTPUT_PORTS must be set to the largest of either MAX_MOTORS or MAX_SERVOS
-#if (MAX_MOTORS > MAX_SERVOS)
-#define MAX_PWM_OUTPUT_PORTS MAX_MOTORS
-#else
-#define MAX_PWM_OUTPUT_PORTS MAX_SERVOS
+// may be set in target.h file
+#ifndef MAX_PWM_OUTPUT_PORTS
+#define MAX_PWM_OUTPUT_PORTS 12
+#endif
+
+// MAX_PWM_OUTPUT_PORTS must be greater than the largest of either MAX_MOTORS or MAX_SERVOS
+#if (MAX_PWM_OUTPUT_PORTS < MAX_MOTORS) || (MAX_PWM_OUTPUT_PORTS < MAX_SERVOS)
+#error Invalid motor/servo/port configuration
 #endif
 
 #define PWM_TIMER_MHZ 1

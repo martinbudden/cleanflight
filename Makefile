@@ -255,9 +255,12 @@ SYSTEM_SRC = \
 		   common/printf.c \
 		   common/streambuf.c \
 		   common/typeconversion.c \
-			 common/crc.c \
+		   common/crc.c \
 		   drivers/buf_writer.c \
 		   drivers/dma.c \
+		   drivers/exti.c \
+		   drivers/io.c \
+		   drivers/rcc.c \
 		   drivers/serial.c \
 		   drivers/system.c \
 		   scheduler/scheduler.c \
@@ -269,11 +272,7 @@ SYSTEM_SRC = \
 		   $(CMSIS_SRC) \
 		   $(DEVICE_STDPERIPH_SRC)
 
-<<<<<<< e0bd892c4de466b88462dc4c8cc6c13b15f3fc31
-FC_COMMON_SRC = \
-=======
 FC_MIN_SRC = \
->>>>>>> Fixup after rebase
 		   config/feature.c \
 		   config/profile.c \
 		   drivers/gyro_sync.c \
@@ -310,9 +309,6 @@ FC_COMMON_SRC = \
 		   flight/pid_mw23.c \
 		   flight/servos.c \
 		   drivers/bus_i2c_soft.c \
-		   drivers/exti.c \
-		   drivers/io.c \
-		   drivers/rcc.c \
 		   drivers/sound_beeper.c \
 		   io/gimbal.c \
 		   io/serial_4way.c \

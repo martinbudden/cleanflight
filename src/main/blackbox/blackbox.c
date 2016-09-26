@@ -73,6 +73,7 @@
 #include "flight/failsafe.h"
 #include "flight/imu.h"
 #include "flight/navigation.h"
+#include "flight/pid.h"
 
 #include "config/runtime_config.h"
 #include "config/config.h"

@@ -23,6 +23,8 @@
 
 #include "io/rc_curves.h"
 
+#include "rx/rx.h"
+
 #include "config/config.h"
 
 #define THROTTLE_LOOKUP_LENGTH 12

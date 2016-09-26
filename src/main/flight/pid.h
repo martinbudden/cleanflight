@@ -14,8 +14,6 @@
  * You should have received a copy of the GNU General Public License
  * along with Cleanflight.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "rx/rx.h"
-
 #pragma once
 
 #define GYRO_I_MAX 256                      // Gyro I limiter

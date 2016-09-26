@@ -32,6 +32,8 @@
 
 #include "sensors/battery.h"
 
+#include "rx/rx.h"
+
 #include "io/rc_controls.h"
 #include "io/beeper.h"
 

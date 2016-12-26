@@ -708,7 +708,7 @@ void dashboardInit(rxConfig_t *rxConfigToUse)
     delay(200);
 
     displayPort = displayPortOledInit();
-#if defined(CMS)
+#ifdef USE_CMS
     if (dashboardPresent) {
         cmsDisplayPortRegister(displayPort);
     }

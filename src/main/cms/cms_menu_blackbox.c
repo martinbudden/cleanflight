@@ -28,7 +28,7 @@
 
 #include "build/version.h"
 
-#ifdef CMS
+#ifdef USE_CMS
 
 #include "drivers/system.h"
 

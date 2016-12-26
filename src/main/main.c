@@ -356,7 +356,7 @@ void init(void)
 
     initBoardAlignment(boardAlignment());
 
-#ifdef CMS
+#ifdef USE_CMS
     cmsInit();
 #endif
 
@@ -424,7 +424,7 @@ void init(void)
     mspFcInit();
     mspSerialInit();
 
-#if defined(USE_MSP_DISPLAYPORT) && defined(CMS)
+#if defined(USE_MSP_DISPLAYPORT) && defined(USE_CMS)
     cmsDisplayPortRegister(displayPortMspInit());
 #endif
 

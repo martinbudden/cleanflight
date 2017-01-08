@@ -756,10 +756,14 @@ static void subTaskMainSubprocesses(timeUs_t currentTimeUs)
     if (!cliMode && feature(FEATURE_BLACKBOX)) {
         handleBlackbox(currentTimeUs);
     }
+#else
+    UNUSED(currentTimeUs);
 #endif
 
 #ifdef TRANSPONDER
     transponderUpdate(currentTimeUs);
+#else
+    UNUSED(currentTimeUs);
 #endif
     DEBUG_SET(DEBUG_PIDLOOP, 2, micros() - startTime);
 }

@@ -125,13 +125,13 @@ static void mpuIntExtiHandler(extiCallbackRec_t *cb)
 
 static void mpuIntExtiInit(gyroDev_t *gyro)
 {
-    if (!gyro->mpuIntExtiConfig) {
+    if (gyro->mpuIntExtiConfig.tag == IOTAG_NONE) {
         return;
     }
 
 #if defined(USE_MPU_DATA_READY_SIGNAL) && defined(USE_EXTI)
 
-    IO_t mpuIntIO = IOGetByTag(gyro->mpuIntExtiConfig->tag);
+    IO_t mpuIntIO = IOGetByTag(gyro->mpuIntExtiConfig.tag);
 
 #ifdef ENSURE_MPU_DATA_READY_IS_LOW
     uint8_t status = IORead(mpuIntIO);

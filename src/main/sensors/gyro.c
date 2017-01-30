@@ -106,6 +106,7 @@ PG_RESET_TEMPLATE(gyroConfig_t, gyroConfig,
     .gyro_soft_notch_cutoff_2 = 1
 );
 
+<<<<<<< Updated upstream
 #if defined(USE_GYRO_MPU6050) || defined(USE_GYRO_MPU3050) || defined(USE_GYRO_MPU6500) || defined(USE_GYRO_SPI_MPU6500) || defined(USE_GYRO_SPI_MPU6000) || defined(USE_ACC_MPU6050)
 static const extiConfig_t *selectMPUIntExtiConfig(void)
 {
@@ -118,6 +119,10 @@ static const extiConfig_t *selectMPUIntExtiConfig(void)
     return NULL;
 #endif
 }
+=======
+#if defined(USE_GYRO_MPU3050) || defined(USE_GYRO_SPI_MPU6000) || defined(USE_ACC_MPU6050) || defined(USE_GYRO_MPU6050) || defined(USE_GYRO_MPU6500) || defined(USE_GYRO_SPI_MPU6500) || defined(USE_GYRO_SPI_MPU9250)
+#define USE_GYRO_MPU
+>>>>>>> Stashed changes
 #endif
 
 STATIC_UNIT_TESTED gyroSensor_e gyroDetect(gyroDev_t *dev, gyroSensor_e gyroHardware)
@@ -227,14 +232,22 @@ STATIC_UNIT_TESTED gyroSensor_e gyroDetect(gyroDev_t *dev, gyroSensor_e gyroHard
 bool gyroInit(void)
 {
     memset(&gyro, 0, sizeof(gyro));
+<<<<<<< Updated upstream
 #if defined(USE_GYRO_MPU6050) || defined(USE_GYRO_MPU3050) || defined(USE_GYRO_MPU6500) || defined(USE_GYRO_SPI_MPU6500) || defined(USE_GYRO_SPI_MPU6000) || defined(USE_ACC_MPU6050)
     const extiConfig_t *extiConfig = selectMPUIntExtiConfig();
+=======
+#ifdef USE_GYRO_MPU
+#ifdef MPU_INT_EXTI
+    gyro.dev.mpuIntExtiConfig = (extiConfig_t){ .tag = IO_TAG(MPU_INT_EXTI) };
+#elif defined(USE_HARDWARE_REVISION_DETECTION)
+    gyro.dev.mpuIntExtiConfig = *selectMPUIntExtiConfigByHardwareRevision();
+#endif
+>>>>>>> Stashed changes
     mpuDetect(&gyro.dev);
     mpuReset = gyro.dev.mpuConfiguration.reset;
 #else
     const extiConfig_t *extiConfig = NULL;
 #endif
-    gyro.dev.mpuIntExtiConfig =  extiConfig;
     if (gyroDetect(&gyro.dev, GYRO_AUTODETECT) == GYRO_NONE) {
         return false;
     }

@@ -25,7 +25,7 @@
 
 #include "statusindicator.h"
 
-static uint32_t warningLedTimer = 0;
+static uint32_t warningLedTimerMs = 0;
 
 typedef enum {
     WARNING_LED_OFF = 0,
@@ -35,9 +35,9 @@ typedef enum {
 
 static warningLedState_e warningLedState = WARNING_LED_OFF;
 
-void warningLedResetTimer(void) {
-    uint32_t now = millis();
-    warningLedTimer = now + 500000;
+void warningLedResetTimer(void)
+{
+    warningLedTimerMs = millis() + 500;
 }
 
 void warningLedEnable(void)
@@ -69,19 +69,14 @@ void warningLedRefresh(void)
             break;
     }
 
-    timeUs_t now = micros();
-    warningLedTimer = now + 500000;
+    warningLedTimerMs = millis() + 500;
 }
 
 void warningLedUpdate(void)
 {
-    timeUs_t now = micros();
-
-    if (cmpTimeUs(now, warningLedTimer) < 0) {
+    if (millis() < warningLedTimerMs) {
         return;
     }
 
     warningLedRefresh();
 }
-
-

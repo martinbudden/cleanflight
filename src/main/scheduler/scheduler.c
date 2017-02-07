@@ -131,9 +131,9 @@ void taskSystem(timeUs_t currentTimeUs)
 
 #ifndef SKIP_TASK_STATISTICS
 #define TASK_MOVING_SUM_COUNT           32
-timeUs_t checkFuncMaxExecutionTime;
+timeDelta_t checkFuncMaxExecutionTime;
 timeUs_t checkFuncTotalExecutionTime;
-timeUs_t checkFuncMovingSumExecutionTime;
+timeDelta_t checkFuncMovingSumExecutionTime;
 
 void getCheckFuncInfo(cfCheckFuncInfo_t *checkFuncInfo)
 {
@@ -248,7 +248,7 @@ void scheduler(void)
                 waitingTasks++;
             } else if (task->checkFunc(currentTimeBeforeCheckFuncCallUs, currentTimeBeforeCheckFuncCallUs - task->lastExecutedAt)) {
 #ifndef SKIP_TASK_STATISTICS
-                const timeUs_t checkFuncExecutionTime = micros() - currentTimeBeforeCheckFuncCallUs;
+                const timeDelta_t checkFuncExecutionTime = (timeDelta_t)(micros() - currentTimeBeforeCheckFuncCallUs);
                 checkFuncMovingSumExecutionTime -= checkFuncMovingSumExecutionTime / TASK_MOVING_SUM_COUNT;
                 checkFuncMovingSumExecutionTime += checkFuncExecutionTime;
                 checkFuncTotalExecutionTime += checkFuncExecutionTime;   // time consumed by scheduler + task
@@ -299,8 +299,8 @@ void scheduler(void)
         selectedTask->taskFunc(currentTimeBeforeTaskCall);
 
 #ifndef SKIP_TASK_STATISTICS
-        const timeUs_t taskExecutionTime = micros() - currentTimeBeforeTaskCall;
-        selectedTask->movingSumExecutionTime += taskExecutionTime - selectedTask->movingSumExecutionTime / TASK_MOVING_SUM_COUNT;
+        const timeDelta_t taskExecutionTime = (timeDelta_t)(micros() - currentTimeBeforeTaskCall);
+        selectedTask->movingSumExecutionTime += (timeDelta_t)(taskExecutionTime - selectedTask->movingSumExecutionTime) / TASK_MOVING_SUM_COUNT;
         selectedTask->totalExecutionTime += taskExecutionTime;   // time consumed by scheduler + task
         selectedTask->maxExecutionTime = MAX(selectedTask->maxExecutionTime, taskExecutionTime);
 #endif

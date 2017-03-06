@@ -1280,6 +1280,7 @@ static bool blackboxWriteSysinfo()
         BLACKBOX_PRINT_HEADER_LINE("dterm_notch_hz:%d",                   currentProfile->pidProfile.dterm_notch_hz);
         BLACKBOX_PRINT_HEADER_LINE("dterm_notch_cutoff:%d",               currentProfile->pidProfile.dterm_notch_cutoff);
         BLACKBOX_PRINT_HEADER_LINE("itermWindupPointPercent:%d",          currentProfile->pidProfile.itermWindupPointPercent);
+        BLACKBOX_PRINT_HEADER_LINE("itermNoiseThreshold:%d",              currentProfile->pidProfile.itermNoiseThreshold);
         BLACKBOX_PRINT_HEADER_LINE("yaw_p_limit:%d",                      currentProfile->pidProfile.yaw_p_limit);
         BLACKBOX_PRINT_HEADER_LINE("dterm_average_count:%d",              currentProfile->pidProfile.dterm_average_count);
         BLACKBOX_PRINT_HEADER_LINE("vbat_pid_compensation:%d",            currentProfile->pidProfile.vbatPidCompensation);

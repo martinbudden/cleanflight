@@ -112,6 +112,7 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .pidSumLimit = PIDSUM_LIMIT,
         .yaw_lpf_hz = 0,
         .itermWindupPointPercent = 50,
+        .itermNoiseThreshold = 0,
         .dterm_filter_type = FILTER_BIQUAD,
         .dterm_lpf_hz = 100,    // filtering ON by default
         .dterm_notch_hz = 260,
@@ -241,7 +242,8 @@ void pidInitFilters(const pidProfile_t *pidProfile)
 static float Kp[3], Ki[3], Kd[3], maxVelocity[3];
 static float relaxFactor;
 static float dtermSetpointWeight;
-static float levelGain, horizonGain, horizonTransition, ITermWindupPoint, ITermWindupPointInv;
+static float levelGain, horizonGain, horizonTransition;
+static float ITermWindupPoint, ITermWindupPointInv, ITermNoiseThresholdDps;
 
 void pidInitConfig(const pidProfile_t *pidProfile) {
     for(int axis = FD_ROLL; axis <= FD_YAW; axis++) {
@@ -258,6 +260,7 @@ void pidInitConfig(const pidProfile_t *pidProfile) {
     maxVelocity[FD_YAW] = pidProfile->yawRateAccelLimit * 1000 * dT;
     ITermWindupPoint = (float)pidProfile->itermWindupPointPercent / 100.0f;
     ITermWindupPointInv = 1.0f / (1.0f - ITermWindupPoint);
+    ITermNoiseThresholdDps = (float)pidProfile->itermNoiseThreshold / 10.0f;
 }
 
 static float calcHorizonLevelStrength(void) {
@@ -341,8 +344,8 @@ void pidController(const pidProfile_t *pidProfile, const rollAndPitchTrims_t *an
 
         // -----calculate I component
         float ITerm = previousGyroIf[axis];
-        if (motorMixRange < 1.0f) {
-            // Only increase ITerm if motor output is not saturated
+        if (motorMixRange < 1.0f && (errorRate > ITermNoiseThresholdDps || errorRate < -ITermNoiseThresholdDps)) {
+            // Only increase ITerm if motor output is not saturated and errorRate exceeds noise threshold
             ITerm += Ki[axis] * errorRate * dT * dynKi * itermAccelerator;
             previousGyroIf[axis] = ITerm;
         }

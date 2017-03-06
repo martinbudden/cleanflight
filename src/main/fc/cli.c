@@ -685,6 +685,7 @@ static const clivalue_t valueTable[] = {
     { "accel_limit",                VAR_FLOAT  | PROFILE_VALUE, .config.minmax = { 0.1f, 50.0f }, PG_PID_PROFILE, offsetof(pidProfile_t, rateAccelLimit) },
 
     { "iterm_windup",               VAR_UINT8  | PROFILE_VALUE, .config.minmax = { 30, 100 }, PG_PID_PROFILE, offsetof(pidProfile_t, itermWindupPointPercent) },
+    { "iterm_noise_threshold",      VAR_UINT8  | PROFILE_VALUE, .config.minmax = {0, 20 }, PG_PID_PROFILE, offsetof(pidProfile_t, itermNoiseThreshold) },
     { "yaw_lowpass",                VAR_UINT16 | PROFILE_VALUE, .config.minmax = { 0, 500 }, PG_PID_PROFILE, offsetof(pidProfile_t, yaw_lpf_hz) },
     { "pid_process_denom",          VAR_UINT8  | MASTER_VALUE,  .config.minmax = { 1, MAX_PID_PROCESS_DENOM }, PG_PID_CONFIG, offsetof(pidConfig_t, pid_process_denom) },
 
@@ -1014,6 +1015,7 @@ static const clivalue_t valueTable[] = {
     { "accel_limit",                VAR_FLOAT  | PROFILE_VALUE, &pidProfiles(0)->rateAccelLimit, .config.minmax = {0.1f, 50.0f } },
 
     { "iterm_windup",               VAR_UINT8  | PROFILE_VALUE, &pidProfiles(0)->itermWindupPointPercent, .config.minmax = {30, 100 } },
+    { "iterm_noise_threshold",      VAR_UINT8  | PROFILE_VALUE, &pidProfiles(0)->itermNoiseThreshold, .config.minmax = {0, 20 } },
     { "yaw_lowpass",                VAR_UINT16 | PROFILE_VALUE, &pidProfiles(0)->yaw_lpf_hz, .config.minmax = {0, 500 } },
     { "pid_process_denom",          VAR_UINT8  | MASTER_VALUE,  &pidConfig()->pid_process_denom, .config.minmax = { 1,  MAX_PID_PROCESS_DENOM } },
 

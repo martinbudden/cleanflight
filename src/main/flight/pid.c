@@ -108,7 +108,6 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .I8[PIDVEL] = 55,
         .D8[PIDVEL] = 75,
 
-        .yaw_p_limit = YAW_P_LIMIT_MAX,
         .pidSumLimit = PIDSUM_LIMIT,
         .yaw_lpf_hz = 0,
         .itermWindupPointPercent = 50,

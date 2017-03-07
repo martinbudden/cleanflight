@@ -146,7 +146,7 @@ bool compassInit(void)
         return false;
     }
     // copy over SPI CS pin for AK8963 compass
-    magDev.spi.csnPin = gyroSpiCsnPin();
+    magDev.dev.spi.csnPin = gyroSpiCsnPin();
 
     const int16_t deg = compassConfig()->mag_declination / 100;
     const int16_t min = compassConfig()->mag_declination % 100;

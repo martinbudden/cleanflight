@@ -88,21 +88,21 @@ static volatile bool bmi160DataReady = false;
 static volatile bool bmi160ExtiInitDone = false;
 
 //! Private functions
-static int32_t BMI160_Config(const sensorSpi_t *spi);
-static int32_t BMI160_do_foc(const sensorSpi_t *spi);
-static uint8_t BMI160_ReadReg(const sensorSpi_t *spi, uint8_t reg);
-static int32_t BMI160_WriteReg(const sensorSpi_t *spi, uint8_t reg, uint8_t data);
+static int32_t BMI160_Config(const sensorDev_t *dev);
+static int32_t BMI160_do_foc(const sensorDev_t *dev);
+static uint8_t BMI160_ReadReg(const sensorDev_t *dev, uint8_t reg);
+static int32_t BMI160_WriteReg(const sensorDev_t *dev, uint8_t reg, uint8_t data);
 
 #define DISABLE_BMI160(spiCsnPin)       IOHi(spiCsnPin)
 #define ENABLE_BMI160(spiCsnPin)        IOLo(spiCsnPin)
 
 
-bool BMI160_Detect(const sensorSpi_t *spi)
+bool BMI160_Detect(const sensorDev_t *dev)
 {
     if (BMI160Detected)
         return true;
-    IOInit(spi->csnPin, OWNER_MPU_CS, 0);
-    IOConfigGPIO(spi->csnPin, SPI_IO_CS_CFG);
+    IOInit(dev->spi.csnPin, OWNER_MPU_CS, 0);
+    IOConfigGPIO(dev->spi.csnPin, SPI_IO_CS_CFG);
 
     spiSetDivisor(BMI160_SPI_INSTANCE, BMI160_SPI_DIVISOR);
 
@@ -124,7 +124,7 @@ bool BMI160_Detect(const sensorSpi_t *spi)
  * @brief Initialize the BMI160 6-axis sensor.
  * @return 0 for success, -1 for failure to allocate, -10 for failure to get irq
  */
-static void BMI160_Init(const sensorSpi_t *spi)
+static void BMI160_Init(const sensorDev_t *dev)
 {
     if (BMI160InitDone || !BMI160Detected)
         return;
@@ -148,7 +148,7 @@ static void BMI160_Init(const sensorSpi_t *spi)
 /**
  * @brief Configure the sensor
  */
-static int32_t BMI160_Config(const sensorSpi_t *spi)
+static int32_t BMI160_Config(const sensorDev_t *dev)
 {
 
     // Set normal power mode for gyro and accelerometer
@@ -218,7 +218,7 @@ static int32_t BMI160_Config(const sensorSpi_t *spi)
     return 0;
 }
 
-static int32_t BMI160_do_foc(const sensorSpi_t *spi)
+static int32_t BMI160_do_foc(const sensorDev_t *dev)
 {
     // assume sensor is mounted on top
     uint8_t val = 0x7D;;
@@ -273,16 +273,16 @@ static int32_t BMI160_do_foc(const sensorSpi_t *spi)
  * @returns The register value
  * @param reg[in] Register address to be read
  */
-static uint8_t BMI160_ReadReg(const sensorSpi_t *spi, uint8_t reg)
+static uint8_t BMI160_ReadReg(const sensorDev_t *dev, uint8_t reg)
 {
     uint8_t data;
 
-    ENABLE_BMI160(spi->csnPin);
+    ENABLE_BMI160(dev->spi.csnPin);
 
     spiTransferByte(BMI160_SPI_INSTANCE, 0x80 | reg); // request byte
     spiTransfer(BMI160_SPI_INSTANCE, &data, NULL, 1);   // receive response
 
-    DISABLE_BMI160(spi->csnPin);
+    DISABLE_BMI160(dev->spi.csnPin);
 
     return data;
 }
@@ -294,14 +294,14 @@ static uint8_t BMI160_ReadReg(const sensorSpi_t *spi, uint8_t reg)
  * \param[in] data Byte to write
  * @returns 0 when success
  */
-static int32_t BMI160_WriteReg(const sensorSpi_t *spi, uint8_t reg, uint8_t data)
+static int32_t BMI160_WriteReg(const sensorDev_t *dev, uint8_t reg, uint8_t data)
 {
-    ENABLE_BMI160(spi->csnPin);
+    ENABLE_BMI160(dev->spi.csnPin);
 
     spiTransferByte(BMI160_SPI_INSTANCE, 0x7f & reg);
     spiTransferByte(BMI160_SPI_INSTANCE, data);
 
-    DISABLE_BMI160(spi->csnPin);
+    DISABLE_BMI160(dev->spi.csnPin);
 
     return 0;
 }
@@ -380,9 +380,9 @@ bool bmi160GyroRead(gyroDev_t *gyro)
     uint8_t bmi160_rec_buf[BUFFER_SIZE];
     uint8_t bmi160_tx_buf[BUFFER_SIZE] = {BMI160_REG_GYR_DATA_X_LSB | 0x80, 0, 0, 0, 0, 0, 0};
 
-    ENABLE_BMI160(gyro->spi.csnPin);
+    ENABLE_BMI160(gyro->dev.spi.csnPin);
     spiTransfer(BMI160_SPI_INSTANCE, bmi160_rec_buf, bmi160_tx_buf, BUFFER_SIZE);   // receive response
-    DISABLE_BMI160(gyro->spi.csnPin);
+    DISABLE_BMI160(gyro->dev.spi.csnPin);
 
     gyro->gyroADCRaw[X] = (int16_t)((bmi160_rec_buf[IDX_GYRO_XOUT_H] << 8) | bmi160_rec_buf[IDX_GYRO_XOUT_L]);
     gyro->gyroADCRaw[Y] = (int16_t)((bmi160_rec_buf[IDX_GYRO_YOUT_H] << 8) | bmi160_rec_buf[IDX_GYRO_YOUT_L]);
@@ -406,7 +406,7 @@ bool checkBMI160DataReady(gyroDev_t* gyro)
 
 void bmi160SpiGyroInit(gyroDev_t *gyro)
 {
-    BMI160_Init(gyro->spi.csnPin);
+    BMI160_Init(gyro->dev.spi.csnPin);
     bmi160IntExtiInit(gyro);
 }
 
@@ -433,7 +433,7 @@ bool bmi160SpiAccDetect(accDev_t *acc)
 
 bool bmi160SpiGyroDetect(gyroDev_t *gyro)
 {
-    if (!BMI160_Detect(gyro->spi.csnPin)) {
+    if (!BMI160_Detect(gyro->dev.spi.csnPin)) {
         return false;
     }
 

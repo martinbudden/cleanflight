@@ -28,12 +28,12 @@
 
 void mpu9250SpiResetGyro(void);
 
-bool mpu9250SpiDetect(const sensorSpi_t *spi);
+bool mpu9250SpiDetect(const sensorDev_t *dev);
 
 bool mpu9250SpiAccDetect(accDev_t *acc);
 bool mpu9250SpiGyroDetect(gyroDev_t *gyro);
 
-bool mpu9250SpiWriteRegister(const sensorSpi_t *spi, uint8_t reg, uint8_t data);
-bool verifympu9250SpiWriteRegister(const sensorSpi_t *spi, uint8_t reg, uint8_t data);
-bool mpu9250SpiReadRegister(const sensorSpi_t *spi, uint8_t reg, uint8_t length, uint8_t *data);
-bool mpu9250SpiSlowReadRegister(const sensorSpi_t *spi, uint8_t reg, uint8_t length, uint8_t *data);
+bool mpu9250SpiWriteRegister(const sensorDev_t *dev, uint8_t reg, uint8_t data);
+bool verifympu9250SpiWriteRegister(const sensorDev_t *dev, uint8_t reg, uint8_t data);
+bool mpu9250SpiReadRegister(const sensorDev_t *dev, uint8_t reg, uint8_t length, uint8_t *data);
+bool mpu9250SpiSlowReadRegister(const sensorDev_t *dev, uint8_t reg, uint8_t length, uint8_t *data);

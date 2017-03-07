@@ -22,7 +22,7 @@
 typedef struct magDev_s {
     sensorInitFuncPtr init;                                 // initialize function
     sensorReadFuncPtr read;                                 // read 3 axis data function
-    sensorSpi_t spi;
+    sensorDev_t dev;
     sensor_align_e magAlign;
 } magDev_t;
 

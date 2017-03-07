@@ -127,7 +127,7 @@ static const extiConfig_t *selectMPUIntExtiConfig(void)
 
 IO_t gyroSpiCsnPin(void)
 {
-    return gyroDev0.spi.csnPin;
+    return gyroDev0.dev.spi.csnPin;
 }
 
 const mpuConfiguration_t *gyroMpuConfiguration(void)

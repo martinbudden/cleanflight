@@ -50,7 +50,7 @@ typedef struct gyroDev_s {
     sensorGyroInterruptStatusFuncPtr intStatus;
     sensorGyroUpdateFuncPtr update;
     extiCallbackRec_t exti;
-    IO_t spiCsnPin;
+    sensorSpi_t spi;
     float scale;                                            // scalefactor
     int16_t gyroADCRaw[XYZ_AXIS_COUNT];
     int32_t gyroZero[XYZ_AXIS_COUNT];
@@ -68,7 +68,7 @@ typedef struct gyroDev_s {
 typedef struct accDev_s {
     sensorAccInitFuncPtr init;                              // initialize function
     sensorAccReadFuncPtr read;                              // read 3 axis data function
-    IO_t spiCsnPin;
+    sensorSpi_t spi;
     uint16_t acc_1G;
     int16_t ADCRaw[XYZ_AXIS_COUNT];
     char revisionCode;                                      // a revision code for the sensor, if known

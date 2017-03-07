@@ -360,9 +360,9 @@ bool bmi160AccRead(accDev_t *acc)
     uint8_t bmi160_rec_buf[BUFFER_SIZE];
     uint8_t bmi160_tx_buf[BUFFER_SIZE] = {BMI160_REG_ACC_DATA_X_LSB | 0x80, 0, 0, 0, 0, 0, 0};
 
-    ENABLE_BMI160(acc->spiCsnPin);
+    ENABLE_BMI160(acc->spi.csnPin);
     spiTransfer(BMI160_SPI_INSTANCE, bmi160_rec_buf, bmi160_tx_buf, BUFFER_SIZE);   // receive response
-    DISABLE_BMI160(acc->spiCsnPin);
+    DISABLE_BMI160(acc->spi.csnPin);
 
     acc->ADCRaw[X] = (int16_t)((bmi160_rec_buf[IDX_ACCEL_XOUT_H] << 8) | bmi160_rec_buf[IDX_ACCEL_XOUT_L]);
     acc->ADCRaw[Y] = (int16_t)((bmi160_rec_buf[IDX_ACCEL_YOUT_H] << 8) | bmi160_rec_buf[IDX_ACCEL_YOUT_L]);
@@ -388,9 +388,9 @@ bool bmi160GyroRead(gyroDev_t *gyro)
     uint8_t bmi160_rec_buf[BUFFER_SIZE];
     uint8_t bmi160_tx_buf[BUFFER_SIZE] = {BMI160_REG_GYR_DATA_X_LSB | 0x80, 0, 0, 0, 0, 0, 0};
 
-    ENABLE_BMI160(gyro->spiCsnPin);
+    ENABLE_BMI160(gyro->spi.csnPin);
     spiTransfer(BMI160_SPI_INSTANCE, bmi160_rec_buf, bmi160_tx_buf, BUFFER_SIZE);   // receive response
-    DISABLE_BMI160(gyro->spiCsnPin);
+    DISABLE_BMI160(gyro->spi.csnPin);
 
     gyro->gyroADCRaw[X] = (int16_t)((bmi160_rec_buf[IDX_GYRO_XOUT_H] << 8) | bmi160_rec_buf[IDX_GYRO_XOUT_L]);
     gyro->gyroADCRaw[Y] = (int16_t)((bmi160_rec_buf[IDX_GYRO_YOUT_H] << 8) | bmi160_rec_buf[IDX_GYRO_YOUT_L]);
@@ -414,13 +414,13 @@ bool checkBMI160DataReady(gyroDev_t* gyro)
 
 void bmi160SpiGyroInit(gyroDev_t *gyro)
 {
-    BMI160_Init(gyro->spiCsnPin);
+    BMI160_Init(gyro->spi.csnPin);
     bmi160IntExtiInit(gyro);
 }
 
 void bmi160SpiAccInit(accDev_t *acc)
 {
-    BMI160_Init(acc->spiCsnPin);
+    BMI160_Init(acc->spi.csnPin);
 
     acc->acc_1G = 512 * 8;
 }
@@ -428,7 +428,7 @@ void bmi160SpiAccInit(accDev_t *acc)
 
 bool bmi160SpiAccDetect(accDev_t *acc)
 {
-    if (!BMI160_Detect(acc->spiCsnPin)) {
+    if (!BMI160_Detect(acc->spi.csnPin)) {
         return false;
     }
 
@@ -441,7 +441,7 @@ bool bmi160SpiAccDetect(accDev_t *acc)
 
 bool bmi160SpiGyroDetect(gyroDev_t *gyro)
 {
-    if (!BMI160_Detect(gyro->spiCsnPin)) {
+    if (!BMI160_Detect(gyro->spi.csnPin)) {
         return false;
     }
 

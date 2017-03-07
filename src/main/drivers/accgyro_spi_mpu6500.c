@@ -76,14 +76,13 @@ static void mpu6500SpiInit(IO_t spiCsnPin)
 }
 
 static uint8_t mpuDetected = MPU_NONE;
-uint8_t mpu6500SpiDetect(IO_t mpuCsPin)
+uint8_t mpu6500SpiDetect(IO_t spiCsnPin)
 {
-<<<<<<< HEAD
     uint8_t tmp;
 
-    mpu6500SpiInit();
+    mpu6500SpiInit(spiCsnPin);
 
-    mpu6500ReadRegister(MPU_RA_WHO_AM_I, 1, &tmp);
+    mpu6500SpiReadRegister(spiCsnPin, MPU_RA_WHO_AM_I, 1, &tmp);
 
     switch (tmp) {
     case MPU6500_WHO_AM_I_CONST:
@@ -101,38 +100,6 @@ uint8_t mpu6500SpiDetect(IO_t mpuCsPin)
         break;
     default:
         mpuDetected = MPU_NONE;
-=======
-    mpu6500SpiInit(mpuCsPin);
-
-    uint8_t tmp;
-    uint8_t detectRetries = 0;
-    delayMicroseconds(15);
-    do {
-        mpu6500SpiReadRegister(mpuCsPin, MPU_RA_PWR_MGMT_1, 1, &tmp);
-        detectRetries++;
-    } while (tmp != BIT_SLEEP && detectRetries < 30);
-
-    if (tmp == BIT_SLEEP) {
-        mpu6500SpiReadRegister(mpuCsPin, MPU_RA_WHO_AM_I, 1, &tmp);
-        delayMicroseconds(15);
-        switch (tmp) {
-        case MPU6500_WHO_AM_I_CONST:
-            mpuDetected = MPU_65xx_SPI;
-            break;
-        case MPU9250_WHO_AM_I_CONST:
-        case MPU9255_WHO_AM_I_CONST:
-            mpuDetected = MPU_9250_SPI;
-            break;
-        case ICM20608G_WHO_AM_I_CONST:
-            mpuDetected = ICM_20608_SPI;
-            break;
-        case ICM20602_WHO_AM_I_CONST:
-            mpuDetected = ICM_20602_SPI;
-            break;
-        default:
-            mpuDetected = MPU_NONE;
-        }
->>>>>>> Added runtime setting of gyro SPI pin
     }
     return mpuDetected;
 }
@@ -150,7 +117,7 @@ void mpu6500SpiGyroInit(gyroDev_t *gyro)
     mpu6500GyroInit(gyro);
 
     // Disable Primary I2C Interface
-    mpu6500SpiWriteRegister(gyro->spiCsnPin, MPU_RA_USER_CTRL, MPU6500_BIT_I2C_IF_DIS);
+    mpu6500SpiWriteRegister(gyro->spi.csnPin, MPU_RA_USER_CTRL, MPU6500_BIT_I2C_IF_DIS);
     delay(100);
 
     spiSetDivisor(MPU6500_SPI_INSTANCE, SPI_CLOCK_FAST);

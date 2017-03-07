@@ -146,30 +146,30 @@ static void mpu9250AccAndGyroInit(gyroDev_t *gyro) {
 
     spiSetDivisor(MPU9250_SPI_INSTANCE, SPI_CLOCK_INITIALIZATON); //low speed for writing to slow registers
 
-    mpu9250WriteRegister(gyro->spiCsnPin, MPU_RA_PWR_MGMT_1, MPU9250_BIT_RESET);
+    mpu9250WriteRegister(gyro->spi.csnPin, MPU_RA_PWR_MGMT_1, MPU9250_BIT_RESET);
     delay(50);
 
-    verifympu9250WriteRegister(gyro->spiCsnPin, MPU_RA_PWR_MGMT_1, INV_CLK_PLL);
+    verifympu9250WriteRegister(gyro->spi.csnPin, MPU_RA_PWR_MGMT_1, INV_CLK_PLL);
 
     //Fchoice_b defaults to 00 which makes fchoice 11
     const uint8_t raGyroConfigData = gyro->gyroRateKHz > GYRO_RATE_8_kHz ? (INV_FSR_2000DPS << 3 | FCB_3600_32) : (INV_FSR_2000DPS << 3 | FCB_DISABLED);
-    verifympu9250WriteRegister(gyro->spiCsnPin, MPU_RA_GYRO_CONFIG, raGyroConfigData);
+    verifympu9250WriteRegister(gyro->spi.csnPin, MPU_RA_GYRO_CONFIG, raGyroConfigData);
 
     if (gyro->lpf == 4) {
-        verifympu9250WriteRegister(gyro->spiCsnPin, MPU_RA_CONFIG, 1); //1KHz, 184DLPF
+        verifympu9250WriteRegister(gyro->spi.csnPin, MPU_RA_CONFIG, 1); //1KHz, 184DLPF
     } else if (gyro->lpf < 4) {
-        verifympu9250WriteRegister(gyro->spiCsnPin, MPU_RA_CONFIG, 7); //8KHz, 3600DLPF
+        verifympu9250WriteRegister(gyro->spi.csnPin, MPU_RA_CONFIG, 7); //8KHz, 3600DLPF
     } else if (gyro->lpf > 4) {
-        verifympu9250WriteRegister(gyro->spiCsnPin, MPU_RA_CONFIG, 0); //8KHz, 250DLPF
+        verifympu9250WriteRegister(gyro->spi.csnPin, MPU_RA_CONFIG, 0); //8KHz, 250DLPF
     }
 
-    verifympu9250WriteRegister(gyro->spiCsnPin, MPU_RA_SMPLRT_DIV, gyroMPU6xxxGetDividerDrops(gyro));
+    verifympu9250WriteRegister(gyro->spi.csnPin, MPU_RA_SMPLRT_DIV, gyroMPU6xxxGetDividerDrops(gyro));
 
-    verifympu9250WriteRegister(gyro->spiCsnPin, MPU_RA_ACCEL_CONFIG, INV_FSR_8G << 3);
-    verifympu9250WriteRegister(gyro->spiCsnPin, MPU_RA_INT_PIN_CFG, 0 << 7 | 0 << 6 | 0 << 5 | 1 << 4 | 0 << 3 | 0 << 2 | 1 << 1 | 0 << 0);  // INT_ANYRD_2CLEAR, BYPASS_EN
+    verifympu9250WriteRegister(gyro->spi.csnPin, MPU_RA_ACCEL_CONFIG, INV_FSR_8G << 3);
+    verifympu9250WriteRegister(gyro->spi.csnPin, MPU_RA_INT_PIN_CFG, 0 << 7 | 0 << 6 | 0 << 5 | 1 << 4 | 0 << 3 | 0 << 2 | 1 << 1 | 0 << 0);  // INT_ANYRD_2CLEAR, BYPASS_EN
 
 #if defined(USE_MPU_DATA_READY_SIGNAL)
-    verifympu9250WriteRegister(gyro->spiCsnPin, MPU_RA_INT_ENABLE, 0x01); //this resets register MPU_RA_PWR_MGMT_1 and won't read back correctly.
+    verifympu9250WriteRegister(gyro->spi.csnPin, MPU_RA_INT_ENABLE, 0x01); //this resets register MPU_RA_PWR_MGMT_1 and won't read back correctly.
 #endif
 
     spiSetDivisor(MPU9250_SPI_INSTANCE, SPI_CLOCK_FAST);

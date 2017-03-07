@@ -17,15 +17,15 @@
 
 #pragma once
 
-#include "io_types.h"
+#include "sensor.h"
 
-uint8_t mpu6500SpiDetect(IO_t spiCsnPin);
+uint8_t mpu6500SpiDetect(const sensorSpi_t *spi);
 
 bool mpu6500SpiAccDetect(accDev_t *acc);
 bool mpu6500SpiGyroDetect(gyroDev_t *gyro);
 
-bool mpu6500SpiWriteRegister(IO_t spiCsnPin, uint8_t reg, uint8_t data);
-bool mpu6500SpiReadRegister(IO_t spiCsnPin, uint8_t reg, uint8_t length, uint8_t *data);
+bool mpu6500SpiWriteRegister(const sensorSpi_t *spi, uint8_t reg, uint8_t data);
+bool mpu6500SpiReadRegister(const sensorSpi_t *spi, uint8_t reg, uint8_t length, uint8_t *data);
 
 void mpu6500SpiGyroInit(gyroDev_t *gyro);
 void mpu6500SpiAccInit(accDev_t *acc);

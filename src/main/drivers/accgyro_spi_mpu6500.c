@@ -34,32 +34,32 @@
 #include "accgyro_mpu6500.h"
 #include "accgyro_spi_mpu6500.h"
 
-#define DISABLE_MPU6500       IOHi(spiCsnPin)
-#define ENABLE_MPU6500        IOLo(spiCsnPin)
+#define DISABLE_MPU6500(spiCsnPin)       IOHi(spiCsnPin)
+#define ENABLE_MPU6500(spiCsnPin)        IOLo(spiCsnPin)
 
 #define BIT_SLEEP                   0x40
 
-bool mpu6500SpiWriteRegister(IO_t spiCsnPin, uint8_t reg, uint8_t data)
+bool mpu6500SpiWriteRegister(const sensorSpi_t *spi, uint8_t reg, uint8_t data)
 {
-    ENABLE_MPU6500;
+    ENABLE_MPU6500(spi->csnPin);
     spiTransferByte(MPU6500_SPI_INSTANCE, reg);
     spiTransferByte(MPU6500_SPI_INSTANCE, data);
-    DISABLE_MPU6500;
+    DISABLE_MPU6500(spi->csnPin);
 
     return true;
 }
 
-bool mpu6500SpiReadRegister(IO_t spiCsnPin, uint8_t reg, uint8_t length, uint8_t *data)
+bool mpu6500SpiReadRegister(const sensorSpi_t *spi, uint8_t reg, uint8_t length, uint8_t *data)
 {
-    ENABLE_MPU6500;
+    ENABLE_MPU6500(spi->csnPin);
     spiTransferByte(MPU6500_SPI_INSTANCE, reg | 0x80); // read transaction
     spiTransfer(MPU6500_SPI_INSTANCE, data, NULL, length);
-    DISABLE_MPU6500;
+    DISABLE_MPU6500(spi->csnPin);
 
     return true;
 }
 
-static void mpu6500SpiInit(IO_t spiCsnPin)
+static void mpu6500SpiInit(const sensorSpi_t *spi)
 {
     static bool hardwareInitialised = false;
 
@@ -67,8 +67,8 @@ static void mpu6500SpiInit(IO_t spiCsnPin)
         return;
     }
 
-    IOInit(spiCsnPin, OWNER_MPU_CS, 0);
-    IOConfigGPIO(spiCsnPin, SPI_IO_CS_CFG);
+    IOInit(spi->csnPin, OWNER_MPU_CS, 0);
+    IOConfigGPIO(spi->csnPin, SPI_IO_CS_CFG);
 
     spiSetDivisor(MPU6500_SPI_INSTANCE, SPI_CLOCK_FAST);
 
@@ -76,13 +76,13 @@ static void mpu6500SpiInit(IO_t spiCsnPin)
 }
 
 static uint8_t mpuDetected = MPU_NONE;
-uint8_t mpu6500SpiDetect(IO_t spiCsnPin)
+uint8_t mpu6500SpiDetect(const sensorSpi_t *spi)
 {
     uint8_t tmp;
 
-    mpu6500SpiInit(spiCsnPin);
+    mpu6500SpiInit(spi);
 
-    mpu6500SpiReadRegister(spiCsnPin, MPU_RA_WHO_AM_I, 1, &tmp);
+    mpu6500SpiReadRegister(spi, MPU_RA_WHO_AM_I, 1, &tmp);
 
     switch (tmp) {
     case MPU6500_WHO_AM_I_CONST:
@@ -117,7 +117,7 @@ void mpu6500SpiGyroInit(gyroDev_t *gyro)
     mpu6500GyroInit(gyro);
 
     // Disable Primary I2C Interface
-    mpu6500SpiWriteRegister(gyro->spi.csnPin, MPU_RA_USER_CTRL, MPU6500_BIT_I2C_IF_DIS);
+    mpu6500SpiWriteRegister(&gyro->spi, MPU_RA_USER_CTRL, MPU6500_BIT_I2C_IF_DIS);
     delay(100);
 
     spiSetDivisor(MPU6500_SPI_INSTANCE, SPI_CLOCK_FAST);

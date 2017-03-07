@@ -18,7 +18,6 @@
 #pragma once
 
 #include "exti.h"
-#include "io_types.h"
 #include "sensor.h"
 
 //#define DEBUG_MPU_DATA_READY_INTERRUPT
@@ -125,8 +124,8 @@
 // RF = Register Flag
 #define MPU_RF_DATA_RDY_EN (1 << 0)
 
-typedef bool (*mpuReadRegisterFnPtr)(IO_t spiCsnPin, uint8_t reg, uint8_t length, uint8_t* data);
-typedef bool (*mpuWriteRegisterFnPtr)(IO_t spiCsnPin, uint8_t reg, uint8_t data);
+typedef bool (*mpuReadRegisterFnPtr)(const sensorSpi_t *spi, uint8_t reg, uint8_t length, uint8_t* data);
+typedef bool (*mpuWriteRegisterFnPtr)(const sensorSpi_t *spi, uint8_t reg, uint8_t data);
 typedef void(*mpuResetFnPtr)(void);
 
 extern mpuResetFnPtr mpuResetFn;
@@ -199,7 +198,7 @@ void mpuGyroInit(struct gyroDev_s *gyro);
 struct accDev_s;
 bool mpuAccRead(struct accDev_s *acc);
 bool mpuGyroRead(struct gyroDev_s *gyro);
-mpuDetectionResult_t *mpuDetect(struct gyroDev_s *gyro, IO_t spiCsnPin);
+mpuDetectionResult_t *mpuDetect(struct gyroDev_s *gyro, const sensorSpi_t *spi);
 bool mpuCheckDataReady(struct gyroDev_s *gyro);
 void mpuGyroSetIsrUpdate(struct gyroDev_s *gyro, sensorGyroUpdateFuncPtr updateFn);
 

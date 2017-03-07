@@ -16,7 +16,7 @@
  */
 #pragma once
 
-#include "io_types.h"
+#include "sensor.h"
 
 #define ICM20689_WHO_AM_I_CONST             (0x98)
 #define ICM20689_BIT_RESET                  (0x80)
@@ -27,10 +27,10 @@ bool icm20689GyroDetect(gyroDev_t *gyro);
 void icm20689AccInit(accDev_t *acc);
 void icm20689GyroInit(gyroDev_t *gyro);
 
-bool icm20689SpiDetect(IO_t mpuSpiCsPin);
+bool icm20689SpiDetect(const sensorSpi_t *spi);
 
 bool icm20689SpiAccDetect(accDev_t *acc);
 bool icm20689SpiGyroDetect(gyroDev_t *gyro);
 
-bool icm20689SpiWriteRegister(IO_t icmSpiCsPin, uint8_t reg, uint8_t data);
-bool icm20689SpiReadRegister(IO_t icmSpiCsPin, uint8_t reg, uint8_t length, uint8_t *data);
+bool icm20689SpiWriteRegister(const sensorSpi_t *spi, uint8_t reg, uint8_t data);
+bool icm20689SpiReadRegister(const sensorSpi_t *spi, uint8_t reg, uint8_t length, uint8_t *data);

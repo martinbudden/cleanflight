@@ -1,7 +1,7 @@
 
 #pragma once
 
-#include "io_types.h"
+#include "sensor.h"
 
 #define MPU6000_CONFIG              0x1A
 
@@ -17,10 +17,10 @@
 // RF = Register Flag
 #define MPU_RF_DATA_RDY_EN (1 << 0)
 
-bool mpu6000SpiDetect(IO_t mpuCsPin);
+bool mpu6000SpiDetect(const sensorSpi_t *spi);
 
 bool mpu6000SpiAccDetect(accDev_t *acc);
 bool mpu6000SpiGyroDetect(gyroDev_t *gyro);
 
-bool mpu6000SpiWriteRegister(IO_t spiCsnPin, uint8_t reg, uint8_t data);
-bool mpu6000SpiReadRegister(IO_t spiCsnPin, uint8_t reg, uint8_t length, uint8_t *data);
+bool mpu6000SpiWriteRegister(const sensorSpi_t *spi, uint8_t reg, uint8_t data);
+bool mpu6000SpiReadRegister(const sensorSpi_t *spi, uint8_t reg, uint8_t length, uint8_t *data);

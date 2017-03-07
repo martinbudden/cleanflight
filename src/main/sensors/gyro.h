@@ -55,6 +55,7 @@ typedef struct gyroConfig_s {
     uint8_t  gyro_soft_lpf_hz;
     bool     gyro_isr_update;
     bool     gyro_use_32khz;
+    uint8_t  gyro_to_use;
     uint16_t gyro_soft_notch_hz_1;
     uint16_t gyro_soft_notch_cutoff_1;
     uint16_t gyro_soft_notch_hz_2;

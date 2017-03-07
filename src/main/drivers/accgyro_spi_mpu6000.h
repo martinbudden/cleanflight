@@ -17,10 +17,10 @@
 // RF = Register Flag
 #define MPU_RF_DATA_RDY_EN (1 << 0)
 
-bool mpu6000SpiDetect(const sensorDev_t *dev);
+bool mpu6000SpiDetect(const sensorBus_t *bus);
 
 bool mpu6000SpiAccDetect(accDev_t *acc);
 bool mpu6000SpiGyroDetect(gyroDev_t *gyro);
 
-bool mpu6000SpiWriteRegister(const sensorDev_t *dev, uint8_t reg, uint8_t data);
-bool mpu6000SpiReadRegister(const sensorDev_t *dev, uint8_t reg, uint8_t length, uint8_t *data);
+bool mpu6000SpiWriteRegister(const sensorBus_t *bus, uint8_t reg, uint8_t data);
+bool mpu6000SpiReadRegister(const sensorBus_t *bus, uint8_t reg, uint8_t length, uint8_t *data);

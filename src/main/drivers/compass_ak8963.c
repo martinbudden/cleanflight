@@ -316,13 +316,13 @@ bool ak8963Detect(magDev_t *mag)
 #if defined(USE_SPI) && defined(MPU9250_SPI_INSTANCE)
     // initialze I2C master via SPI bus (MPU9250)
 
-    verifympu9250SpiWriteRegister(&mag->dev, MPU_RA_INT_PIN_CFG, 0x10);               // INT_ANYRD_2CLEAR
+    verifympu9250SpiWriteRegister(&mag->bus, MPU_RA_INT_PIN_CFG, 0x10);               // INT_ANYRD_2CLEAR
     delay(10);
 
-    verifympu9250SpiWriteRegister(&mag->dev, MPU_RA_I2C_MST_CTRL, 0x0D);              // I2C multi-master / 400kHz
+    verifympu9250SpiWriteRegister(&mag->bus, MPU_RA_I2C_MST_CTRL, 0x0D);              // I2C multi-master / 400kHz
     delay(10);
 
-    verifympu9250SpiWriteRegister(&mag->dev, MPU_RA_USER_CTRL, 0x30);                 // I2C master mode, SPI mode only
+    verifympu9250SpiWriteRegister(&mag->bus, MPU_RA_USER_CTRL, 0x30);                 // I2C master mode, SPI mode only
     delay(10);
 #endif
 

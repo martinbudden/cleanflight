@@ -39,27 +39,27 @@
 #define DISABLE_ICM20689(spiCsnPin)       IOHi(spiCsnPin)
 #define ENABLE_ICM20689(spiCsnPin)        IOLo(spiCsnPin)
 
-bool icm20689SpiWriteRegister(const sensorDev_t *dev, uint8_t reg, uint8_t data)
+bool icm20689SpiWriteRegister(const sensorBus_t *bus, uint8_t reg, uint8_t data)
 {
-    ENABLE_ICM20689(dev->spi.csnPin);
+    ENABLE_ICM20689(bus->spi.csnPin);
     spiTransferByte(ICM20689_SPI_INSTANCE, reg);
     spiTransferByte(ICM20689_SPI_INSTANCE, data);
-    DISABLE_ICM20689(dev->spi.csnPin);
+    DISABLE_ICM20689(bus->spi.csnPin);
 
     return true;
 }
 
-bool icm20689SpiReadRegister(const sensorDev_t *dev, uint8_t reg, uint8_t length, uint8_t *data)
+bool icm20689SpiReadRegister(const sensorBus_t *bus, uint8_t reg, uint8_t length, uint8_t *data)
 {
-    ENABLE_ICM20689(dev->spi.csnPin);
+    ENABLE_ICM20689(bus->spi.csnPin);
     spiTransferByte(ICM20689_SPI_INSTANCE, reg | 0x80); // read transaction
     spiTransfer(ICM20689_SPI_INSTANCE, data, NULL, length);
-    DISABLE_ICM20689(dev->spi.csnPin);
+    DISABLE_ICM20689(bus->spi.csnPin);
 
     return true;
 }
 
-static void icm20689SpiInit(const sensorDev_t *dev)
+static void icm20689SpiInit(const sensorBus_t *bus)
 {
     static bool hardwareInitialised = false;
 
@@ -67,29 +67,29 @@ static void icm20689SpiInit(const sensorDev_t *dev)
         return;
     }
 
-    IOInit(dev->spi.csnPin, OWNER_MPU_CS, 0);
-    IOConfigGPIO(dev->spi.csnPin, SPI_IO_CS_CFG);
+    IOInit(bus->spi.csnPin, OWNER_MPU_CS, 0);
+    IOConfigGPIO(bus->spi.csnPin, SPI_IO_CS_CFG);
 
     spiSetDivisor(ICM20689_SPI_INSTANCE, SPI_CLOCK_STANDARD);
 
     hardwareInitialised = true;
 }
 
-bool icm20689SpiDetect(const sensorDev_t *dev)
+bool icm20689SpiDetect(const sensorBus_t *bus)
 {
     uint8_t tmp;
     uint8_t attemptsRemaining = 20;
 
-    icm20689SpiInit(spi);
+    icm20689SpiInit(bus);
 
     spiSetDivisor(ICM20689_SPI_INSTANCE, SPI_CLOCK_INITIALIZATON); //low speed
 
-    icm20689SpiWriteRegister(dev, MPU_RA_PWR_MGMT_1, ICM20689_BIT_RESET);
+    icm20689SpiWriteRegister(bus, MPU_RA_PWR_MGMT_1, ICM20689_BIT_RESET);
 
     do {
         delay(150);
 
-        icm20689SpiReadRegister(dev, MPU_RA_WHO_AM_I, 1, &tmp);
+        icm20689SpiReadRegister(bus, MPU_RA_WHO_AM_I, 1, &tmp);
         if (tmp == ICM20689_WHO_AM_I_CONST) {
             break;
         }
@@ -127,32 +127,32 @@ void icm20689GyroInit(gyroDev_t *gyro)
 
     spiSetDivisor(ICM20689_SPI_INSTANCE, SPI_CLOCK_INITIALIZATON);
 
-    gyro->mpuConfiguration.writeFn(&gyro->dev, MPU_RA_PWR_MGMT_1, ICM20689_BIT_RESET);
+    gyro->mpuConfiguration.writeFn(&gyro->bus, MPU_RA_PWR_MGMT_1, ICM20689_BIT_RESET);
     delay(100);
-    gyro->mpuConfiguration.writeFn(&gyro->dev, MPU_RA_SIGNAL_PATH_RESET, 0x03);
+    gyro->mpuConfiguration.writeFn(&gyro->bus, MPU_RA_SIGNAL_PATH_RESET, 0x03);
     delay(100);
-//    gyro->mpuConfiguration.writeFn(&gyro->dev, MPU_RA_PWR_MGMT_1, 0);
+//    gyro->mpuConfiguration.writeFn(&gyro->bus, MPU_RA_PWR_MGMT_1, 0);
 //    delay(100);
-    gyro->mpuConfiguration.writeFn(&gyro->dev, MPU_RA_PWR_MGMT_1, INV_CLK_PLL);
+    gyro->mpuConfiguration.writeFn(&gyro->bus, MPU_RA_PWR_MGMT_1, INV_CLK_PLL);
     delay(15);
     const uint8_t raGyroConfigData = gyro->gyroRateKHz > GYRO_RATE_8_kHz ? (INV_FSR_2000DPS << 3 | FCB_3600_32) : (INV_FSR_2000DPS << 3 | FCB_DISABLED);
-    gyro->mpuConfiguration.writeFn(&gyro->dev, MPU_RA_GYRO_CONFIG, raGyroConfigData);
+    gyro->mpuConfiguration.writeFn(&gyro->bus, MPU_RA_GYRO_CONFIG, raGyroConfigData);
     delay(15);
-    gyro->mpuConfiguration.writeFn(&gyro->dev, MPU_RA_ACCEL_CONFIG, INV_FSR_16G << 3);
+    gyro->mpuConfiguration.writeFn(&gyro->bus, MPU_RA_ACCEL_CONFIG, INV_FSR_16G << 3);
     delay(15);
-    gyro->mpuConfiguration.writeFn(&gyro->dev, MPU_RA_CONFIG, gyro->lpf);
+    gyro->mpuConfiguration.writeFn(&gyro->bus, MPU_RA_CONFIG, gyro->lpf);
     delay(15);
-    gyro->mpuConfiguration.writeFn(&gyro->dev, MPU_RA_SMPLRT_DIV, gyroMPU6xxxGetDividerDrops(gyro)); // Get Divider Drops
+    gyro->mpuConfiguration.writeFn(&gyro->bus, MPU_RA_SMPLRT_DIV, gyroMPU6xxxGetDividerDrops(gyro)); // Get Divider Drops
     delay(100);
 
     // Data ready interrupt configuration
-//    gyro->mpuConfiguration.writeFn(&gyro->dev, MPU_RA_INT_PIN_CFG, 0 << 7 | 0 << 6 | 0 << 5 | 1 << 4 | 0 << 3 | 0 << 2 | 0 << 1 | 0 << 0);  // INT_ANYRD_2CLEAR, BYPASS_EN
-    gyro->mpuConfiguration.writeFn(&gyro->dev, MPU_RA_INT_PIN_CFG, 0x10);  // INT_ANYRD_2CLEAR, BYPASS_EN
+//    gyro->mpuConfiguration.writeFn(&gyro->bus, MPU_RA_INT_PIN_CFG, 0 << 7 | 0 << 6 | 0 << 5 | 1 << 4 | 0 << 3 | 0 << 2 | 0 << 1 | 0 << 0);  // INT_ANYRD_2CLEAR, BYPASS_EN
+    gyro->mpuConfiguration.writeFn(&gyro->bus, MPU_RA_INT_PIN_CFG, 0x10);  // INT_ANYRD_2CLEAR, BYPASS_EN
 
     delay(15);
 
 #ifdef USE_MPU_DATA_READY_SIGNAL
-    gyro->mpuConfiguration.writeFn(&gyro->dev, MPU_RA_INT_ENABLE, 0x01); // RAW_RDY_EN interrupt enable
+    gyro->mpuConfiguration.writeFn(&gyro->bus, MPU_RA_INT_ENABLE, 0x01); // RAW_RDY_EN interrupt enable
 #endif
 
     spiSetDivisor(ICM20689_SPI_INSTANCE, SPI_CLOCK_STANDARD);

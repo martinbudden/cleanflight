@@ -109,22 +109,22 @@ static queuedReadState_t queuedRead = { false, 0, 0};
 
 static bool ak8963SensorRead(uint8_t addr_, uint8_t reg_, uint8_t len_, uint8_t *buf)
 {
-    mpuI2CWriteRegister(MPU_RA_I2C_SLV0_ADDR, addr_ | READ_FLAG);   // set I2C slave address for read
-    mpuI2CWriteRegister(MPU_RA_I2C_SLV0_REG, reg_);                 // set I2C slave register
-    mpuI2CWriteRegister(MPU_RA_I2C_SLV0_CTRL, len_ | 0x80);         // read number of bytes
+    mpuWriteRegisterI2C(NULL, MPU_RA_I2C_SLV0_ADDR, addr_ | READ_FLAG);   // set I2C slave address for read
+    mpuWriteRegisterI2C(NULL, MPU_RA_I2C_SLV0_REG, reg_);                 // set I2C slave register
+    mpuWriteRegisterI2C(NULL, MPU_RA_I2C_SLV0_CTRL, len_ | 0x80);         // read number of bytes
     delay(10);
     __disable_irq();
-    mpuI2CReadRegister(MPU_RA_EXT_SENS_DATA_00, len_, buf);         // read I2C
+    mpuReadRegisterI2C(NULL, MPU_RA_EXT_SENS_DATA_00, len_, buf);         // read I2C
     __enable_irq();
     return true;
 }
 
 static bool ak8963SensorWrite(uint8_t addr_, uint8_t reg_, uint8_t data)
 {
-    mpuI2CWriteRegister(MPU_RA_I2C_SLV0_ADDR, addr_);               // set I2C slave address for write
-    mpuI2CWriteRegister(MPU_RA_I2C_SLV0_REG, reg_);                 // set I2C slave register
-    mpuI2CWriteRegister(MPU_RA_I2C_SLV0_DO, data);                  // set I2C salve value
-    mpuI2CWriteRegister(MPU_RA_I2C_SLV0_CTRL, 0x81);                // write 1 byte
+    mpuWriteRegisterI2C(NULL, MPU_RA_I2C_SLV0_ADDR, addr_);               // set I2C slave address for write
+    mpuWriteRegisterI2C(NULL, MPU_RA_I2C_SLV0_REG, reg_);                 // set I2C slave register
+    mpuWriteRegisterI2C(NULL, MPU_RA_I2C_SLV0_DO, data);                  // set I2C salve value
+    mpuWriteRegisterI2C(NULL, MPU_RA_I2C_SLV0_CTRL, 0x81);                // write 1 byte
     return true;
 }
 
@@ -136,9 +136,9 @@ static bool ak8963SensorStartRead(uint8_t addr_, uint8_t reg_, uint8_t len_)
 
     queuedRead.len = len_;
 
-    mpuI2CWriteRegister(MPU_RA_I2C_SLV0_ADDR, addr_ | READ_FLAG);   // set I2C slave address for read
-    mpuI2CWriteRegister(MPU_RA_I2C_SLV0_REG, reg_);                 // set I2C slave register
-    mpuI2CWriteRegister(MPU_RA_I2C_SLV0_CTRL, len_ | 0x80);         // read number of bytes
+    mpuWriteRegisterI2C(NULL, MPU_RA_I2C_SLV0_ADDR, addr_ | READ_FLAG);   // set I2C slave address for read
+    mpuWriteRegisterI2C(NULL, MPU_RA_I2C_SLV0_REG, reg_);                 // set I2C slave register
+    mpuWriteRegisterI2C(NULL, MPU_RA_I2C_SLV0_CTRL, len_ | 0x80);         // read number of bytes
 
     queuedRead.readStartedAt = micros();
     queuedRead.waiting = true;
@@ -173,7 +173,7 @@ static bool ak8963SensorCompleteRead(uint8_t *buf)
 
     queuedRead.waiting = false;
 
-    mpuI2CReadRegister(MPU_RA_EXT_SENS_DATA_00, queuedRead.len, buf);               // read I2C buffer
+    mpuReadRegisterI2C(NULL, MPU_RA_EXT_SENS_DATA_00, queuedRead.len, buf);               // read I2C buffer
     return true;
 }
 #else

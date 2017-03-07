@@ -160,28 +160,16 @@ static void mpuIntExtiInit(gyroDev_t *gyro)
 #endif
 }
 
-static bool mpuReadRegisterI2C(const sensorSpi_t *spi, uint8_t reg, uint8_t length, uint8_t* data)
+bool mpuReadRegisterI2C(const sensorSpi_t *spi, uint8_t reg, uint8_t length, uint8_t* data)
 {
     UNUSED(spi);
     bool ack = i2cRead(MPU_I2C_INSTANCE, MPU_ADDRESS, reg, length, data);
     return ack;
 }
 
-static bool mpuWriteRegisterI2C(const sensorSpi_t *spi, uint8_t reg, uint8_t data)
+bool mpuWriteRegisterI2C(const sensorSpi_t *spi, uint8_t reg, uint8_t data)
 {
     UNUSED(spi);
-    bool ack = i2cWrite(MPU_I2C_INSTANCE, MPU_ADDRESS, reg, data);
-    return ack;
-}
-
-bool mpuI2CReadRegister(uint8_t reg, uint8_t length, uint8_t *data)
-{
-    bool ack = i2cRead(MPU_I2C_INSTANCE, MPU_ADDRESS, reg, length, data);
-    return ack;
-}
-
-bool mpuI2CWriteRegister(uint8_t reg, uint8_t data)
-{
     bool ack = i2cWrite(MPU_I2C_INSTANCE, MPU_ADDRESS, reg, data);
     return ack;
 }

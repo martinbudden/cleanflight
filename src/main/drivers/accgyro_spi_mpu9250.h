@@ -1,6 +1,8 @@
 
 #pragma once
 
+#include "io_types.h"
+
 #define mpu9250_CONFIG                      0x1A
 
 /* We should probably use these. :)
@@ -24,14 +26,14 @@
 // RF = Register Flag
 #define MPU_RF_DATA_RDY_EN (1 << 0)
 
-void mpu9250ResetGyro(void);
+void mpu9250SpiResetGyro(IO_t spiCsnPin);
 
-bool mpu9250SpiDetect(void);
+bool mpu9250SpiDetect(IO_t spiCsnPin);
 
 bool mpu9250SpiAccDetect(accDev_t *acc);
 bool mpu9250SpiGyroDetect(gyroDev_t *gyro);
 
-bool mpu9250WriteRegister(uint8_t reg, uint8_t data);
-bool verifympu9250WriteRegister(uint8_t reg, uint8_t data);
-bool mpu9250ReadRegister(uint8_t reg, uint8_t length, uint8_t *data);
-bool mpu9250SlowReadRegister(uint8_t reg, uint8_t length, uint8_t *data);
+bool mpu9250SpiWriteRegister(IO_t spiCsnPin, uint8_t reg, uint8_t data);
+bool verifympu9250SpiWriteRegister(IO_t spiCsnPin, uint8_t reg, uint8_t data);
+bool mpu9250SpiReadRegister(IO_t spiCsnPin, uint8_t reg, uint8_t length, uint8_t *data);
+bool mpu9250SpiSlowReadRegister(IO_t spiCsnPin, uint8_t reg, uint8_t length, uint8_t *data);

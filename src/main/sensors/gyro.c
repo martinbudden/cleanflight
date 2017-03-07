@@ -122,6 +122,11 @@ static const extiConfig_t *selectMPUIntExtiConfig(void)
 }
 #endif
 
+IO_t gyroSpiCsnPin(void)
+{
+    return gyroDev0.spiCsnPin;
+}
+
 const mpuConfiguration_t *gyroMpuConfiguration(void)
 {
     return &gyroDev0.mpuConfiguration;
@@ -283,7 +288,7 @@ bool gyroInit(void)
     memset(&gyro, 0, sizeof(gyro));
 #if defined(USE_GYRO_MPU6050) || defined(USE_GYRO_MPU3050) || defined(USE_GYRO_MPU6500) || defined(USE_GYRO_SPI_MPU6500) || defined(USE_GYRO_SPI_MPU6000) || defined(USE_ACC_MPU6050) || defined(USE_GYRO_SPI_MPU9250) || defined(USE_GYRO_SPI_ICM20689)
     gyroDev0.mpuIntExtiConfig = selectMPUIntExtiConfig();
-    mpuDetect(&gyroDev0);
+    mpuDetect(&gyroDev0, IO_NONE);
     mpuResetFn = gyroDev0.mpuConfiguration.resetFn;
 #endif
     const gyroSensor_e gyroHardware = gyroDetect(&gyroDev0);

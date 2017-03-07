@@ -98,30 +98,28 @@ static volatile bool bmi160ExtiInitDone = false;
 //! Private functions
 static int32_t BMI160_Config();
 static int32_t BMI160_do_foc();
-static uint8_t BMI160_ReadReg(uint8_t reg);
-static int32_t BMI160_WriteReg(uint8_t reg, uint8_t data);
+static uint8_t BMI160_ReadReg(IO_t spiCsnPin, uint8_t reg);
+static int32_t BMI160_WriteReg(IO_t spiCsnPin, uint8_t reg, uint8_t data);
 
-static IO_t bmi160CsPin = IO_NONE;
-#define DISABLE_BMI160       IOHi(bmi160CsPin)
-#define ENABLE_BMI160        IOLo(bmi160CsPin)
+#define DISABLE_BMI160(spiCsnPin)       IOHi(spiCsnPin)
+#define ENABLE_BMI160(spiCsnPin)        IOLo(spiCsnPin)
 
 
-bool BMI160_Detect()
+bool BMI160_Detect(IO_t spiCsnPin)
 {
     if (BMI160Detected)
         return true;
-    bmi160CsPin = IOGetByTag(IO_TAG(BMI160_CS_PIN));
-    IOInit(bmi160CsPin, OWNER_MPU_CS, 0);
-    IOConfigGPIO(bmi160CsPin, SPI_IO_CS_CFG);
+    IOInit(spiCsnPin, OWNER_MPU_CS, 0);
+    IOConfigGPIO(spiCsnPin, SPI_IO_CS_CFG);
 
     spiSetDivisor(BMI160_SPI_INSTANCE, BMI160_SPI_DIVISOR);
 
     /* Read this address to acticate SPI (see p. 84) */
-    BMI160_ReadReg(0x7F);
+    BMI160_ReadReg(spiCsnPin, 0x7F);
     delay(10); // Give SPI some time to start up
 
     /* Check the chip ID */
-    if (BMI160_ReadReg(BMI160_REG_CHIPID) != 0xd1){
+    if (BMI160_ReadReg(spiCsnPin, BMI160_REG_CHIPID) != 0xd1){
         return false;
     }
 
@@ -134,7 +132,7 @@ bool BMI160_Detect()
  * @brief Initialize the BMI160 6-axis sensor.
  * @return 0 for success, -1 for failure to allocate, -10 for failure to get irq
  */
-static void BMI160_Init()
+static void BMI160_Init(IO_t spiCsnPin)
 {
     if (BMI160InitDone || !BMI160Detected)
         return;
@@ -158,69 +156,69 @@ static void BMI160_Init()
 /**
  * @brief Configure the sensor
  */
-static int32_t BMI160_Config()
+static int32_t BMI160_Config(IO_t spiCsnPin)
 {
 
     // Set normal power mode for gyro and accelerometer
-    if (BMI160_WriteReg(BMI160_REG_CMD, BMI160_PMU_CMD_PMU_GYR_NORMAL) != 0){
+    if (BMI160_WriteReg(spiCsnPin, BMI160_REG_CMD, BMI160_PMU_CMD_PMU_GYR_NORMAL) != 0){
         return -1;
     }
     delay(100); // can take up to 80ms
 
-    if (BMI160_WriteReg(BMI160_REG_CMD, BMI160_PMU_CMD_PMU_ACC_NORMAL) != 0){
+    if (BMI160_WriteReg(spiCsnPin, BMI160_REG_CMD, BMI160_PMU_CMD_PMU_ACC_NORMAL) != 0){
         return -2;
     }
     delay(5); // can take up to 3.8ms
 
     // Verify that normal power mode was entered
-    uint8_t pmu_status = BMI160_ReadReg(BMI160_REG_PMU_STAT);
+    uint8_t pmu_status = BMI160_ReadReg(spiCsnPin, BMI160_REG_PMU_STAT);
     if ((pmu_status & 0x3C) != 0x14){
         return -3;
     }
 
     // Set odr and ranges
     // Set acc_us = 0 acc_bwp = 0b010 so only the first filter stage is used
-    if (BMI160_WriteReg(BMI160_REG_ACC_CONF, 0x20 | BMI160_ODR_800_Hz) != 0){
+    if (BMI160_WriteReg(spiCsnPin, BMI160_REG_ACC_CONF, 0x20 | BMI160_ODR_800_Hz) != 0){
         return -3;
     }
     delay(1);
 
     // Set gyr_bwp = 0b010 so only the first filter stage is used
-    if (BMI160_WriteReg(BMI160_REG_GYR_CONF, 0x20 | BMI160_ODR_3200_Hz) != 0){
+    if (BMI160_WriteReg(spiCsnPin, BMI160_REG_GYR_CONF, 0x20 | BMI160_ODR_3200_Hz) != 0){
         return -4;
     }
     delay(1);
 
-    if (BMI160_WriteReg(BMI160_REG_ACC_RANGE, BMI160_RANGE_8G) != 0){
+    if (BMI160_WriteReg(spiCsnPin, BMI160_REG_ACC_RANGE, BMI160_RANGE_8G) != 0){
         return -5;
     }
     delay(1);
 
-    if (BMI160_WriteReg(BMI160_REG_GYR_RANGE, BMI160_RANGE_2000DPS) != 0){
+    if (BMI160_WriteReg(spiCsnPin, BMI160_REG_GYR_RANGE, BMI160_RANGE_2000DPS) != 0){
         return -6;
     }
     delay(1);
 
     // Enable offset compensation
-    uint8_t val = BMI160_ReadReg(BMI160_REG_OFFSET_0);
-    if (BMI160_WriteReg(BMI160_REG_OFFSET_0, val | 0xC0) != 0){
+    uint8_t val = BMI160_ReadReg(spiCsnPin, BMI160_REG_OFFSET_0);
+    if (BMI160_WriteReg(spiCsnPin, BMI160_REG_OFFSET_0, val | 0xC0) != 0){
         return -7;
     }
 
     // Enable data ready interrupt
-    if (BMI160_WriteReg(BMI160_REG_INT_EN1, BMI160_INT_EN1_DRDY) != 0){
+    if (BMI160_WriteReg(spiCsnPin, BMI160_REG_INT_EN1, BMI160_INT_EN1_DRDY) != 0){
         return -8;
     }
     delay(1);
 
     // Enable INT1 pin
-    if (BMI160_WriteReg(BMI160_REG_INT_OUT_CTRL, BMI160_INT_OUT_CTRL_INT1_CONFIG) != 0){
+    if (BMI160_WriteReg(spiCsnPin, BMI160_REG_INT_OUT_CTRL, BMI160_INT_OUT_CTRL_INT1_CONFIG) != 0){
         return -9;
     }
     delay(1);
 
     // Map data ready interrupt to INT1 pin
-    if (BMI160_WriteReg(BMI160_REG_INT_MAP1, BMI160_REG_INT_MAP1_INT1_DRDY) != 0){
+    if (BMI160_WriteReg(spiCsnPin, BMI160_REG_INT_MAP1, BMI160_REG_INT_MAP1_INT1_DRDY) != 0){
         return -10;
     }
     delay(1);
@@ -228,22 +226,22 @@ static int32_t BMI160_Config()
     return 0;
 }
 
-static int32_t BMI160_do_foc()
+static int32_t BMI160_do_foc(IO_t spiCsnPin)
 {
     // assume sensor is mounted on top
     uint8_t val = 0x7D;;
-    if (BMI160_WriteReg(BMI160_REG_FOC_CONF, val) != 0) {
+    if (BMI160_WriteReg(spiCsnPin, BMI160_REG_FOC_CONF, val) != 0) {
         return -1;
     }
 
     // Start FOC
-    if (BMI160_WriteReg(BMI160_REG_CMD, BMI160_CMD_START_FOC) != 0) {
+    if (BMI160_WriteReg(spiCsnPin, BMI160_REG_CMD, BMI160_CMD_START_FOC) != 0) {
         return -2;
     }
 
     // Wait for FOC to complete
     for (int i=0; i<50; i++) {
-        val = BMI160_ReadReg(BMI160_REG_STATUS);
+        val = BMI160_ReadReg(spiCsnPin, BMI160_REG_STATUS);
         if (val & BMI160_REG_STATUS_FOC_RDY) {
             break;
         }
@@ -254,18 +252,18 @@ static int32_t BMI160_do_foc()
     }
 
     // Program NVM
-    val = BMI160_ReadReg(BMI160_REG_CONF);
-    if (BMI160_WriteReg(BMI160_REG_CONF, val | BMI160_REG_CONF_NVM_PROG_EN) != 0) {
+    val = BMI160_ReadReg(spiCsnPin, BMI160_REG_CONF);
+    if (BMI160_WriteReg(spiCsnPin, BMI160_REG_CONF, val | BMI160_REG_CONF_NVM_PROG_EN) != 0) {
         return -4;
     }
 
-    if (BMI160_WriteReg(BMI160_REG_CMD, BMI160_CMD_PROG_NVM) != 0) {
+    if (BMI160_WriteReg(spiCsnPin, BMI160_REG_CMD, BMI160_CMD_PROG_NVM) != 0) {
         return -5;
     }
 
     // Wait for NVM programming to complete
     for (int i=0; i<50; i++) {
-        val = BMI160_ReadReg(BMI160_REG_STATUS);
+        val = BMI160_ReadReg(spiCsnPin, BMI160_REG_STATUS);
         if (val & BMI160_REG_STATUS_NVM_RDY) {
             break;
         }
@@ -283,16 +281,16 @@ static int32_t BMI160_do_foc()
  * @returns The register value
  * @param reg[in] Register address to be read
  */
-static uint8_t BMI160_ReadReg(uint8_t reg)
+static uint8_t BMI160_ReadReg(IO_t spiCsnPin, uint8_t reg)
 {
     uint8_t data;
 
-    ENABLE_BMI160;
+    ENABLE_BMI160(spiCsnPin);
 
     spiTransferByte(BMI160_SPI_INSTANCE, 0x80 | reg); // request byte
     spiTransfer(BMI160_SPI_INSTANCE, &data, NULL, 1);   // receive response
 
-    DISABLE_BMI160;
+    DISABLE_BMI160(spiCsnPin);
 
     return data;
 }
@@ -304,14 +302,14 @@ static uint8_t BMI160_ReadReg(uint8_t reg)
  * \param[in] data Byte to write
  * @returns 0 when success
  */
-static int32_t BMI160_WriteReg(uint8_t reg, uint8_t data)
+static int32_t BMI160_WriteReg(IO_t spiCsnPin, uint8_t reg, uint8_t data)
 {
-    ENABLE_BMI160;
+    ENABLE_BMI160(spiCsnPin);
 
     spiTransferByte(BMI160_SPI_INSTANCE, 0x7f & reg);
     spiTransferByte(BMI160_SPI_INSTANCE, data);
 
-    DISABLE_BMI160;
+    DISABLE_BMI160(spiCsnPin);
 
     return 0;
 }
@@ -362,9 +360,9 @@ bool bmi160AccRead(accDev_t *acc)
     uint8_t bmi160_rec_buf[BUFFER_SIZE];
     uint8_t bmi160_tx_buf[BUFFER_SIZE] = {BMI160_REG_ACC_DATA_X_LSB | 0x80, 0, 0, 0, 0, 0, 0};
 
-    ENABLE_BMI160;
+    ENABLE_BMI160(acc->spiCsnPin);
     spiTransfer(BMI160_SPI_INSTANCE, bmi160_rec_buf, bmi160_tx_buf, BUFFER_SIZE);   // receive response
-    DISABLE_BMI160;
+    DISABLE_BMI160(acc->spiCsnPin);
 
     acc->ADCRaw[X] = (int16_t)((bmi160_rec_buf[IDX_ACCEL_XOUT_H] << 8) | bmi160_rec_buf[IDX_ACCEL_XOUT_L]);
     acc->ADCRaw[Y] = (int16_t)((bmi160_rec_buf[IDX_ACCEL_YOUT_H] << 8) | bmi160_rec_buf[IDX_ACCEL_YOUT_L]);
@@ -390,9 +388,9 @@ bool bmi160GyroRead(gyroDev_t *gyro)
     uint8_t bmi160_rec_buf[BUFFER_SIZE];
     uint8_t bmi160_tx_buf[BUFFER_SIZE] = {BMI160_REG_GYR_DATA_X_LSB | 0x80, 0, 0, 0, 0, 0, 0};
 
-    ENABLE_BMI160;
+    ENABLE_BMI160(gyro->spiCsnPin);
     spiTransfer(BMI160_SPI_INSTANCE, bmi160_rec_buf, bmi160_tx_buf, BUFFER_SIZE);   // receive response
-    DISABLE_BMI160;
+    DISABLE_BMI160(gyro->spiCsnPin);
 
     gyro->gyroADCRaw[X] = (int16_t)((bmi160_rec_buf[IDX_GYRO_XOUT_H] << 8) | bmi160_rec_buf[IDX_GYRO_XOUT_L]);
     gyro->gyroADCRaw[Y] = (int16_t)((bmi160_rec_buf[IDX_GYRO_YOUT_H] << 8) | bmi160_rec_buf[IDX_GYRO_YOUT_L]);
@@ -416,13 +414,13 @@ bool checkBMI160DataReady(gyroDev_t* gyro)
 
 void bmi160SpiGyroInit(gyroDev_t *gyro)
 {
-    BMI160_Init();
+    BMI160_Init(gyro->spiCsnPin);
     bmi160IntExtiInit(gyro);
 }
 
 void bmi160SpiAccInit(accDev_t *acc)
 {
-    BMI160_Init();
+    BMI160_Init(acc->spiCsnPin);
 
     acc->acc_1G = 512 * 8;
 }
@@ -430,7 +428,7 @@ void bmi160SpiAccInit(accDev_t *acc)
 
 bool bmi160SpiAccDetect(accDev_t *acc)
 {
-    if (!BMI160_Detect()) {
+    if (!BMI160_Detect(acc->spiCsnPin)) {
         return false;
     }
 
@@ -443,7 +441,7 @@ bool bmi160SpiAccDetect(accDev_t *acc)
 
 bool bmi160SpiGyroDetect(gyroDev_t *gyro)
 {
-    if (!BMI160_Detect()) {
+    if (!BMI160_Detect(gyro->spiCsnPin)) {
         return false;
     }
 

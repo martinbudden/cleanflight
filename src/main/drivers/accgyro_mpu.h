@@ -18,6 +18,7 @@
 #pragma once
 
 #include "exti.h"
+#include "io_types.h"
 #include "sensor.h"
 
 //#define DEBUG_MPU_DATA_READY_INTERRUPT
@@ -124,8 +125,8 @@
 // RF = Register Flag
 #define MPU_RF_DATA_RDY_EN (1 << 0)
 
-typedef bool (*mpuReadRegisterFnPtr)(uint8_t reg, uint8_t length, uint8_t* data);
-typedef bool (*mpuWriteRegisterFnPtr)(uint8_t reg, uint8_t data);
+typedef bool (*mpuReadRegisterFnPtr)(IO_t spiCsnPin, uint8_t reg, uint8_t length, uint8_t* data);
+typedef bool (*mpuWriteRegisterFnPtr)(IO_t spiCsnPin, uint8_t reg, uint8_t data);
 typedef void(*mpuResetFnPtr)(void);
 
 extern mpuResetFnPtr mpuResetFn;
@@ -190,12 +191,15 @@ typedef struct mpuDetectionResult_s {
     mpu6050Resolution_e resolution;
 } mpuDetectionResult_t;
 
+bool mpuI2CReadRegister(uint8_t reg, uint8_t length, uint8_t *data);
+bool mpuI2CWriteRegister(uint8_t reg, uint8_t data);
+
 struct gyroDev_s;
 void mpuGyroInit(struct gyroDev_s *gyro);
 struct accDev_s;
 bool mpuAccRead(struct accDev_s *acc);
 bool mpuGyroRead(struct gyroDev_s *gyro);
-mpuDetectionResult_t *mpuDetect(struct gyroDev_s *gyro);
+mpuDetectionResult_t *mpuDetect(struct gyroDev_s *gyro, IO_t spiCsnPin);
 bool mpuCheckDataReady(struct gyroDev_s *gyro);
 void mpuGyroSetIsrUpdate(struct gyroDev_s *gyro, sensorGyroUpdateFuncPtr updateFn);
 

@@ -291,11 +291,15 @@ bool gyroInit(void)
     memset(&gyro, 0, sizeof(gyro));
 #if defined(USE_GYRO_MPU6050) || defined(USE_GYRO_MPU3050) || defined(USE_GYRO_MPU6500) || defined(USE_GYRO_SPI_MPU6500) || defined(USE_GYRO_SPI_MPU6000) || defined(USE_ACC_MPU6050) || defined(USE_GYRO_SPI_MPU9250) || defined(USE_GYRO_SPI_ICM20689)
     gyroDev0.mpuIntExtiConfig = selectMPUIntExtiConfig();
+
+    sensorBus_t bus;
 #ifdef USE_DUAL_GYRO
-    mpuDetect(&gyroDev0, gyroConfig()->gyro_to_use == 0 ? : GYRO_0_CS_PIN ? GYRO_1_CS_PIN));
+    bus.spi.csnPin = gyroConfig()->gyro_to_use == 0 ? IOGetByTag(IO_TAG(GYRO_0_CS_PIN)) : IOGetByTag(IO_TAG(GYRO_1_CS_PIN));
 #else
-    mpuDetect(&gyroDev0, IO_NONE);
+    bus.spi.csnPin = IO_NONE;
 #endif // USE_DUAL_GYRO
+    mpuDetect(&gyroDev0, &bus);
+
     mpuResetFn = gyroDev0.mpuConfiguration.resetFn; // must be set after mpuDetect
 #endif
     const gyroSensor_e gyroHardware = gyroDetect(&gyroDev0);

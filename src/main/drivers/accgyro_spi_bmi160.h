@@ -68,6 +68,9 @@ enum bmi160_gyro_range {
     BMI160_RANGE_2000DPS = 0x00,
 };
 
-bool BMI160_Detect(const sensorBus_t *bus);
+bool bmi160SpiWriteRegister(const sensorBus_t *bus, uint8_t reg, uint8_t data);
+bool bmi160SpiReadRegister(const sensorBus_t *bus, uint8_t reg, uint8_t length, uint8_t *data);
+
+bool bmi160Detect(const sensorBus_t *bus);
 bool bmi160SpiAccDetect(accDev_t *acc);
 bool bmi160SpiGyroDetect(gyroDev_t *gyro);

@@ -97,7 +97,7 @@ static int32_t BMI160_WriteReg(const sensorBus_t *bus, uint8_t reg, uint8_t data
 #define ENABLE_BMI160(spiCsnPin)        IOLo(spiCsnPin)
 
 
-bool BMI160_Detect(const sensorBus_t *bus)
+bool bmi160Detect(const sensorBus_t *bus)
 {
     if (BMI160Detected)
         return true;
@@ -273,7 +273,7 @@ static int32_t BMI160_do_foc(const sensorBus_t *bus)
  * @returns The register value
  * @param reg[in] Register address to be read
  */
-static uint8_t BMI160_ReadReg(const sensorBus_t *bus, uint8_t reg)
+uint8_t BMI160_ReadReg(const sensorBus_t *bus, uint8_t reg)
 {
     uint8_t data;
 
@@ -287,6 +287,15 @@ static uint8_t BMI160_ReadReg(const sensorBus_t *bus, uint8_t reg)
     return data;
 }
 
+bool bmi160SpiReadRegister(const sensorBus_t *bus, uint8_t reg, uint8_t length, uint8_t *data)
+{
+    ENABLE_BMI160(bus->spi.csnPin);
+    spiTransferByte(BMI160_SPI_INSTANCE, reg | 0x80); // read transaction
+    spiTransfer(BMI160_SPI_INSTANCE, data, NULL, length);
+    ENABLE_BMI160(bus->spi.csnPin);
+
+    return true;
+}
 
 /**
  * @brief Writes one byte to the BMI160 register
@@ -306,6 +315,10 @@ static int32_t BMI160_WriteReg(const sensorBus_t *bus, uint8_t reg, uint8_t data
     return 0;
 }
 
+bool bmi160SpiWriteRegister(const sensorBus_t *bus, uint8_t reg, uint8_t data)
+{
+    return BMI160_WriteReg(bus, reg, data);
+}
 
 extiCallbackRec_t bmi160IntCallbackRec;
 
@@ -420,7 +433,7 @@ void bmi160SpiAccInit(accDev_t *acc)
 
 bool bmi160SpiAccDetect(accDev_t *acc)
 {
-    if (!BMI160_Detect(acc->bus.spi.csnPin)) {
+    if (!bmi160Detect(acc->bus.spi.csnPin)) {
         return false;
     }
 
@@ -433,7 +446,7 @@ bool bmi160SpiAccDetect(accDev_t *acc)
 
 bool bmi160SpiGyroDetect(gyroDev_t *gyro)
 {
-    if (!BMI160_Detect(gyro->bus.spi.csnPin)) {
+    if (!bmi160Detect(gyro->bus.spi.csnPin)) {
         return false;
     }
 

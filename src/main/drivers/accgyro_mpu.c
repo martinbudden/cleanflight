@@ -41,9 +41,10 @@
 #include "accgyro_mpu3050.h"
 #include "accgyro_mpu6050.h"
 #include "accgyro_mpu6500.h"
+#include "accgyro_spi_bmi160.h"
+#include "accgyro_spi_icm20689.h"
 #include "accgyro_spi_mpu6000.h"
 #include "accgyro_spi_mpu6500.h"
-#include "accgyro_spi_icm20689.h"
 #include "accgyro_spi_mpu9250.h"
 #include "accgyro_mpu.h"
 
@@ -278,6 +279,17 @@ static bool detectSPISensorsAndUpdateDetectionResult(gyroDev_t *gyro, const sens
         return true;
     }
 #endif
+
+#ifdef USE_ACCGYRO_BMI160
+    gyro->bus.spi.csnPin = bus->spi.csnPin == IO_NONE ? IOGetByTag(IO_TAG(BMI160_CS_PIN)) : bus->spi.csnPin;
+    if (bmi160Detect(&gyro->bus)) {
+        gyro->mpuDetectionResult.sensor = BMI_160_SPI;
+        gyro->mpuConfiguration.readFn = bmi160SpiReadRegister;
+        gyro->mpuConfiguration.writeFn = bmi160SpiWriteRegister;
+        return true;
+    }
+#endif
+
     UNUSED(bus);
     UNUSED(gyro);
     return false;

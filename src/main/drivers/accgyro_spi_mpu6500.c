@@ -75,8 +75,7 @@ static void mpu6500SpiInit(const sensorBus_t *bus)
     hardwareInitialised = true;
 }
 
-static uint8_t mpuDetected = MPU_NONE;
-uint8_t mpu6500SpiDetect(const sensorBus_t *bus)
+bool mpu6500SpiDetect(const sensorBus_t *bus)
 {
     uint8_t tmp;
 
@@ -86,22 +85,15 @@ uint8_t mpu6500SpiDetect(const sensorBus_t *bus)
 
     switch (tmp) {
     case MPU6500_WHO_AM_I_CONST:
-        mpuDetected = MPU_65xx_SPI;
-        break;
     case MPU9250_WHO_AM_I_CONST:
     case MPU9255_WHO_AM_I_CONST:
-        mpuDetected = MPU_9250_SPI;
-        break;
     case ICM20608G_WHO_AM_I_CONST:
-        mpuDetected = ICM_20608_SPI;
-        break;
     case ICM20602_WHO_AM_I_CONST:
-        mpuDetected = ICM_20602_SPI;
-        break;
+        return true;
+
     default:
-        mpuDetected = MPU_NONE;
+        return false;
     }
-    return mpuDetected;
 }
 
 void mpu6500SpiAccInit(accDev_t *acc)
@@ -126,7 +118,7 @@ void mpu6500SpiGyroInit(gyroDev_t *gyro)
 
 bool mpu6500SpiAccDetect(accDev_t *acc)
 {
-    if (acc->mpuDetectionResult.sensor != mpuDetected || !mpuDetected) {
+    if (acc->mpuDetectionResult.sensor != MPU_65xx_SPI) {
         return false;
     }
 
@@ -138,7 +130,7 @@ bool mpu6500SpiAccDetect(accDev_t *acc)
 
 bool mpu6500SpiGyroDetect(gyroDev_t *gyro)
 {
-    if (gyro->mpuDetectionResult.sensor != mpuDetected || !mpuDetected) {
+    if (gyro->mpuDetectionResult.sensor != MPU_65xx_SPI) {
         return false;
     }
 

@@ -19,7 +19,7 @@
 
 #include "sensor.h"
 
-uint8_t mpu6500SpiDetect(const sensorBus_t *bus);
+bool mpu6500SpiDetect(const sensorBus_t *bus);
 
 bool mpu6500SpiAccDetect(accDev_t *acc);
 bool mpu6500SpiGyroDetect(gyroDev_t *gyro);

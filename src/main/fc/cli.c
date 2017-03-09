@@ -509,6 +509,9 @@ static const clivalue_t valueTable[] = {
 #if defined(USE_GYRO_SPI_MPU6500) || defined(USE_GYRO_SPI_MPU9250) || defined(USE_GYRO_SPI_ICM20689)
     { "gyro_use_32khz",             VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, gyro_use_32khz) },
 #endif
+#if defined(USE_DUAL_GYRO)
+    { "gyro_to_use",                VAR_UINT8  | MASTER_VALUE, .config.minmax = { 0,    1 }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, gyro_to_use) },
+#endif
 #if defined(USE_MPU_DATA_READY_SIGNAL)
     { "gyro_isr_update",            VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, gyro_isr_update) },
 #endif
@@ -998,6 +1001,9 @@ static const clivalue_t valueTable[] = {
     { "gyro_sync_denom",            VAR_UINT8  | MASTER_VALUE,  &gyroConfig()->gyro_sync_denom, .config.minmax = { 1,  32 } },
 #if defined(GYRO_USES_SPI) && defined(USE_MPU_DATA_READY_SIGNAL)
     { "gyro_isr_update",            VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP,  &gyroConfig()->gyro_isr_update, .config.lookup = { TABLE_OFF_ON } },
+#endif
+#if defined(USE_DUAL_GYRO)
+    { "gyro_to_use",                VAR_UINT8  | MASTER_VALUE, &gyroConfig()->gyro_to_use, .config.minmax = { 0,    1 } }, 
 #endif
     { "gyro_use_32khz",             VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP,  &gyroConfig()->gyro_use_32khz, .config.lookup = { TABLE_OFF_ON } },
     { "gyro_lowpass_type",          VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP,  &gyroConfig()->gyro_soft_lpf_type, .config.lookup = { TABLE_LOWPASS_TYPE } },

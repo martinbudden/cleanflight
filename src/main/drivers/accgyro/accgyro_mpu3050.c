@@ -76,13 +76,29 @@ static bool mpu3050ReadTemperature(gyroDev_t *gyro, int16_t *tempData)
     return true;
 }
 
+bool mpu3050GyroRead(gyroDev_t *gyro)
+{
+    uint8_t data[6];
+
+    const bool ack = gyro->mpuConfiguration.readFn(&gyro->bus, MPU3050_GYRO_OUT, 6, data);
+    if (!ack) {
+        return false;
+    }
+
+    gyro->gyroADCRaw[X] = (int16_t)((data[0] << 8) | data[1]);
+    gyro->gyroADCRaw[Y] = (int16_t)((data[2] << 8) | data[3]);
+    gyro->gyroADCRaw[Z] = (int16_t)((data[4] << 8) | data[5]);
+
+    return true;
+}
+
 bool mpu3050Detect(gyroDev_t *gyro)
 {
     if (gyro->mpuDetectionResult.sensor != MPU_3050) {
         return false;
     }
     gyro->initFn = mpu3050Init;
-    gyro->readFn = mpuGyroRead;
+    gyro->readFn = mpu3050GyroRead;
     gyro->temperatureFn = mpu3050ReadTemperature;
     gyro->intStatusFn = mpuCheckDataReady;
 

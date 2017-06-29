@@ -134,10 +134,7 @@ extern mpuResetFnPtr mpuResetFn;
 typedef struct mpuConfiguration_s {
     mpuReadRegisterFnPtr readFn;
     mpuWriteRegisterFnPtr writeFn;
-    mpuReadRegisterFnPtr slowreadFn;
-    mpuWriteRegisterFnPtr verifywriteFn;
     mpuResetFnPtr resetFn;
-    uint8_t gyroReadXRegister; // Y and Z must registers follow this, 2 words each
 } mpuConfiguration_t;
 
 enum gyro_fsr_e {

@@ -204,7 +204,7 @@ bool mpuGyroRead(gyroDev_t *gyro)
 {
     uint8_t data[6];
 
-    const bool ack = gyro->mpuConfiguration.readFn(&gyro->bus, gyro->mpuConfiguration.gyroReadXRegister, 6, data);
+    const bool ack = gyro->mpuConfiguration.readFn(&gyro->bus, MPU_RA_GYRO_XOUT_H, 6, data);
     if (!ack) {
         return false;
     }
@@ -262,10 +262,7 @@ static bool detectSPISensorsAndUpdateDetectionResult(gyroDev_t *gyro)
     gyro->bus.spi.csnPin = gyro->bus.spi.csnPin == IO_NONE ? IOGetByTag(IO_TAG(MPU9250_CS_PIN)) : gyro->bus.spi.csnPin;
     if (mpu9250SpiDetect(&gyro->bus)) {
         gyro->mpuDetectionResult.sensor = MPU_9250_SPI;
-        gyro->mpuConfiguration.gyroReadXRegister = MPU_RA_GYRO_XOUT_H;
         gyro->mpuConfiguration.readFn = mpu9250SpiReadRegister;
-        gyro->mpuConfiguration.slowreadFn = mpu9250SpiSlowReadRegister;
-        gyro->mpuConfiguration.verifywriteFn = verifympu9250SpiWriteRegister;
         gyro->mpuConfiguration.writeFn = mpu9250SpiWriteRegister;
         gyro->mpuConfiguration.resetFn = mpu9250SpiResetGyro;
         return true;
@@ -326,7 +323,6 @@ void mpuDetect(gyroDev_t *gyro)
     inquiryResult &= MPU_INQUIRY_MASK;
     if (ack && inquiryResult == MPUx0x0_WHO_AM_I_CONST) {
         gyro->mpuDetectionResult.sensor = MPU_3050;
-        gyro->mpuConfiguration.gyroReadXRegister = MPU3050_GYRO_OUT;
         return;
     }
 

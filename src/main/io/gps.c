@@ -285,7 +285,7 @@ void gpsInitNmea(void)
                gpsData.state_position++;
            } else if (gpsData.state_position < 2) {
                // print our FIXED init string for the baudrate we want to be at
-               serialPrint(gpsPort, "$PSRF100,1,115200,8,1,0*05\r\n");
+               serialWriteString(gpsPort, "$PSRF100,1,115200,8,1,0*05\r\n");
                gpsData.state_position++;
            } else {
                // we're now (hopefully) at the correct rate, next state will switch to it
@@ -303,7 +303,7 @@ void gpsInitNmea(void)
                serialSetBaudRate(gpsPort, baudRates[gpsInitData[gpsData.baudrateIndex].baudrateIndex]);
                gpsData.state_position++;
            } else if (gpsData.state_position < 2) {
-               serialPrint(gpsPort, "$PSRF103,00,6,00,0*23\r\n");
+               serialWriteString(gpsPort, "$PSRF103,00,6,00,0*23\r\n");
                gpsData.state_position++;
            } else {
 #else
@@ -346,7 +346,7 @@ void gpsInitUblox(void)
                 }
 
                 // print our FIXED init string for the baudrate we want to be at
-                serialPrint(gpsPort, gpsInitData[gpsData.baudrateIndex].ubx);
+                serialWriteString(gpsPort, gpsInitData[gpsData.baudrateIndex].ubx);
 
                 gpsData.state_position++;
             } else {

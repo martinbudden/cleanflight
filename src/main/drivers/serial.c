@@ -22,7 +22,7 @@
 
 #include "serial.h"
 
-void serialPrint(serialPort_t *instance, const char *str)
+void serialWriteString(serialPort_t *instance, const char *str)
 {
     uint8_t ch;
     while ((ch = *(str++)) != 0) {
@@ -84,11 +84,6 @@ bool isSerialTransmitBufferEmpty(const serialPort_t *instance)
 void serialSetMode(serialPort_t *instance, portMode_t mode)
 {
     instance->vTable->setMode(instance, mode);
-}
-
-void serialWriteBufShim(void *instance, const uint8_t *data, int count)
-{
-    serialWriteBuf((serialPort_t *)instance, data, count);
 }
 
 void serialBeginWrite(serialPort_t *instance)

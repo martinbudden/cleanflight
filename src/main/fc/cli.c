@@ -3693,6 +3693,11 @@ void cliProcess(void)
     }
 }
 
+static void serialWriteBufShim(void *instance, const uint8_t *data, int count)
+{
+    serialWriteBuf((serialPort_t *)instance, data, count);
+}
+
 void cliEnter(serialPort_t *serialPort)
 {
     cliMode = 1;

@@ -60,7 +60,7 @@
 
 static serialPortUsage_t serialPortUsageList[SERIAL_PORT_COUNT];
 
-const serialPortIdentifier_e serialPortIdentifiers[SERIAL_PORT_COUNT] = {
+static const serialPortIdentifier_e serialPortIdentifiers[SERIAL_PORT_COUNT] = {
 #ifdef USE_VCP
     SERIAL_PORT_USB_VCP,
 #endif
@@ -265,7 +265,7 @@ serialPort_t *findNextSharedSerialPort(uint16_t functionMask, serialPortFunction
 #define ALL_FUNCTIONS_SHARABLE_WITH_MSP (FUNCTION_BLACKBOX)
 #endif
 
-bool isSerialConfigValid(const serialConfig_t *serialConfigToCheck)
+bool serialIsConfigValid(const serialConfig_t *serialConfigToCheck)
 {
     UNUSED(serialConfigToCheck);
     /*
@@ -323,7 +323,7 @@ serialPortConfig_t *serialFindPortConfiguration(serialPortIdentifier_e identifie
     return NULL;
 }
 
-bool doesConfigurationUsePort(serialPortIdentifier_e identifier)
+bool serialDoesConfigurationUsePort(serialPortIdentifier_e identifier)
 {
     serialPortConfig_t *candidate = serialFindPortConfiguration(identifier);
     return candidate != NULL && candidate->functionMask;
@@ -354,57 +354,57 @@ serialPort_t *openSerialPort(
 
     switch (identifier) {
 #ifdef USE_VCP
-        case SERIAL_PORT_USB_VCP:
-            serialPort = usbVcpOpen();
-            break;
+    case SERIAL_PORT_USB_VCP:
+        serialPort = usbVcpOpen();
+        break;
 #endif
 
 #if defined(USE_UART)
 #ifdef USE_UART1
-        case SERIAL_PORT_USART1:
+    case SERIAL_PORT_USART1:
 #endif
 #ifdef USE_UART2
-        case SERIAL_PORT_USART2:
+    case SERIAL_PORT_USART2:
 #endif
 #ifdef USE_UART3
-        case SERIAL_PORT_USART3:
+    case SERIAL_PORT_USART3:
 #endif
 #ifdef USE_UART4
-        case SERIAL_PORT_UART4:
+    case SERIAL_PORT_UART4:
 #endif
 #ifdef USE_UART5
-        case SERIAL_PORT_UART5:
+    case SERIAL_PORT_UART5:
 #endif
 #ifdef USE_UART6
-        case SERIAL_PORT_USART6:
+    case SERIAL_PORT_USART6:
 #endif
 #ifdef USE_UART7
-        case SERIAL_PORT_USART7:
+    case SERIAL_PORT_USART7:
 #endif
 #ifdef USE_UART8
-        case SERIAL_PORT_USART8:
+    case SERIAL_PORT_USART8:
 #endif
 #ifdef SITL
-            // SITL emulates serial ports over TCP
-            serialPort = serTcpOpen(SERIAL_PORT_IDENTIFIER_TO_UARTDEV(identifier), rxCallback, baudRate, mode, options);
+        // SITL emulates serial ports over TCP
+        serialPort = serTcpOpen(SERIAL_PORT_IDENTIFIER_TO_UARTDEV(identifier), rxCallback, baudRate, mode, options);
 #else
-            serialPort = uartOpen(SERIAL_PORT_IDENTIFIER_TO_UARTDEV(identifier), rxCallback, baudRate, mode, options);
+        serialPort = uartOpen(SERIAL_PORT_IDENTIFIER_TO_UARTDEV(identifier), rxCallback, baudRate, mode, options);
 #endif
-            break;
+        break;
 #endif
 
 #ifdef USE_SOFTSERIAL1
-        case SERIAL_PORT_SOFTSERIAL1:
-            serialPort = openSoftSerial(SOFTSERIAL1, rxCallback, baudRate, mode, options);
-            break;
+    case SERIAL_PORT_SOFTSERIAL1:
+        serialPort = openSoftSerial(SOFTSERIAL1, rxCallback, baudRate, mode, options);
+        break;
 #endif
 #ifdef USE_SOFTSERIAL2
-        case SERIAL_PORT_SOFTSERIAL2:
-            serialPort = openSoftSerial(SOFTSERIAL2, rxCallback, baudRate, mode, options);
-            break;
+    case SERIAL_PORT_SOFTSERIAL2:
+        serialPort = openSoftSerial(SOFTSERIAL2, rxCallback, baudRate, mode, options);
+        break;
 #endif
-        default:
-            break;
+    default:
+        break;
     }
 
     if (!serialPort) {

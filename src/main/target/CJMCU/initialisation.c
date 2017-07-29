@@ -22,9 +22,9 @@
 #include "drivers/bus.h"
 #include "drivers/bus_i2c.h"
 #include "drivers/bus_spi.h"
+#include "fc/fc_init.h"
 #include "io/serial.h"
 
-extern void spiPreInit(void); // XXX In fc/fc_init.c
 
 void targetBusInit(void)
 {
@@ -34,7 +34,7 @@ void targetBusInit(void)
     spiInit(SPIDEV_1);
 #endif
 
-    if (!doesConfigurationUsePort(SERIAL_PORT_USART3)) {
+    if (!serialDoesConfigurationUsePort(SERIAL_PORT_USART3)) {
         serialRemovePort(SERIAL_PORT_USART3);
         i2cHardwareConfigure();
         i2cInit(I2C_DEVICE);

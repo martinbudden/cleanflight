@@ -424,7 +424,7 @@ void validateAndFixConfig(void)
     validateAndFixGyroConfig();
 #endif
 
-    if (!isSerialConfigValid(serialConfig())) {
+    if (!serialIsConfigValid(serialConfig())) {
         pgResetFn_serialConfig(serialConfigMutable());
     }
 

@@ -695,7 +695,7 @@ void init(void)
     if (!loopbackPort->vTable) {
         loopbackPort = openSoftSerial(0, NULL, 19200, SERIAL_NOT_INVERTED);
     }
-    serialPrint(loopbackPort, "LOOPBACK\r\n");
+    serialWriteString(loopbackPort, "LOOPBACK\r\n");
 #endif
 
     batteryInit(); // always needs doing, regardless of features.

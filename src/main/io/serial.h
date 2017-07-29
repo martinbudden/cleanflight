@@ -84,8 +84,6 @@ typedef enum {
     SERIAL_PORT_SOFTSERIAL2
 } serialPortIdentifier_e;
 
-extern const serialPortIdentifier_e serialPortIdentifiers[SERIAL_PORT_COUNT];
-
 #define SERIAL_PORT_IDENTIFIER_TO_INDEX(x) (((x) <= SERIAL_PORT_USART8) ? (x) : (RESOURCE_SOFT_OFFSET + ((x) - SERIAL_PORT_SOFTSERIAL1)))
 
 #define SERIAL_PORT_IDENTIFIER_TO_UARTDEV(x) ((x) - SERIAL_PORT_USART1 + UARTDEV_1)
@@ -94,8 +92,8 @@ extern const serialPortIdentifier_e serialPortIdentifiers[SERIAL_PORT_COUNT];
 // runtime
 //
 typedef struct serialPortUsage_s {
-    serialPortIdentifier_e identifier;
     serialPort_t *serialPort;
+    serialPortIdentifier_e identifier;
     serialPortFunction_e function;
 } serialPortUsage_t;
 
@@ -131,9 +129,9 @@ void serialInit(bool softserialEnabled, serialPortIdentifier_e serialPortToDisab
 void serialRemovePort(serialPortIdentifier_e identifier);
 uint8_t serialGetAvailablePortCount(void);
 bool serialIsPortAvailable(serialPortIdentifier_e identifier);
-bool isSerialConfigValid(const serialConfig_t *serialConfig);
+bool serialIsConfigValid(const serialConfig_t *serialConfig);
 serialPortConfig_t *serialFindPortConfiguration(serialPortIdentifier_e identifier);
-bool doesConfigurationUsePort(serialPortIdentifier_e portIdentifier);
+bool serialDoesConfigurationUsePort(serialPortIdentifier_e portIdentifier);
 serialPortConfig_t *findSerialPortConfig(serialPortFunction_e function);
 serialPortConfig_t *findNextSerialPortConfig(serialPortFunction_e function);
 

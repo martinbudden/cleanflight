@@ -47,7 +47,7 @@
 // VTX supplied menus
 
 #include "io/vtx_rtc6705_cms.h"
-#include "io/vtx_smartaudio_cms.h"
+#include "cms/cms_menu_vtx_smartaudio.h"
 #include "cms/cms_menu_vtx_tramp.h"
 
 // Info

@@ -131,6 +131,7 @@ FC_SRC = \
             cms/cms_menu_ledstrip.c \
             cms/cms_menu_misc.c \
             cms/cms_menu_osd.c \
+            cms/cms_menu_vtx_smartaudio.c \
             cms/cms_menu_vtx_tramp.c \
             common/colorconversion.c \
             common/gps_conversion.c \

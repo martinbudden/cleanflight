@@ -89,8 +89,9 @@ const box_t *findBoxByBoxId(boxId_e boxId)
 {
     for (unsigned i = 0; i < ARRAYLEN(boxes); i++) {
         const box_t *candidate = &boxes[i];
-        if (candidate->boxId == boxId)
+        if (candidate->boxId == boxId) {
             return candidate;
+        }
     }
     return NULL;
 }
@@ -99,8 +100,9 @@ const box_t *findBoxByPermanentId(uint8_t permanentId)
 {
     for (unsigned i = 0; i < ARRAYLEN(boxes); i++) {
         const box_t *candidate = &boxes[i];
-        if (candidate->permanentId == permanentId)
+        if (candidate->permanentId == permanentId) {
             return candidate;
+        }
     }
     return NULL;
 }

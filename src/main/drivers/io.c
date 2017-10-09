@@ -17,11 +17,11 @@
 
 #include "platform.h"
 
+#include "common/utils.h"
+
 #include "drivers/io.h"
 #include "drivers/io_impl.h"
 #include "drivers/rcc.h"
-
-#include "common/utils.h"
 
 // io ports defs are stored in array by index now
 struct ioPortDef_s {
@@ -177,8 +177,7 @@ void IOWrite(IO_t io, bool hi)
 #elif defined(STM32F4)
     if (hi) {
         IO_GPIO(io)->BSRRL = IO_Pin(io);
-    }
-    else {
+    } else {
         IO_GPIO(io)->BSRRH = IO_Pin(io);
     }
 #else
@@ -279,7 +278,6 @@ void IOConfigGPIO(IO_t io, ioConfig_t cfg)
     if (!io) {
         return;
     }
-
     const rccPeriphTag_t rcc = ioPortDefs[IO_GPIOPortIdx(io)].rcc;
     RCC_ClockCmd(rcc, ENABLE);
 
@@ -303,7 +301,6 @@ void IOConfigGPIOAF(IO_t io, ioConfig_t cfg, uint8_t af)
     if (!io) {
         return;
     }
-
     const rccPeriphTag_t rcc = ioPortDefs[IO_GPIOPortIdx(io)].rcc;
     RCC_ClockCmd(rcc, ENABLE);
 
@@ -326,7 +323,6 @@ void IOConfigGPIO(IO_t io, ioConfig_t cfg)
     if (!io) {
         return;
     }
-
     const rccPeriphTag_t rcc = ioPortDefs[IO_GPIOPortIdx(io)].rcc;
     RCC_ClockCmd(rcc, ENABLE);
 
@@ -345,7 +341,6 @@ void IOConfigGPIOAF(IO_t io, ioConfig_t cfg, uint8_t af)
     if (!io) {
         return;
     }
-
     const rccPeriphTag_t rcc = ioPortDefs[IO_GPIOPortIdx(io)].rcc;
     RCC_ClockCmd(rcc, ENABLE);
     GPIO_PinAFConfig(IO_GPIO(io), IO_GPIO_PinSource(io), af);

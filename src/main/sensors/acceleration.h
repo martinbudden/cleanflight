@@ -46,7 +46,7 @@ typedef enum {
 typedef struct acc_s {
     accDev_t dev;
     uint32_t accSamplingInterval;
-    int32_t accSmooth[XYZ_AXIS_COUNT];
+    int32_t accADC[XYZ_AXIS_COUNT];
     bool isAccelUpdatedAtLeastOnce;
 } acc_t;
 
@@ -64,21 +64,21 @@ typedef union rollAndPitchTrims_u {
 
 
 typedef struct accelerometerConfig_s {
-    uint16_t acc_lpf_hz;                    // cutoff frequency for the low pass filter used on the acc z-axis for althold in Hz
     sensor_align_e acc_align;               // acc alignment
     uint8_t acc_hardware;                   // Which acc hardware to use on boards with more than one device
-    bool acc_high_fsr;
+    uint16_t acc_lpf_hz;                    // cutoff frequency for the low pass filter used on the acc z-axis for althold in Hz
     flightDynamicsTrims_t accZero;
     rollAndPitchTrims_t accelerometerTrims;
+    bool acc_high_fsr;
 } accelerometerConfig_t;
 
 PG_DECLARE(accelerometerConfig_t, accelerometerConfig);
 
 bool accInit(uint32_t gyroTargetLooptime);
-bool isAccelerationCalibrationComplete(void);
+bool accIsCalibrationComplete(void);
 void accSetCalibrationCycles(uint16_t calibrationCyclesRequired);
 void resetRollAndPitchTrims(rollAndPitchTrims_t *rollAndPitchTrims);
-void accUpdate(timeUs_t currentTimeUs, rollAndPitchTrims_t *rollAndPitchTrims);
+void accUpdate(timeUs_t currentTimeUs);
 bool accGetAccumulationAverage(float *accumulation);
 union flightDynamicsTrims_u;
 void setAccelerationTrims(union flightDynamicsTrims_u *accelerationTrimsToUse);

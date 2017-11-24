@@ -124,11 +124,6 @@ void taskBatteryAlerts(timeUs_t currentTimeUs)
 }
 
 #ifndef USE_OSD_SLAVE
-static void taskUpdateAccelerometer(timeUs_t currentTimeUs)
-{
-    accUpdate(currentTimeUs, &accelerometerConfigMutable()->accelerometerTrims);
-}
-
 static void taskUpdateRxMain(timeUs_t currentTimeUs)
 {
     processRx(currentTimeUs);
@@ -425,7 +420,7 @@ cfTask_t cfTasks[TASK_COUNT] = {
 
     [TASK_ACCEL] = {
         .taskName = "ACCEL",
-        .taskFunc = taskUpdateAccelerometer,
+        .taskFunc = accUpdate,
         .desiredPeriod = TASK_PERIOD_HZ(1000),      // 1000Hz, every 1ms
         .staticPriority = TASK_PRIORITY_MEDIUM,
     },

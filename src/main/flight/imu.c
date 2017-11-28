@@ -46,7 +46,6 @@
 #include "sensors/compass.h"
 #include "sensors/gyro.h"
 #include "sensors/sensors.h"
-#include "sensors/sonar.h"
 
 #if defined(SIMULATOR_BUILD) && defined(SIMULATOR_MULTITHREAD)
 #include <stdio.h>
@@ -86,10 +85,6 @@ static float throttleAngleScale;
 static float fc_acc;
 static float smallAngleCosZ = 0;
 
-static imuRuntimeConfig_t imuRuntimeConfig;
-
-STATIC_UNIT_TESTED float rMat[3][3];
-
 // quaternion of sensor frame relative to earth frame
 STATIC_UNIT_TESTED quaternion q = QUATERNION_INITIALIZE;
 STATIC_UNIT_TESTED quaternionProducts qP = QUATERNION_PRODUCTS_INITIALIZE;
@@ -97,8 +92,12 @@ STATIC_UNIT_TESTED quaternionProducts qP = QUATERNION_PRODUCTS_INITIALIZE;
 quaternion headfree = QUATERNION_INITIALIZE;
 quaternion offset = QUATERNION_INITIALIZE;
 
+STATIC_UNIT_TESTED float rMat[3][3];
+
 // absolute angle inclination in multiple of 0.1 degree    180 deg = 1800
-attitudeEulerAngles_t attitude = EULER_INITIALIZE;
+attitudeEulerAngles_t attitude = { { 0, 0, 0 } };
+
+static imuRuntimeConfig_t imuRuntimeConfig;
 
 PG_REGISTER_WITH_RESET_TEMPLATE(imuConfig_t, imuConfig, PG_IMU_CONFIG, 0);
 
@@ -110,7 +109,8 @@ PG_RESET_TEMPLATE(imuConfig_t, imuConfig,
     .acc_unarmedcal = 1
 );
 
-STATIC_UNIT_TESTED void imuComputeRotationMatrix(void){
+STATIC_UNIT_TESTED void imuComputeRotationMatrix(void)
+{
     imuQuaternionComputeProducts(&q, &qP);
 
     rMat[0][0] = 1.0f - 2.0f * qP.yy - 2.0f * qP.zz;
@@ -321,8 +321,7 @@ static void imuMahonyAHRSupdate(float dt, float gx, float gy, float gz,
             integralFBy += dcmKiGain * ey * dt;
             integralFBz += dcmKiGain * ez * dt;
         }
-    }
-    else {
+    } else {
         integralFBx = 0.0f;    // prevent integral windup
         integralFBy = 0.0f;
         integralFBz = 0.0f;
@@ -363,23 +362,24 @@ static void imuMahonyAHRSupdate(float dt, float gx, float gy, float gz,
     imuComputeRotationMatrix();
 }
 
-STATIC_UNIT_TESTED void imuUpdateEulerAngles(void){
+STATIC_UNIT_TESTED void imuUpdateEulerAngles(void)
+{
     quaternionProducts buffer;
 
     if (FLIGHT_MODE(HEADFREE_MODE)) {
-       imuQuaternionComputeProducts(&headfree, &buffer);
-
-       attitude.values.roll = lrintf(atan2_approx((+2.0f * (buffer.wx + buffer.yz)), (+1.0f - 2.0f * (buffer.xx + buffer.yy))) * (1800.0f / M_PIf));
-       attitude.values.pitch = lrintf(((0.5f * M_PIf) - acos_approx(+2.0f * (buffer.wy - buffer.xz))) * (1800.0f / M_PIf));
-       attitude.values.yaw = lrintf((-atan2_approx((+2.0f * (buffer.wz + buffer.xy)), (+1.0f - 2.0f * (buffer.yy + buffer.zz))) * (1800.0f / M_PIf)));
+        imuQuaternionComputeProducts(&headfree, &buffer);
+        attitude.values.roll = lrintf(atan2_approx((+2.0f * (buffer.wx + buffer.yz)), (+1.0f - 2.0f * (buffer.xx + buffer.yy))) * (1800.0f / M_PIf));
+        attitude.values.pitch = lrintf(((0.5f * M_PIf) - acos_approx(+2.0f * (buffer.wy - buffer.xz))) * (1800.0f / M_PIf));
+        attitude.values.yaw = lrintf((-atan2_approx((+2.0f * (buffer.wz + buffer.xy)), (+1.0f - 2.0f * (buffer.yy + buffer.zz))) * (1800.0f / M_PIf)));
     } else {
-       attitude.values.roll = lrintf(atan2_approx(rMat[2][1], rMat[2][2]) * (1800.0f / M_PIf));
-       attitude.values.pitch = lrintf(((0.5f * M_PIf) - acos_approx(-rMat[2][0])) * (1800.0f / M_PIf));
-       attitude.values.yaw = lrintf((-atan2_approx(rMat[1][0], rMat[0][0]) * (1800.0f / M_PIf)));
+        attitude.values.roll = lrintf(atan2_approx(rMat[2][1], rMat[2][2]) * (1800.0f / M_PIf));
+        attitude.values.pitch = lrintf(((0.5f * M_PIf) - acos_approx(-rMat[2][0])) * (1800.0f / M_PIf));
+        attitude.values.yaw = lrintf((-atan2_approx(rMat[1][0], rMat[0][0]) * (1800.0f / M_PIf)));
     }
 
-    if (attitude.values.yaw < 0)
+    if (attitude.values.yaw < 0) {
         attitude.values.yaw += 3600;
+    }
 
     /* Update small angle state */
     if (rMat[2][2] > smallAngleCosZ) {
@@ -389,23 +389,18 @@ STATIC_UNIT_TESTED void imuUpdateEulerAngles(void){
     }
 }
 
-static bool imuIsAccelerometerHealthy(void)
+static bool imuCanUseAccelerometerForCorrection(void)
 {
-    float accMagnitude = 0;
+    float accMagnitudeSq = 0;
     for (int axis = 0; axis < 3; axis++) {
         const float a = acc.accSmooth[axis];
-        accMagnitude += a * a;
+        accMagnitudeSq += a * a;
     }
 
-    accMagnitude = accMagnitude * 100 / (sq((int32_t)acc.dev.acc_1G));
+    accMagnitudeSq = accMagnitudeSq * 100 / (sq((int32_t)acc.dev.acc_1G));
 
     // Accept accel readings only in range 0.90g - 1.10g
-    return (81 < accMagnitude) && (accMagnitude < 121);
-}
-
-static bool isMagnetometerHealthy(void)
-{
-    return (mag.magADC[X] != 0) && (mag.magADC[Y] != 0) && (mag.magADC[Z] != 0);
+    return (81 < accMagnitudeSq) && (accMagnitudeSq < 121);
 }
 
 static void imuCalculateEstimatedAttitude(timeUs_t currentTimeUs)
@@ -419,11 +414,11 @@ static void imuCalculateEstimatedAttitude(timeUs_t currentTimeUs)
     uint32_t deltaT = currentTimeUs - previousIMUUpdateTime;
     previousIMUUpdateTime = currentTimeUs;
 
-    if (imuIsAccelerometerHealthy()) {
+    if (imuCanUseAccelerometerForCorrection()) {
         useAcc = true;
     }
 
-    if (sensors(SENSOR_MAG) && isMagnetometerHealthy()) {
+    if (sensors(SENSOR_MAG) && commpasIsHealthy()) {
         useMag = true;
     }
 #if defined(USE_GPS)
@@ -544,7 +539,8 @@ void imuSetHasNewData(uint32_t dt)
 }
 #endif
 
-void imuQuaternionComputeProducts(quaternion *quat, quaternionProducts *quatProd) {
+void imuQuaternionComputeProducts(const quaternion *quat, quaternionProducts *quatProd)
+{
     quatProd->ww = quat->w * quat->w;
     quatProd->wx = quat->w * quat->x;
     quatProd->wy = quat->w * quat->y;
@@ -557,22 +553,22 @@ void imuQuaternionComputeProducts(quaternion *quat, quaternionProducts *quatProd
     quatProd->zz = quat->z * quat->z;
 }
 
-bool imuQuaternionHeadfreeOffsetSet(void) {
+bool imuQuaternionHeadfreeOffsetSet(void)
+{
     if ((ABS(attitude.values.roll) < 450)  && (ABS(attitude.values.pitch) < 450)) {
         const float yaw = -atan2_approx((+2.0f * (qP.wz + qP.xy)), (+1.0f - 2.0f * (qP.yy + qP.zz)));
-
         offset.w = cos_approx(yaw/2);
         offset.x = 0;
         offset.y = 0;
         offset.z = sin_approx(yaw/2);
-
-        return(true);
+        return true;
     } else {
-        return(false);
+        return false;
     }
 }
 
-void imuQuaternionMultiplication(quaternion *q1, quaternion *q2, quaternion *result) {
+void imuQuaternionMultiplication(const quaternion *q1, const quaternion *q2, quaternion *result)
+{
     const float A = (q1->w + q1->x) * (q2->w + q2->x);
     const float B = (q1->z - q1->y) * (q2->y - q2->z);
     const float C = (q1->w - q1->x) * (q2->y + q2->z);
@@ -588,8 +584,9 @@ void imuQuaternionMultiplication(quaternion *q1, quaternion *q2, quaternion *res
     result->z = D + (+ E - F - G + H) / 2.0f;
 }
 
-void imuQuaternionHeadfreeTransformVectorEarthToBody(t_fp_vector_def *v) {
-    quaternionProducts buffer;
+void imuQuaternionHeadfreeTransformVectorEarthToBody(t_fp_vector_def *v)
+{
+    quaternionProducts_t buffer;
 
     imuQuaternionMultiplication(&offset, &q, &headfree);
     imuQuaternionComputeProducts(&headfree, &buffer);

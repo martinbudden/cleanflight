@@ -58,4 +58,5 @@ PG_DECLARE(compassConfig_t, compassConfig);
 bool compassInit(void);
 union flightDynamicsTrims_u;
 void compassUpdate(uint32_t currentTime, union flightDynamicsTrims_u *magZero);
+bool compassIsHealthy(void);
 

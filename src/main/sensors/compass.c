@@ -262,6 +262,11 @@ bool compassInit(void)
     return true;
 }
 
+bool compassIsHealthy(void)
+{
+    return (mag.magADC[X] != 0) && (mag.magADC[Y] != 0) && (mag.magADC[Z] != 0);
+}
+
 void compassUpdate(uint32_t currentTime, flightDynamicsTrims_t *magZero)
 {
     static uint32_t tCal = 0;

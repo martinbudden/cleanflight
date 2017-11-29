@@ -521,9 +521,10 @@ bool accGetAccumulationAverage(float *accumulationAverage)
         // If we have gyro data accumulated, calculate average rate that will yield the same rotation
         for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
             accumulationAverage[axis] = accumulatedMeasurements[axis] / accumulatedMeasurementCount;
-            accumulatedMeasurements[axis] = 0.0f;
+            // use current average as starting point for next round
+            accumulatedMeasurements[axis] = accumulationAverage[axis];
         }
-        accumulatedMeasurementCount = 0;
+        accumulatedMeasurementCount = 1;
         return true;
     } else {
         for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
